@@ -1,0 +1,7 @@
+element S {
+  Void behave() {
+    Fail f;
+    f.fail(__FILE__,__LINE__,"WHY DON'T YOU WRITE ME?");
+  }
+}
+
