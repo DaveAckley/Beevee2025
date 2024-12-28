@@ -1,0 +1,196 @@
+quark SMTerm + Fail {
+  Unsigned(2) mType; // none, sense, motor, both(?)
+  Unsigned(2) mRange; // none, unsigned, signed, reserved
+  constant Unsigned(2) cRANGE_NONE = 0u;
+  constant Unsigned(2) cRANGE_UNSIGNED = 1u;
+  constant Unsigned(2) cRANGE_SIGNED = 2u;
+  constant Unsigned(2) cRANGE_RESERVED = 3u;
+  ASCII mIndex;
+  ASCII mUnsignedValue;
+  Int(8) mSignedValue;
+  Bool mIsNew;
+
+  Bool newValue() { return mIsNew; }
+
+  ASCII getIndex() { return mIndex; }
+  ASCII getValueUnsigned() {
+    if (mRange != 1u) fail(__FILE__,__LINE__);
+    return mUnsignedValue;
+  }
+
+  Int(8) getValueSigned() {
+    if (mRange != 2u) fail(__FILE__,__LINE__);
+    return mSignedValue;
+  }
+
+  Bool setValueUnsigned(ASCII value) {
+    Bool ret = false;
+    if (mType >= 2u && mRange == 1u) {
+      mUnsignedValue = value;
+      mSignedValue = 0;
+      ret = true;
+    }
+    return ret;
+  }
+
+  Bool setValueSigned(Int(8) value) {
+    Bool ret = false;
+    if (mType >= 2u && mRange == 2u) {
+      mSignedValue = value;
+      mUnsignedValue = 0u;
+      ret = true;
+    }
+    return ret;
+  }
+}
+
+transient Str8 {
+  typedef ASCII Buf8[8];
+  Buf8 mBuf8;
+
+  Self(Buf8 b8) {
+    mBuf8 = b8;
+  }
+
+  Self(String str) {
+    Unsigned strlen = str.lengthof;
+    for (Unsigned i = 0u; i < 8u; ++i) {
+      if (i >= strlen) break;
+      mBuf8[i] = str[i];
+    }
+  }
+
+  Self(Self other) {
+    for (Unsigned i = 0u; i < 8u; ++i) {
+      mBuf8[i] = other[i];
+    }
+  }
+
+  ASCII & operator[](Unsigned idx) {
+    return mBuf8[idx];
+  }
+
+  Bool operator==(String other) {
+    DebugUtils du;
+    Unsigned othlen = other.lengthof;
+    //du.print("OP=");
+    //du.print(other);
+    for (Unsigned i = 0u; i < 8u; ++i) {
+      //du.print("LOODPD");
+      //du.print(i);
+      Bool havebuf = mBuf8[i] != 0;
+      Bool haveoth = i<othlen;
+      //du.print(havebuf);
+      //du.print(haveoth);
+
+      if (havebuf && haveoth) {
+        //du.print("BOGHD");
+        //du.print(mBuf8[i]);
+        //du.print(other[i]);
+        if (mBuf8[i] != other[i])
+          return false;
+        //du.print("AFKEDOI");
+      } else if (havebuf || haveoth) {
+        //du.print("ORHAVE");
+        return false;
+      } else break;
+    }
+    //du.print("OGJDKOTS");
+    return true;
+  }
+
+  Unsigned write(ByteStreamWriter& bsa) {
+    Unsigned i = 0u;
+    for (; i < 8u; ++i) {
+      ASCII byte = mBuf8[i];
+      if (byte == 0u) break;
+      bsa.writeByte(byte);
+    }
+    return i;
+  }
+}
+
+quark BVBrainStem {
+  typedef ARGB Version;
+  Version getVersion() native; // { Version v = { 1, 0, 0 ,0 }; return v; }
+
+  Bool open() native; //< load tags if needed, and latest sensory input, true if succeeded
+
+  Bool close() native; //< write motor output
+
+  /* Deprecated; use newSense(idx)
+     Bool newSenses() native; //< true iff first newSenses() call after open() actually read input.dat
+  */
+
+  typedef Unsigned(8) TermCount;
+  TermCount getNumTerms() native; //< across entire physiology
+
+  typedef ASCII Buf8[8];
+  Buf8 getTermName(TermCount index) native; //< ret[0] == 0 if illegal index
+
+  SMTerm readTermByName(String name) {
+    DebugUtils du;
+    Unsigned c = getNumTerms();
+    SMTerm ret;
+    for (Unsigned i = 0u; i < c; ++i) {
+      TermCount t = (TermCount) i;
+      Buf8 n8 = getTermName(t);
+      Str8 s8(n8);
+      //du.print("AZONSF");
+      //du.print(i);
+      //du.print(s8);
+      if (s8 == name) {
+        //du.print("DLSWSLCK");
+        ret = readTerm(t);
+        break;
+      }
+    }
+    //du.print("POPNG");
+    //du.print(ret);
+    return ret;
+  }
+
+  Unsigned(2) getTermType(TermCount index) native; // 0: illegal, 1:sensor, 2:motor, 3:reserved
+  Unsigned(2) getTermRange(TermCount index) native; // 0: none, 1:unsigned, 2:signed, 3:reserved
+  ASCII getTermValueUnsigned(TermCount index) native; 
+  Int(8) getTermValueSigned(TermCount index) native;
+  //ASCII getTermValue(TermCount index) native; 
+  Bool setTermValueUnsigned(TermCount index, ASCII value) native;
+  Bool setTermValueSigned(TermCount index, Int(8) value) native;
+
+  Bool newSense(TermCount index) native;
+
+  SMTerm readTerm(TermCount index) {
+    SMTerm ret;
+    Bool hasval = true;
+    Unsigned(2) range = getTermRange(index);
+
+    if (range == SMTerm.cRANGE_UNSIGNED) 
+      ret.mUnsignedValue = getTermValueUnsigned(index);
+    else if (range == SMTerm.cRANGE_SIGNED) 
+      ret.mSignedValue = getTermValueSigned(index);
+    else
+      hasval = false;
+
+    if (hasval) {
+      ret.mIndex = index;
+      ret.mType = getTermType(index);
+      ret.mRange = range;
+
+      ret.mIsNew = newSense(index);
+    }
+    return ret;
+  }
+
+  Bool writeTerm(SMTerm term) {
+    Bool ret = false;
+    if (term.mRange == SMTerm.cRANGE_UNSIGNED) { //unsigned
+      if (setTermValueUnsigned(term.mIndex,term.mUnsignedValue))
+        ret = true;
+    } else if (term.mRange == SMTerm.cRANGE_SIGNED) { //signed
+      if (setTermValueSigned(term.mIndex,term.mSignedValue))
+        ret = true;
+    }
+    return ret;
+  }
+}
