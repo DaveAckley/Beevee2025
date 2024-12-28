@@ -11,6 +11,8 @@ MFZRUN:=$(MFM_BIN_DIR)/mfzrun
 UFLAGS:=-o
 ARGS_TXT_FILES:=$(wildcard args.txt)
 ULAM_FILES:=$(wildcard *.ulam)
+H_FILES:=$(sort $(wildcard *.h))
+TCC_FILES:=$(sort $(wildcard *.tcc))
 INC_FILES:=$(wildcard *.inc)
 TIMESTAMP:=$(shell date +%Y%m%d-%H%M%S)
 DEV:=$(shell whoami)
@@ -21,8 +23,8 @@ all:	$(MFZ)
 run:	$(MFZ)
 	$(MFZRUN) $(MFZ)
 
-$(MFZ):	$(ULAM_FILES) $(ARGS_TXT_FILES) Makefile
-	$(ULAM) $(UFLAGS) $(ULAM_FILES) $(INC_FILES) $(ARGS_TXT_FILES) $(MFZ)
+$(MFZ):	$(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) | Makefile
+	$(ULAM) $(UFLAGS) $^ $(MFZ)
 
 clean:
 	rm -f *~
