@@ -1,0 +1,51 @@
+# -*- mode: conf-toml; -*-
+# Sat Nov  2 00:22:20 2024 spread out the xbs hoping to make serloop tile numbering clearer
+# Tue Sep 10 09:16:34 2024 try right before left S & M to see if affects Beevee bias
+[Config]
+
+[xbar.HOTBOX]
+  indir=N
+  outdir=W
+  pos=[-5,-1]
+  inputs=[SRFR, SRFY, SLFR, SLFY, TOCK, SLRY, SLLY, SRRY, SRLY, SRRR, SLLR]
+  outputs=[GRIP, MRRF, MLRF, MREY, MLEY]
+
+[xbar.GREEN]
+  indir=W
+  outdir=N
+#  pos=[-5,6]
+  pos=[-5,10]
+  inputs=[SLFG, SRFG]
+  outputs=[GREG]
+  axons=[[GREG,MRRF],
+         [GREG,MLRF]]
+
+# [xbar.CTLGREEN]
+#   indir=E
+#   outdir=N
+#   pos=[-9,9]
+#   inputs=[IDFG]
+#   outputs=[GREG]
+
+[xbar.GREYS]
+  indir=N
+  outdir=E
+#  pos=[-17,-1]
+  pos=[-21,-1]
+  inputs=[SFLG, SFRG, SRRG, SRLG]
+  outputs=[HFLG, HFRG, HRRG, HRLG]
+  axons=[[HFLG,IFLG],
+         [HFRG,IFRG],
+         [HRRG,IRRG],
+         [HRLG,IRLG]]
+
+[xbar.CTLGREY]
+  indir=W
+  outdir=S
+#  pos=[-10,-2]
+  pos=[-14,-2]
+  inputs=[IFLG, IFRG, IRRG, IRLG]
+  outputs=[HFQA, HPDF, HPDR]
+  axons=[[HPDF, MLRF],
+         [HPDR, MRRF]]
+  
