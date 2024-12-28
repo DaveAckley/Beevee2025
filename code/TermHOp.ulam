@@ -1,0 +1,561 @@
+quark TermHOp : TermMotor {
+  //// TermHOp API
+  virtual Bool isEnabled(Unsigned gripnum) {
+    return true;
+  }
+  virtual Unsigned getArity() ; //< number of operands
+  virtual SlotSig & getSlotSig(Unsigned idx) ; //< ref to operand
+  virtual Bool accept(SlotSig & sig, Unsigned gripnum) ; //< return true iff consumed sig
+  virtual Bool execute(SlotSig & result) ;     //< perform op on ready args return true if set result
+
+  //// TERMMOTOR API
+  @Override
+  virtual Bool handleSigHook(SlotSig & iss, GripSource & gs) {
+    Unsigned gripnum = gs.getGripNumber();
+    mD&&pR("TOPHSH10")&&pR(iss);
+    Bool ret = accept(iss,gripnum); // (always true since iss occupied)
+    SlotSig result;
+    if (updateHOp(result)) {    // have op result to ship
+      mD&&pR("TOPHSH11")&&pR(result)&&pR(iss);
+      DebugUtils du;
+      BeeveeBIM bvb;
+
+      TapIdx myTapIdx = bvb.getTapIdx(self);
+      if (result.mSource == cTAPIDX_NONE) {
+        //du.print("STAMPHOPHSH");
+        result.mSource = myTapIdx;
+        mD&&pR("TOPHSH12")&&pR(result)&&pR(iss);
+      }
+      if (isEnabled(gripnum)) {
+        SN axonsn = findMatchingAxonEnd();
+        mD&&pR("TOPHSH13")&&pR(gripnum)&&pR(axonsn);
+        if (axonsn != SN.maxof) {
+          AxonEnd & axon = (AxonEnd&) ew[axonsn];
+          Bool sent = trySendSig(axon, result);
+          mD&&pR("TOPHSH14")&&pR(axon)&&pR(sent);
+        } else {
+          C2D gsc = gs.getPos2D();
+          Unsigned xbidx = bvb.getContainingXBIndex(gsc);
+          if (xbidx != Unsigned.maxof) {
+            BrainInfoMap.XBInfoBuffer xbib;
+            XBInfo & xbi = bvb.getXBInfo(xbidx, xbib);
+            TapIdx axondest = xbi.getXBInfoAxonTarget(myTapIdx);
+
+            mD&&pR("TOPHSH15")&&pR(axondest);
+            if (axondest != cTAPIDX_NONE) {
+              Random random;
+              if (random.oneIn(25u)) {
+                EventWindow ew;
+                MinXPick emppick;
+                for (SN sn = 1u; sn <= 8u; ++sn) {
+                  if (!ew.isAccessible(sn)) continue;
+                  if (ew[sn] is Empty) emppick.update(sn);
+                }
+                mD&&pR("TOPHSH16")&&pR(emppick);
+                if (emppick.hasPick()) {
+                  SN empsn = emppick.getIdxSN();
+                  FloodFindTAPIdx fix;
+                  fix.mMaxRadius = 20u;
+                  TermTargetLibrary ttl;
+                  fix.mLocal = myTapIdx;
+                  fix.mRemote = axondest;
+                  mD&&pR("TOPHSH17")&&pR(fix);
+                  ew[empsn] = fix.atomof;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    mD&&pR("TOPHSH18");
+    return true;
+  }
+
+  //// TermHOp SERVICES
+  Bool updateHOp(SlotSig & result) {
+    mD&&pR("TOUPHP10");
+    Unsigned cOPS = getArity();
+    for (Unsigned i = 0u; i < cOPS; ++i) {
+      SlotSig & op = getSlotSig(i);
+      mD&&pR("TOUPHP11")&&pR(op);
+      if (!op.isOccupied()) return false;
+    }
+    mD&&pR("TOUPHP12");
+    // all slots occupied: execute if wanted
+    SlotSig temp;
+    if (execute(temp)) {
+      mD&&pR("TOUPHP13")&&pR(temp);
+      result = temp;
+      return true;
+    }
+    mD&&pR("TOUPHP14");
+    return false;               // no biggie eh
+  }
+}
+
+quark HOpArgsT(Unary(3) cOPERANDS) : TermHOp {
+  SlotSig mHOperands[cOPERANDS];
+
+  //// HOpArgsT API
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) ;
+
+  //// TermHOp API
+  @Override
+  virtual Unsigned getArity() { return cOPERANDS; }
+
+  @Override
+  virtual SlotSig & getSlotSig(Unsigned idx) {
+    return mHOperands[idx];
+  }
+
+  @Override
+  virtual Bool accept(SlotSig& sig, Unsigned gripnum) {
+    if (!sig.isOccupied()) return false;
+    TapIdx sidx = sig.mSource;
+    Unsigned cops = getArity();
+    Int idx = sigToSlot(sig,gripnum);
+    if (idx < 0) return false;  // don't want it
+    if (idx < (Int) cops)       // want it
+      mHOperands[idx] = sig;
+    sig.reset();                // took it or toss it
+    return true;          
+  }
+}
+
+quark HOpNullary : HOpArgsT(0u) { }
+quark HOpUnary :   HOpArgsT(1u) { }
+quark HOpBinary :  HOpArgsT(2u) { }
+quark HOpTernary : HOpArgsT(3u) { }
+
+quark HOpUnaryDupe : TermHiddenIO {
+  
+  /** \return true if (possibly modified) signal should be
+    transhipped; \return false if signal should be dropped
+   */
+  virtual Bool transshipSigHook(SlotSig & iss, GripSource & gripsrc) {
+    return true;
+  }
+
+  /*
+  @Override
+  virtual Bool execute(SlotSig & result) {   //< perform op on ready args return true if set result
+    SlotSig & arg = getSlotSig(0u);
+    result = arg;               // dupe just copies to output
+    arg.reset();                // consume
+    return true;                // executed
+  }
+  */
+
+}
+
+quark HOpDiff : HOpBinary {
+  @Override
+  virtual Bool execute(SlotSig & ret) {
+    SlotSig & left = getSlotSig(0u);
+    SlotSig & right = getSlotSig(1u);
+    Int li = signedAsciiToInt(left.mValue);
+    Int ri = signedAsciiToInt(right.mValue);
+    mD&&pR("HOPDFXQ10")&&pR(li)&&pR(ri);
+    left.reset();
+    right.reset();
+
+    Int diff = li - ri;
+    ret.mValue = intToSignedAscii(diff);
+    mD&&pR("HOPDFXQ11")&&pR(ret);
+    return true;                // mSource to be set by caller!
+  }
+}
+
+quark HOpDiffNZ : HOpDiff {     //< diff but suppress 0s
+  @Override
+  virtual Bool execute(SlotSig & ret) {
+    SlotSig tmp;
+    if (super.execute(tmp)) {
+      if (tmp.mValue != intToSignedAscii(0)) {
+        ret = tmp;
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+quark HOpPLL10 : HOpNullary + Fail {
+  typedef Unsigned(9) Width;
+  Width mCycleWidths[2]; // [0] light, [1] dark
+  Width mCurrentPhase;   // 0..(wid[0]+wid[1]-1)
+  Bool mCurrentState;    // true: light, false: dark
+
+  //// HOpPLL10 API
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) ;
+
+  //// TermHOp API
+  @Override
+  virtual Bool isEnabled(Unsigned gripnum) {
+    return
+      gripnum == GripInfoMap.cGRIP_BV2BY || // correct in yellow too, for squarer hits??
+      gripnum == GripInfoMap.cGRIP_HUNTR ||
+      gripnum == GripInfoMap.cGRIP_TRAVL;
+  }
+
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("S2SPLL1010")&&pR(self);
+    if (!isEnabled(gripnum)) return 1; // toss it if not enabled in grip
+
+    TermTargetLibrary ttl;
+    TapIdx idx = sig.mSource;
+    TapIdx needed = (TapIdx) getSourceTAPIdx(ttl);
+    mD&&pR("S2SPLL1011")&&pR(idx)&&pR(needed);
+
+    if (idx == needed) {
+      if (++mCurrentPhase > 250u) // stay well clear of 255u
+        mCurrentPhase = 250u;   
+
+      Int v = signedAsciiToInt(sig.mValue);
+      Bool old = mCurrentState;
+      mD&&pR("S2SPLL1012")&&pR(mCurrentPhase)&&pR(v)&&pR(old);      
+      if (v > 240 && !mCurrentState) {
+        mCycleWidths[1] = (Width) ((mCycleWidths[1] + mCurrentPhase)/2u);
+        mCurrentState = true;
+        mCurrentPhase = 0u;
+      } else if (v < 10 && mCurrentState) {
+        mCycleWidths[0] = (Width) ((mCycleWidths[0] + mCurrentPhase)/2u);
+        mCurrentState = false;
+        mCurrentPhase = 0u;
+      }
+      mD&&pR("S2SPLL1013")&&pR(self);            
+      if (false /*old != mCurrentState*/) {
+        DebugUtils du;
+        du.print("STSHDGF10");
+        du.print(v);
+        //du.print(self);
+      }
+    }
+    mD&&pR("S2SPLL1014");
+    return 1;                   // 1 to nullary means toss it
+  }
+
+  @Override
+  virtual Bool execute(SlotSig & ret) {
+    mD&&pR("EXPLL1010")&&pR(self);
+    ASCII sig = (ASCII) ((mCurrentPhase/4u)*2u); // 9b->7b->8b even
+    if (mCurrentState) ++sig;                    // odd for light, even for dark
+    ret.mValue = sig;
+    mD&&pR("EXPLL1011")&&pR(ret);
+    return true;
+  }
+}
+
+/** Front Left cycle tracker
+    \symbol L0
+    \color #baa
+ */
+element HFLG : HOpPLL10 {
+  //// HOpPLL10 API
+  @Override
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    return ttl.getTapIdxFromClassId(SFLG.classidof);
+  }
+}
+
+/** Front Right cycle tracker
+    \symbol L1
+    \color #baa
+ */
+element HFRG : HOpPLL10 {
+  //// HOpPLL10 API
+  @Override
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    return ttl.getTapIdxFromClassId(SFRG.classidof);
+  }
+}
+
+/** Rear Right cycle tracker
+    \symbol L2
+    \color #baa
+ */
+element HRRG : HOpPLL10 {
+  //// HOpPLL10 API
+  @Override
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    return ttl.getTapIdxFromClassId(SRRG.classidof);
+  }
+}
+
+/** Rear Left cycle tracker
+    \symbol L3
+    \color #baa
+ */
+element HRLG : HOpPLL10 {
+  //// HOpPLL10 API
+  @Override
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    return ttl.getTapIdxFromClassId(SRLG.classidof);
+  }
+}
+
+/** Input Front Left cycle tracker
+    \symbol I0
+    \color #baa
+ */
+element IFLG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+/** Input Front Right cycle tracker
+    \symbol I1
+    \color #baa
+ */
+element IFRG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+/** Input Rear Right cycle tracker
+    \symbol I2
+    \color #baa
+ */
+element IRRG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+
+/** Input Rear Left cycle tracker
+    \symbol I3
+    \color #baa
+ */
+element IRLG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+quark HOpPhaseDiff : HOpBinary {
+
+  //// UrSelf API
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    SlotSig & left = getSlotSig(0u);
+    SlotSig & right = getSlotSig(1u);
+    if (!left.isOccupied() && !right.isOccupied())
+      return cu.color(0xffff0000);
+    if (!left.isOccupied() || !right.isOccupied())
+      return cu.color(0xffffff00);
+    return super.getColor(selector);
+  }
+
+  //// HOpPhaseDIff API
+  virtual ClassId getOpSlotClassId(Unsigned slot) ;
+  virtual Bool invertFinalSign() ;
+
+  typedef UMod(4) HexSpinner;
+  HexSpinner mSpinner;
+
+  @Override
+  virtual Void behave() {
+    mSpinner.increment();       // So we can see events happening
+    return super.behave(); 
+  }
+    
+  //// TermHOp API
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("HPDS2SPLL1010")&&pR(self);
+    if (!isEnabled(gripnum)) return 2; // toss it if not enabled in grip
+
+    mD&&pR("HPDS2SPLL1011");
+
+    TapIdx idx = sig.mSource;
+    BeeveeBIM bvb;
+    //    if (idx == bvb.getTapIdxFromClassId(IFLG.classidof))
+    if (idx == bvb.getTapIdxFromClassId(getOpSlotClassId(0)))
+      return 0;
+    mD&&pR("HPDS2SPLL1012");
+    //    if (idx == bvb.getTapIdxFromClassId(IFRG.classidof))
+    if (idx == bvb.getTapIdxFromClassId(getOpSlotClassId(1)))
+      return 1;
+    mD&&pR("HPDS2SPLL1013");
+    return 2; // 2 (not 0,1) to binary means toss it
+  }
+
+  //Bool mBearLeft = true; //< Seneca's state term
+  
+  @Override
+  virtual Bool execute(SlotSig & ret) {
+    SlotSig & left = getSlotSig(0u);
+    SlotSig & right = getSlotSig(1u);
+    Bool lState = (left.mValue&1) != 0u;
+    Bool rState = (right.mValue&1) != 0u;
+    Unsigned lPhase = (Unsigned) (left.mValue>>1u);
+    Unsigned rPhase = (Unsigned) (right.mValue>>1u);
+    left.reset();
+    right.reset();
+
+    if (BeeveeParms.pGREY_MULTIPLIER == 0u)
+      return false;
+
+    mD&&pR("HPDFX10L")&&pR(lState)&&pR(lPhase);
+    mD&&pR("HPDFX10R")&&pR(rState)&&pR(rPhase);
+
+    Int pdiff = (Int) lPhase - (Int) rPhase;
+    if (false /*BeeveeParms.pSENECAS_ERRORS*/) {
+      if (lState != rState || pdiff < -30 || pdiff > 30)  // only correct on 'small' matching
+        return false;
+    }
+
+    Int clipdiff = pdiff;
+    if (pdiff > 20) clipdiff = 20;
+    else if (pdiff < -20) clipdiff = -20;
+        
+    if (BeeveeParms.pFLIP_STATES && lState != rState) clipdiff = -clipdiff; // XXX???
+
+    if (invertFinalSign()) clipdiff = -clipdiff;
+
+    Int modval = 30 + (Int)(BeeveeParms.pGREY_MULTIPLIER)*clipdiff;
+    ret.mValue = intToSignedAscii(modval);
+    mD&&pR("HPDFX11")&&pR(pdiff)&&pR(modval)&&pR(ret);
+    return true;
+  }
+}
+
+/** Hidden Phase Diff Front
+    \symbol PF
+    \color #baa
+ */
+element HPDF : HOpPhaseDiff {
+  //// HOpPhaseDIff API
+  @Override
+  virtual ClassId getOpSlotClassId(Unsigned slot) {
+    if (slot == 0u) return IFLG.classidof;
+    if (slot == 1u) return IFRG.classidof;
+    return ClassId.maxof;
+  }
+  @Override
+  virtual Bool invertFinalSign() {
+    return true;
+  }
+}
+
+/** Hidden Phase Diff Rear
+    \symbol PR
+    \color #baa
+ */
+element HPDR : HOpPhaseDiff {
+  //// HOpPhaseDIff API
+  @Override
+  virtual ClassId getOpSlotClassId(Unsigned slot) {
+    if (slot == 0u) return IRLG.classidof;
+    if (slot == 1u) return IRRG.classidof;
+    return ClassId.maxof;
+  }
+  @Override
+  virtual Bool invertFinalSign() {
+    return false;
+  }
+}
+
+/** Hidden Frequency Average
+    \symbol FQ
+    \color #baa
+ */
+element HFQA : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+
+element HDGROLD : HOpDiff {
+  //// TermHOp API
+  @Override
+  virtual Bool isEnabled(Unsigned gripnum) {
+    return
+      gripnum == GripInfoMap.cGRIP_HUNTR ||
+      gripnum == GripInfoMap.cGRIP_TRAVL;
+  }
+
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    if (!isEnabled(gripnum)) return -1;
+    TermTargetLibrary ttl;
+    TapIdx idx = sig.mSource;
+    if (idx == ttl.getTapIdxFromClassId(SRLG.classidof))
+      return 0;                 // left arg
+    if (idx == ttl.getTapIdxFromClassId(SRRG.classidof))
+      return 1;                 // right arg
+    return -1;                  // don't want it
+  }
+}
+
+
+element HDGFOLD : HOpDiff {
+  //// TermHOp API
+  @Override
+  virtual Bool isEnabled(Unsigned gripnum) {
+    return
+      gripnum == GripInfoMap.cGRIP_HUNTR ||
+      gripnum == GripInfoMap.cGRIP_TRAVL;
+  }
+
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    TermTargetLibrary ttl;
+    TapIdx idx = sig.mSource;
+    if (idx == ttl.getTapIdxFromClassId(SFLG.classidof))
+      return 0;                 // left arg
+    if (idx == ttl.getTapIdxFromClassId(SFRG.classidof))
+      return 1;                 // right arg
+    return -1;                  // don't want it
+  }
+}
+
+/** Hidden Diff Green
+    \symbol DG
+    \color #3a3
+ */
+element HDFG : HOpDiffNZ {
+  //// TermHOp API
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("HDFG3SPLL1010")&&pR(self);
+    if (!isEnabled(gripnum)) return 2; // toss it if not enabled in grip
+
+    mD&&pR("HDFG3SPLL1011");
+
+    TapIdx idx = sig.mSource;
+    BeeveeBIM bvb;
+    if (idx == bvb.getTapIdxFromClassId(SLFG.classidof))
+      return 0;
+    mD&&pR("HDFG3SPLL1012");
+    if (idx == bvb.getTapIdxFromClassId(SRFG.classidof))
+      return 1;
+    mD&&pR("HDFG3SPLL1013");
+    return 2; // 2 (not 0,1) to binary means toss it
+  }
+}
+
+/** Hidden Diff Green
+    \symbol IG
+    \color #aba
+ */
+element IDFG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
+

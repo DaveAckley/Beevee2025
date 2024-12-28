@@ -1,0 +1,53 @@
+element WormBuilder : FWSearchHeadBase {
+  typedef Unsigned(10) SearchSteps;
+  SearchSteps mStepsLeft = SearchSteps.maxof;
+
+  @Override Bool actHead() {
+    if (isGoalAchieved()) {
+      // deploy head anchor
+      PDHeadAnchor pda;
+      pda.setDown(getDown());
+      ew[0] = pda.atomof;
+      return true; 
+    }
+    if (hasSearchFailed()) {
+      ew[0] = Empty.instanceof;
+      return true;
+    }
+    return returnStep();
+  }
+
+  virtual Bool hasSearchFailed() {
+    return mStepsLeft-- == 0u;
+  }
+
+  virtual Bool isGoalAchieved() {
+    Unsigned distaway = mAnchor.length();
+    if (distaway < 3u) return true;
+    return false;
+  }
+  
+}
+
+/** Build a WormBuilder.
+    \symbol BW
+    \color #a1c
+ */
+element SpikeWormBuilder10 {
+  typedef FWSearchHeadBase.SC2D SC2D;
+  Random random;
+  EventWindow ew;
+  Void behave() {
+    SC2D dest((SC2D.Coord) random.between(-32,32),
+              (SC2D.Coord) random.between(-32,32));
+    WormBuilder wb;
+    wb.mAnchor = dest;
+
+    PDTailAnchor pda;
+    wb.setDown(4u);
+    pda.setUp(1u);
+
+    ew[1u] = wb.atomof;
+    ew[0u] = pda.atomof;
+  }
+}

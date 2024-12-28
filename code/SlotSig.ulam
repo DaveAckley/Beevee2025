@@ -1,0 +1,23 @@
+quark SlotSig + DTU {
+  ASCII mValue;
+  TapIdx mSource = cTAPIDX_NONE;
+
+  ASCII getValueUnsigned() { return mValue; }
+  Int(8) getValueSigned() { return (Int(8)) asciiToInt(mValue); }
+
+  Bool isOccupied() { return mSource != cTAPIDX_NONE; }
+
+  Void setOccupied(ASCII val, TapIdx source) {
+    mValue = val;
+    mSource = source;
+  }
+
+  Bool reset() {
+    if (isOccupied()) {
+      mValue = 0u;
+      mSource = cTAPIDX_NONE;
+      return true;
+    }
+    return false;
+  }
+}

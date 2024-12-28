@@ -1,0 +1,380 @@
+quark FloodFind + DTU + Fail + QDebugUtils {
+  typedef Unsigned(8u) FloodRadius;
+  FloodRadius mMaxRadius = 10u; //< default final max radius?
+  FloodRadius mCurMaxRadius = 1u; //< current max radius
+  FloodRadius mMyRadius;
+
+  typedef Unsigned(5u) RootWait;
+  RootWait mRootWait = 0u;      //< how long to wait between mCurMaxRadius increments
+  SN mParentSN = 0u;            //< 0u == root
+
+  //// FloodFind API
+  virtual Bool isGoal(Atom & a) {
+    return false;
+  }
+
+  virtual Void consumeRoot() {
+    fail(__FILE__,__LINE__);
+  }
+
+  //// UrSelf API
+  @Override
+  Void renderGraphics() {
+    if (mParentSN != 0u) {
+      FWTD tmp;
+      tmp.renderBond(mParentSN, 90u, getColor(0u));
+    }
+  }
+
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    ARGB ret = super.getColor(selector);
+    if (mParentSN == 0u) return ret;
+    if (mFloodState == cFS_FOUND)
+      return cu.color(0xffff3333); // red
+    if (mFloodState == cFS_TRACE)
+      return cu.color(0xffffff33); // yellow
+    if (mFloodState == cFS_PRUNE)
+      return cu.color(0xff333333); // dark gray
+      
+    Unsigned pct = 100u * mMyRadius / mMaxRadius;
+    ARGB col = cu.color(0xff00ff00);
+    return cu.between(ret, col, pct);
+  }
+
+  typedef Unsigned(3u) FloodState;
+  constant FloodState cFS_FLOOD = 0u; //< search outwords
+  constant FloodState cFS_FOUND = 1u; //< send goal-found back to root
+  constant FloodState cFS_TRACE = 2u; //< i propagated found to my parent
+  constant FloodState cFS_PRUNE = 3u; //< self and kids die
+  constant FloodState cFS_DIE = 4u;   //< panic - self, parent, and kids die
+  constant FloodState cFS_NONE = FloodState.maxof;   //< non-existent item
+  FloodState mFloodState = cFS_FLOOD;
+
+  Bool tryFlood() {
+    mD&&pR("FFTF10");
+    if (mFloodState != cFS_FLOOD) return false;
+
+    EventWindow ew;
+    if (ew.isAccessible(mParentSN)) {
+      Atom & a = ew[mParentSN];
+      if (a as Self) 
+        if (a.mCurMaxRadius > mCurMaxRadius)
+          mCurMaxRadius = a.mCurMaxRadius; // propagate radius growth
+    }
+    
+    if (mMyRadius > mCurMaxRadius) return dieTrue();
+    if (mMyRadius == mCurMaxRadius) return false;
+    Unsigned growdist = mCurMaxRadius - mMyRadius;
+    Unsigned growodds = growdist*growdist + 1u;
+    mD&&pR("FFTF11")&&pR(growdist)&&pR(growodds);
+
+    Unsigned ngbs = 0u;
+    MinXPick emppick;
+
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (isGoal(a)) {
+        mFloodState = cFS_FOUND;
+        return true;
+      }
+      if (a is FloodFind) ++ngbs;
+      else if (a is Empty)
+        emppick.update(sn);
+    }
+    Random random;
+    if (random.oneIn(growodds)) return false; // allow finding goal even if no growth
+
+    mD&&pR("FFTF12")&&pR(ngbs)&&pR(emppick);
+
+    if (ngbs < 20u /*ngbs < 6u || random.oneIn(100u)*/) {
+      if (!emppick.hasPick()) return false;
+      mD&&pR("FFTF13");
+      Atom akid = self.atomof;  // copy us
+      Self & kid = (Self&) akid;
+      kid.mMyRadius++;
+      SN kidsn = emppick.getIdxSN();
+      C2D kc = ew.getCoord(kidsn);
+      SN parsn = ew.getSiteNumber(-kc);
+      kid.mParentSN = parsn;
+      mD&&pR("FFTF14")&&pR(kid)&&pR(kidsn);
+      ew[kidsn] = kid.atomof;
+      return true;
+    }
+    mD&&pR("FFTF15");
+    if (false /*(ngbs > 8u || random.oneIn(100u)) && mParentSN != 0u*/) {
+      mD&&pR("FFTF16");
+      ew[0] = Empty.instanceof;
+    }
+    return true;
+  }
+
+  Bool dieTrue() {
+    EventWindow ew;
+
+    ew[0] = Empty.instanceof;
+    return true;
+  }
+
+  Void setKidsTo(FloodState newstate) {
+    setKidsTo(newstate,cFS_NONE);
+  }
+
+  Void setKidsTo(FloodState newstate, FloodState unlessstate) {
+    EventWindow ew;
+
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as FloodFind) {
+        C2D ac = ew.getCoord(sn);
+        SN revsn = ew.getSiteNumber(-ac);
+        if (a.mParentSN == revsn && a.mFloodState != unlessstate) // notify our kids
+          a.mFloodState = newstate;
+      }
+    }
+  }
+  Void setParentTo(FloodState newstate) {
+    EventWindow ew;
+    if (mParentSN == 0u) return fail(__FILE__,__LINE__); // i'm root wtf
+    if (ew.isAccessible(mParentSN)) {
+      Atom & a = ew[mParentSN];
+      if (a as Self) {
+        a.mFloodState = newstate;
+        return;
+      }
+    }
+    dieTrue();                  // setParentTo NEEDS a parent
+  }
+
+  /// SUPPORT ROUTINES
+  //tryFlood : search and perhaps flood, set self to FOUND if found
+  //doPrune  : set kids to PRUNE, erase self
+  //doTrace : set parent to FOUND, set self to TRACE
+  //doDie : set kids to DIE, set parent (if any) to DIE, erase self
+
+  Bool doPrune() {  setKidsTo(cFS_PRUNE); return dieTrue(); }
+  Bool doDie() {
+    setKidsTo(cFS_DIE);
+    setParentTo(cFS_DIE);
+    return dieTrue();
+  }
+
+  Bool doTrace() {
+    setKidsTo(cFS_PRUNE,cFS_TRACE);
+    setParentTo(cFS_FOUND);
+    mFloodState = cFS_TRACE;
+    return true;
+  }
+
+  Bool updateRootState() {
+    if (mCurMaxRadius < mMaxRadius) {
+      if (++mRootWait == mRootWait.maxof) {
+        mCurMaxRadius += 1u;
+        mRootWait = 0u;
+      }
+    }
+    which (mFloodState) {
+    case cFS_FLOOD: { return tryFlood(); }
+    case cFS_FOUND: {
+      DebugUtils du;
+      du.print("UPROSTFOOOOOUND");
+      consumeRoot();
+      return true;
+    }
+    otherwise: { fail(__FILE__,__LINE__); }
+    }
+    DebugUtils du;
+    du.print("UPROST");
+    return true;
+  }
+
+  Bool updateState() {
+    EventWindow ew;
+    if (mParentSN == 0u) return updateRootState(); // we are root
+    if (!ew.isAccessible(mParentSN)) return dieTrue();
+    FloodState m = mFloodState; // my state
+    FloodState p = cFS_NONE;    // assume no parent
+
+    Atom & a = ew[mParentSN];
+    if (a as Self) {
+      p = a.mFloodState;
+      if (a.mMyRadius+1u != mMyRadius) return dieTrue(); // ?
+    } else if (a is Empty) return dieTrue(); // ?
+
+    which(m) {
+      case cFS_FLOOD: {
+        which (p) {
+        case cFS_FLOOD: { return tryFlood(); }
+        case cFS_DIE:
+        case cFS_PRUNE: { return true; }      // wait
+        case cFS_NONE:
+        otherwise: { return doPrune(); }
+        }
+      }
+      case cFS_FOUND: {
+        which (p) {
+        case cFS_FLOOD: { return doTrace(); }
+        case cFS_DIE:
+        case cFS_PRUNE: { return true; }      // wait
+        case cFS_NONE:
+        otherwise: { return doPrune(); }
+        }
+      }
+      case cFS_TRACE: {
+        which (p) {
+        //case cFS_FLOOD: { fail(__FILE__,__LINE__); }
+        case cFS_FLOOD: { return doDie(); } // XXX??
+        otherwise: { return true; }        // wait
+        }
+      }
+      case cFS_PRUNE: {
+        which (p) {
+        case cFS_DIE: { return true; } // wait
+        otherwise: { return doPrune(); } 
+        }
+      }
+      case cFS_DIE: {
+        which (p) {
+        otherwise: { return doDie(); } 
+        }
+      }
+      otherwise: { fail(__FILE__,__LINE__); }
+    }
+    return false; // NOT REACHED
+  }
+
+  /*
+  Bool checkDie() {
+    if (mFloodState != cFS_DIE) return false;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as FloodFind) {    
+        if (mParentSN == sn)    // notify our parent
+          a.mFloodState = cFS_DIE;
+        else {
+          C2D ac = ew.getCoord(sn);
+          SN revsn = ew.getSiteNumber(-ac);
+          if (a.mParentSN == revsn) // notify our kids
+            a.mFloodState = cFS_DIE;
+        }
+      }
+    }
+    return dieTrue();
+  }
+  */
+
+  @Override
+  Void behave() {
+    //    if (checkDie()) return;
+    //    if (checkParent()) return;
+    //    if (doFlood()) return;
+    updateState();
+  }
+}
+
+element FloodFindClassId : FloodFind {
+  ClassId mClassId;
+
+  //// FloodFind API
+  @Override
+  virtual Bool isGoal(Atom & a) {
+    ClassUtils cu;
+    ClassId aid = cu.getClassId(a);
+    return cu.isBase(aid,mClassId);
+  }
+}
+
+/** demo find
+    \symbol FT
+    \color #F0F
+*/
+element FloodFindTAP : FloodFind {
+  @Override
+  virtual Bool isGoal(Atom & a) {
+    return a is TAP;
+  }
+}
+
+/** find axon dest and init
+    \symbol FX
+    \color #F0F
+*/
+element FloodFindTAPIdx : FloodFind {
+  TapIdx mLocal, mRemote;
+  Bool mBranchOK = false;
+
+  //// FloodFind API
+
+  @Override
+  virtual Bool isGoal(Atom & a) {
+    TermTargetLibrary ttl;
+    if (a as TAP) {
+      TapIdx ax = ttl.getTapIdx(a);
+      if (mRemote == ax) return true;
+    } else if (a as AxonMid) {
+      TapIdx abx = a.getAxonTap(cAXON_HEAD_IDX);
+      if (mBranchOK && mRemote == abx) return true;
+    }
+    return false;
+  }
+
+  @Override  
+  virtual Void consumeRoot() {
+    DebugUtils du;
+    du.printContext();
+    du.print(self);
+    du.print("AIIIIIIIIEEEEEEEEE!");
+
+    EventWindow ew;
+    /// find 'the' kid
+    SN kidsn = SN.maxof;
+    SN revsn;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as FloodFind) {
+        C2D ac = ew.getCoord(sn);
+        revsn = ew.getSiteNumber(-ac);
+        if (a.mFloodState == a.cFS_TRACE && a.mParentSN == revsn) {
+          kidsn = sn;
+          break;
+        }
+      }
+    }
+    if (kidsn != SN.maxof) {
+      // We can build in 0 and kidsn
+
+      AxonHead ah;
+      AxonTail at;
+      ah.setDown(revsn);
+      ah.mAxonTaps[0] = mRemote;
+      ah.mAxonTaps[1] = mLocal;
+      ah.mBranchOK = mBranchOK;
+      at.setUp(kidsn);
+      at.mAxonTaps[0] = mRemote;
+      at.mAxonTaps[1] = mLocal;
+      at.mBranchOK = mBranchOK;
+      ew[kidsn] = ah.atomof;
+      ew[0] = at.atomof;
+    } else {
+      du.print("NO KID BYEEEEEEEEEEEEE!");
+      ew[0] = Empty.instanceof;
+    }
+  }
+}
+
+element AxSpike10 + DTU {
+  Void behave() {
+    FloodFindTAPIdx fix;
+    TermTargetLibrary ttl;
+    //    fix.mLocal = (TapIdx) ttl.getTapIdxFromClassId(HDGF.classidof);
+    fix.mLocal = (TapIdx) ttl.getTapIdxFromClassId(HFRG.classidof);
+    fix.mRemote = (TapIdx) ttl.getTapIdxFromClassId(MLRF.classidof);
+    EventWindow ew;
+    ew[0] = fix.atomof;
+  }
+}

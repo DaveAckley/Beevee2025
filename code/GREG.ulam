@@ -1,0 +1,503 @@
+/** GreenGRIP DRIVER.
+    \symbol GE
+    \color #11dd33
+ */
+element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
+  //// UrSelf API
+  @Override
+  Void behave() {
+    mD&&pR("GREGBV10")&&pR(self);
+    Unsigned gripnum = getGripNumber();
+    GripInfoMap gim(self);
+    if (!gim.isOrientGripNum(gripnum)) {    // always be cleaning
+      Bool old = mD;
+      //mD = true;
+      mD&&pR("GREGBV11")&&pR(gripnum);
+      mEventCounter = 0u;                   // when we're not
+      mSpinCounter = 0u;                    // actually orienting
+      mMaxGreen = 0u;
+      mState = cSTATE_WAIT;
+      mD = old;
+    }
+    return super.behave();
+  }
+
+  @Override
+  Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    super.renderGraphics();
+
+    Unsigned gripnum = getGripNumber(); // our current grip
+
+    GripInfoMap gim(self);
+    if (!gim.isOrientGripNum(gripnum)) return; // just be normal
+    
+    SN sn = (SN) (1u + gripnum - gim.cGRIP_TURNW); // map grip to ngb
+
+    ColorUtils cu;
+    ARGB col = cu.color(0xffffffff); // bold white bar?
+    
+    FWTD tmp;
+    tmp.renderBond(sn, 150u, col); // half again beyond SN spacing..
+  }
+
+  constant Unsigned cGRIPBITS = XBarSpace2D.cGRIPBITS;
+  typedef Unsigned(cGRIPBITS) GripStg;
+
+  typedef Unsigned(9) MaxCount;
+  MaxCount mMaxGreen;
+
+  //// HOpArgsT API
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("GREGS2S10")&&pR(self);
+    if (!isEnabled(gripnum)) return 2; // toss it if not enabled in grip
+
+    BeeveeBIM bim;
+    TapIdx idx = sig.mSource;
+    if (idx == bim.getTapIdxFromClassId(SLFG.classidof))
+      return 0;                 // want for left slot
+    if (idx == bim.getTapIdxFromClassId(SRFG.classidof))
+      return 1;                 // want for right slot
+
+    return 2;                   // don't want
+  }
+
+  typedef Unsigned(3u) MyState;
+  MyState mState = 0u;
+  constant MyState cSTATE_WAIT = 0u;
+  constant MyState cSTATE_STOP = 1u;
+  constant MyState cSTATE_CLEAR = 2u;
+  constant MyState cSTATE_MARK1 = 3u;
+  constant MyState cSTATE_SMALL = 4u;
+  constant MyState cSTATE_MARK2 = 5u;
+  constant MyState cSTATE_ORIENT = 6u;
+  constant MyState cSTATE_REGRIP = 7u;
+
+  typedef Unsigned(8u) MyEventCounter;
+  MyEventCounter mEventCounter;
+
+  //ASCII mGOALHeading;           //< in 2 deg incrs cw from east
+
+  //  IFrac mOrientation;           
+  typedef Unsigned(12) SpinCounter;
+  SpinCounter mSpinCounter;
+
+  @Override virtual ARGB getColor(Unsigned selector) {
+    ARGB ret = { 0xff, 0x11, 0xdd, 0x33 };
+    return ret;
+  } 
+
+  //// TermHOp API
+  @Override
+  virtual Bool execute(SlotSig & result) {
+    mD&&pR("EGBV10")&&pR(self);
+
+    /// REFRESH GRIPNUM
+    SN sn = 2u;
+    if (!ew.isAccessible(sn)) return false;
+    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
+    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+   
+    mD&&pR("EGBV11")&&pR(xb);
+
+    if (!xb.hasSymmetry()) return false; // too soon?
+
+    Unsigned gripnum = getGripNumber(); // our current grip
+    if (gripnum != xb.getGripNumber()) {
+      gripnum = xb.getGripNumber();
+      setGripNumber(gripnum);
+      mD&&pR("EGBV12")&&pR(self);
+    }
+
+    GripInfoMap gim(self);
+    if (!gim.isOrientGripNum(gripnum))
+      return false;
+    AxialDir turnad = (AxialDir) (gripnum - gim.cGRIP_TURNW);
+    ClassId giid = gim.getGripInfoClassId(gripnum); // of current grip
+    GripInfo & gin = gim.getGripInfo(giid);
+
+    SlotSig & iss = xb.getSlotSig(false); // check incoming
+
+   //// DISPATCH ON STATE
+   which (mState) {
+   case cSTATE_WAIT: { return executeWAIT(gripnum,gim,gin,xb); }
+   case cSTATE_STOP: { return executeSTOP(gripnum,gim,gin,xb); }
+   case cSTATE_CLEAR: { return executeCLEAR(gripnum,gim,gin,xb); }
+   case cSTATE_MARK1: { return executeMARK1(gripnum,gim,gin,xb); }
+   case cSTATE_SMALL: { return executeSMALL(gripnum,gim,gin,xb); }
+   case cSTATE_MARK2: { return executeMARK2(gripnum,gim,gin,xb); }
+   case cSTATE_ORIENT: { return executeORIENT(gripnum,gim,gin,xb); }
+   case cSTATE_REGRIP: { return executeREGRIP(gripnum,gim,gin,xb); }
+   }
+   return false;
+ }
+
+ Bool trySendSig(ASCII sig, ClassId toclassid) {
+   BeeveeBIM bim;
+   TapIdx mytapidx = bim.getTapIdx(self);
+   Unsigned themt = bim.getTapIdxFromClassId(toclassid);
+   if (themt == Unsigned.maxof)
+     fail(__FILE__,__LINE__);
+   TapIdx themtapidx = (TapIdx) themt;
+   SN axonsn = findMatchingAxonEndWithClassId(toclassid);
+   if (axonsn != SN.maxof) {
+     AxonEnd & axon = (AxonEnd&) ew[axonsn];
+     mD&&pR("TMTOR14")&&pR(axonsn);
+     SlotSig oss;
+     oss.mValue = sig;
+     oss.mSource = mytapidx;
+     return trySendSig(axon,oss);
+   }
+   // no axon
+   MinXPick emppick;
+   Random random;
+   EventWindow ew;
+   for (SN sn = 1u; sn < 41u; ++sn) {
+     if (!ew.isAccessible(sn)) continue;
+     if (sn <= 8u && ew[sn] is Empty) emppick.update(sn);
+     if (ew[sn] is FloodFind) 
+       return false;          // Flooding in progress
+   }
+   if (emppick.hasPick()) {
+     SN empsn = emppick.getIdxSN();
+     FloodFindTAPIdx fix;
+     fix.mBranchOK = true;      // XXXX TESTING DENDRITIC TREES
+     fix.mMaxRadius = 20u;
+     fix.mLocal = mytapidx;
+     fix.mRemote = themtapidx;
+     mD&&pR("TOPHSH17")&&pR(fix);
+     ew[empsn] = fix.atomof;
+   }
+   return false;
+ }
+
+ Unsigned getGreen(Bool wantLeft) {
+   SlotSig & iss = getSlotSig(wantLeft ? 0u : 1u);
+   if (!iss.isOccupied()) return Unsigned.maxof;
+   Unsigned ret = iss.mValue;
+   return ret;
+ }
+
+ Void resetGreen(Bool wantLeft) {
+   SlotSig & iss = getSlotSig(wantLeft ? 0u : 1u);
+   iss.reset();
+ }
+
+ Unsigned getTotalGreen() {
+   Unsigned leftg = getGreen(true);
+   Unsigned rightg = getGreen(false);
+   if (leftg == Unsigned.maxof ||
+       rightg == Unsigned.maxof)
+     return Unsigned.maxof;
+   resetGreen(true);            // don't reset til we have a pair
+   resetGreen(false);
+   return leftg + rightg;
+ }
+
+ constant Int cLEFT_ROTATION_SPEED = -7; // slower backwards
+ constant Int cRIGHT_ROTATION_SPEED = 20; // faster forwards
+ Void sitAndRotate() {
+   getSlotSig(0u).reset();      // discard any
+   getSlotSig(1u).reset();      // leftover signals
+   ASCII psb = intToSignedAscii(cRIGHT_ROTATION_SPEED);
+   ASCII nsb = intToSignedAscii(cLEFT_ROTATION_SPEED);
+   trySendSig(nsb,MLRF.classidof);
+   trySendSig(psb,MRRF.classidof);
+ }
+
+ Bool executeWAIT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   mEventCounter = 0u;
+   mState = cSTATE_STOP;
+   return false;
+ }
+
+ // advance to L+R 0
+ Bool executeSTOP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false;
+
+   // insist on a bunch of events to grow axons if needed
+   if (++mEventCounter > 50u && totg == 0u) { // 2: set motors to +-turnSpeed until L&R 'small' (RESET)
+     mEventCounter = 0u;
+     mMaxGreen = 0u;
+     mState = cSTATE_CLEAR;
+   } else {
+     sitAndRotate();
+   }
+   return false;
+ }
+
+ // go from L+R=0 to L+R=0 while computing mMaxGreen
+ Bool executeCLEAR(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false;
+
+   if (totg > mMaxGreen) mMaxGreen = (MaxCount) totg;
+
+   if (mMaxGreen > 50u && totg == 0u) {
+     mEventCounter = 0u;
+     mSpinCounter = 0u;
+     mMaxGreen = (MaxCount) (BeeveeParms.pGREEN_MAX_FRAC*mMaxGreen/100u); // reset to (parm%) of 'true max'
+     mState = cSTATE_MARK1;
+   } else {
+     if (++mEventCounter == mEventCounter.maxof)
+       mEventCounter = 0u;
+     sitAndRotate();
+   }
+   return false;
+ }
+ // constant Unsigned cGREEN_BIG = 70u;
+ // constant Unsigned cGREEN_GAP = 15u;
+
+ // get to l+r max w/o spincounting, then back to l+r 0 w/spincounting
+ Bool executeMARK1(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false;
+
+   if (mSpinCounter != 0u) {
+     if (totg == 0u) {
+       mEventCounter = 0u;
+       mState = cSTATE_SMALL;
+     } else ++mSpinCounter;
+   } else /* mSpinCounter == 0 */ {
+     if (totg >= mMaxGreen) 
+       mSpinCounter = 1u;
+   }
+
+   if (++mEventCounter == mEventCounter.maxof)
+     mEventCounter = 0u;
+   sitAndRotate();
+   return false;
+ }
+
+ // get to l+r 'max' while continuing to spincount, then compute orientation parms
+ Bool executeSMALL(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false;
+
+   if (totg >= mMaxGreen) {
+     Unsigned fullTurn = mSpinCounter;
+     Unsigned quarterTurn = fullTurn/4u;
+     Unsigned quarterTurnsNeeded;
+     which (gripnum) {
+       case GripInfoMap.cGRIP_TURNW: { quarterTurnsNeeded = 2u; }
+       case GripInfoMap.cGRIP_TURNN: { quarterTurnsNeeded = 1u; }
+       case GripInfoMap.cGRIP_TURNS: { quarterTurnsNeeded = 3u; }
+       case GripInfoMap.cGRIP_TURNE: { quarterTurnsNeeded = 0u; }
+     }
+     mSpinCounter = (SpinCounter) (quarterTurn * quarterTurnsNeeded + BeeveeParms.pEXTRA_SPINS50 - 50u);
+     mEventCounter = 0u;
+     mState = cSTATE_MARK2;
+   } else {
+     ++mSpinCounter;
+     if (++mEventCounter == mEventCounter.maxof)
+       mEventCounter = 0u;
+     sitAndRotate();
+   }
+   return false;
+ }
+
+ // count down til 'oriented as requested'
+ Bool executeMARK2(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false; // don't need it but to match delays
+
+   if (--mSpinCounter == 0u) {
+     mState = cSTATE_ORIENT;
+     mEventCounter = 0u;
+   } else
+     sitAndRotate();
+   return false;
+ }
+
+ Void driveBothMotors(ASCII left, ASCII right) {
+   SN axonsnL = findMatchingAxonEndWithClassId(MLRF.classidof);
+   SN axonsnR = findMatchingAxonEndWithClassId(MRRF.classidof);
+   if (axonsnL != SN.maxof && axonsnR != SN.maxof) { // special checks if both axons in
+     AxonEnd & axonL = (AxonEnd&) ew[axonsnL];
+     SlotSig & osL = axonL.getEndSlotSig(false); // get outbound
+     if (osL.isOccupied()) return;               // don't ship either..
+
+     AxonEnd & axonR = (AxonEnd&) ew[axonsnR];
+     SlotSig & osR = axonR.getEndSlotSig(false); // get outbound
+     if (osR.isOccupied()) return;               // ..unless both can ship
+   }
+   trySendSig(left,MLRF.classidof);
+   trySendSig(right,MRRF.classidof);
+ }
+
+ // cool our jets
+ Bool executeORIENT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   Unsigned totg = getTotalGreen();
+   if (totg == Unsigned.maxof) return false; // don't need it but to match delays
+
+   ++mEventCounter;
+   constant Unsigned cSTOP_TIME = 20u;
+   constant Unsigned cSPEED_REPS = 10u;
+   constant Unsigned cEXIT_SPEED = 15u; // (*2)
+   if (mEventCounter < cSTOP_TIME) {
+     // first stop the motors for a 'clean pass' out of orient
+     ASCII zsb = intToSignedAscii(0);
+     driveBothMotors(zsb,zsb);
+   } else if (mEventCounter < (cSTOP_TIME+cEXIT_SPEED*cSPEED_REPS)) {
+     // then ramp up speed slowly (now by 2s?)
+     Int speed = 2*(Int) ((mEventCounter - cSTOP_TIME)/cSPEED_REPS); // 20..170 -> 0..30
+     ASCII zsb = intToSignedAscii(speed);
+     driveBothMotors(zsb,zsb);
+   } else {
+     // then release our grip
+     mState = cSTATE_REGRIP;
+     mEventCounter = 0u;
+   }
+   return false;
+ }
+
+ // release the grip
+ Bool executeREGRIP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+   tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
+   return true;
+ }
+
+ Void tryChangeGripNumber(Unsigned newgripnum) {
+    EventWindow ew;
+    MinXPick emptypick;         // Look for an empty
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (!(ew[sn] is Empty)) continue;
+      C2D csn = ew.getCoord(sn);
+      emptypick.update(sn,csn.length());
+    }
+    if (emptypick.hasPick()) {
+      setGripNumber(newgripnum);
+      SendGrip sg(newgripnum);
+      SN esn = emptypick.getIdxSN();
+      ew[esn] = sg.atomof;
+      mState = cSTATE_WAIT;
+    }
+  }
+
+}
+
+/** Beevee Box Step
+    \symbol BX
+    \color #11dd33
+ */
+element TriggerBoxStep + DTU {
+  constant Unsigned cTURN_SEQUENCE[] = { // clockwise
+    GripInfoMap.cGRIP_TURNW,
+    GripInfoMap.cGRIP_TURNN,
+    GripInfoMap.cGRIP_TURNE,
+    GripInfoMap.cGRIP_TURNS,
+  };
+
+  Unsigned(6) mLoops = 0u;
+  Unsigned(9) mWait = 0u;
+  Unsigned(2) mNextGripIdx = 0u;
+  Unsigned getAndAdvanceGrip() {
+    Unsigned idx = mNextGripIdx;
+    if (mNextGripIdx == 3u) {
+      mNextGripIdx = 0u;
+      ++mLoops;
+    } else ++mNextGripIdx;
+    Unsigned ret = cTURN_SEQUENCE[idx];
+    DebugUtils du;
+    du.print("BOXSTEPADVANCE");
+    du.print(self);
+    du.print(ret);
+    return ret;
+  }
+
+  typedef Unsigned(2) MyState;
+  constant MyState cAWAIT_RED = 0u;
+  constant MyState cAWAIT_BLUE = 1u;
+  constant MyState cORIENT = 2u;
+  constant MyState cREAWAIT_BLUE = 3u;
+  MyState mMyState = cAWAIT_BLUE;
+
+  Void die() {
+    EventWindow ew;
+    ew[0] = Empty.instanceof;
+  }
+
+  Void behave() {
+    EventWindow ew;
+    SN gripsn = SN.maxof;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a is GRIP) {
+        gripsn = sn;
+        break;
+      }
+    }
+    if (gripsn == SN.maxof) return die();
+    GRIP & grip = (GRIP&) ew[gripsn];
+
+    Unsigned curgrip = grip.getGripNumber();
+    which (mMyState) {
+      case cAWAIT_RED: {
+        if (curgrip == GripInfoMap.cGRIP_NORED) {
+          if (++mWait == mWait.maxof) {
+            mMyState = cAWAIT_BLUE;
+            mWait = 0u;
+          }
+        } else mWait = 0u;
+      }
+      case cAWAIT_BLUE: {
+        if (curgrip == GripInfoMap.cGRIP_HUNTR) {
+          if (++mWait == mWait.maxof) {
+            Unsigned newgrip = getAndAdvanceGrip();
+            grip.tryChangeGripNumber(newgrip);
+            mMyState = cORIENT;
+            mWait = 0u;
+          }
+        } else mWait = 0u;
+      }
+      case cORIENT: {
+        if (curgrip == GripInfoMap.cGRIP_HUNTR) {
+          if (++mWait == mWait.maxof) {
+            mMyState = cAWAIT_BLUE;
+            mWait = 0u;
+          }
+        } else if (curgrip >= GripInfoMap.cGRIP_TURNW &&
+                   curgrip <= GripInfoMap.cGRIP_TURNE) {
+          if (++mWait == mWait.maxof) {
+            mMyState = cREAWAIT_BLUE;
+            mWait = 0u;
+          }
+        } else mWait = 0u;
+      }
+      case cREAWAIT_BLUE: {
+        if (curgrip == GripInfoMap.cGRIP_HUNTR) {
+          if (++mWait == mWait.maxof) {
+            mMyState = cAWAIT_RED;
+            mWait = 0u;
+          }
+        } else mWait = 0u;
+      }
+    }
+  }
+}
+
+/** Trigger ORENT grip.
+    \symbol TO
+    \color #11dd33
+ */
+element TriggerORIENT + DTU {
+  Void behave() {
+    EventWindow ew;
+
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as GRIP) {
+        ew[0] = Empty.instanceof; // kill self early? Safe?
+        a.tryChangeGripNumber(GripInfoMap.cGRIP_TURNS);
+        return;
+      }
+    }
+    ew[0] = Empty.instanceof;
+  }
+}

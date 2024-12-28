@@ -1,0 +1,142 @@
+quark FreeWormNoUp : FreeWormBase + QDebugUtils {
+  //// FreeWormBase API
+  @Override virtual SN getUp() { return SN.maxof; }
+  @Override virtual Bool setUp(SN newUp) { return dieTrue("No UP"); }
+  @Override virtual Bool getCanSwapUp() { return false; }
+  @Override virtual Bool getCanSwapDown() { return false; }
+  @Override virtual Bool isTemp() { return false; }
+}
+
+quark FreeWormNoDown : FreeWormBase + QDebugUtils {
+  //// FreeWormBase API
+  @Override virtual SN getDown() { return SN.maxof; }
+  @Override virtual Bool setDown(SN newDown) { return dieTrue("No UP"); }
+  @Override virtual Bool getCanSwapUp() { return false; }
+  @Override virtual Bool getCanSwapDown() { return false; }
+  @Override virtual Bool isTemp() { return false; }
+}
+
+quark FWSearchHeadBase : FreeWormNoUp + FreeWormStgDown + QDebugUtils {
+
+  //// FWSearchHeadBase API
+  virtual Bool hasSearchFailed() ;
+  virtual Bool isGoalAchieved() ;
+
+  //// FWSearchHeadBase SERVICES
+  typedef C2DT(11) SC2D;
+  SC2D mAnchor;                 //< launch point relative to current location
+  //  Bool mGoalFound;              //< returning to launch point if so
+
+  @Override
+  Void notifyMotionTo(SN tosn) {
+    C2D toc = ew.getCoord(tosn);
+    SC2D stoc((SC2D.Coord) toc.getX(),(SC2D.Coord) toc.getY());
+    mAnchor -= stoc;
+  }
+
+  @Override
+  Void behave() {
+    if (badLinking()) return die();
+    if (mAnchor.getX() == SC2D.Coord.maxof ||
+        mAnchor.getX() == SC2D.Coord.minof ||
+        mAnchor.getY() == SC2D.Coord.maxof ||
+        mAnchor.getY() == SC2D.Coord.minof)
+      return die();             // anchor pos no longer reliable
+    act();
+  }
+
+  @Override Bool actHead() {
+    if (super.actHead()) return true;
+    //    if (mGoalFound) return actHeadReturn();
+    return actHeadSearch();
+  }
+
+  Bool deployHeadAnchor() {
+    SN sn = randomEmpty524();
+    if (sn == SN.maxof) return false;
+    PDHeadAnchor head;
+    // XXXX CONFIGURE US AND THEM
+    ew[sn] = head.atomof;
+    // delete self
+    return false;
+  }
+
+  Bool deployTailAnchor() {
+    SN sn = randomEmpty524();
+    if (sn == SN.maxof) return false;
+    SN revsn = oppositeSN(sn);
+    WormBuilder wb;
+    wb.mAnchor = mAnchor;
+    wb.setDown(sn);
+    PDTailAnchor pda;
+    pda.setUp(revsn);
+    ew[sn] = pda.atomof;
+    ew[0] = wb.atomof;          //< leaves any tail of self inconsistent :(
+    return true;
+  }
+
+  Bool isReturnComplete() {
+    Unsigned distaway = mAnchor.length();
+    if (distaway > 2u) return false;
+    return true;
+  }
+
+  Bool actHeadReturn() {
+    if (isReturnComplete()) 
+      return deployHeadAnchor();
+    return returnStep();
+  }
+
+  Bool actHeadSearch() {
+    if (isGoalAchieved() &&
+        deployTailAnchor()) return true; // blocked?
+
+    if (hasSearchFailed())
+      return dieTrue();
+
+    if (randomStep())
+      return true;
+
+    return false;
+  }
+
+  Bool returnStep() { 
+    C2D dest((C2D.Coord) mAnchor.getX(), (C2D.Coord) mAnchor.getY());
+    SN jsn = emptyToward524(dest);
+    if (jsn == SN.maxof) return false;
+    return advanceToEmpty(jsn);
+  }
+
+  Bool randomStep() { 
+    SN jsn = randomEmpty524();
+    if (jsn == SN.maxof) return false;
+    return advanceToEmpty(jsn);
+  }
+}
+
+/** Find a PD sufficiently far from anchor, and string a line back.
+    \symbol PS
+    \color #c35
+ */
+element PDSearcher : FWSearchHeadBase + QDebugUtils {
+  typedef Unsigned(12) SearchSteps;
+  SearchSteps mStepsLeft = SearchSteps.maxof;
+
+  virtual Bool hasSearchFailed() {
+    return mStepsLeft-- == 0u;
+  }
+
+  virtual Bool isGoalAchieved() {
+    Unsigned distaway = mAnchor.length();
+    if (distaway <= 30u) return false;
+    Unsigned count = 0u;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (ew.isAccessible(sn) &&
+          ew[sn] is LocalSpace &&
+          ++count >= 4u)        // see 4 pd to win
+        return true;
+    }
+    return false;
+  }
+
+}

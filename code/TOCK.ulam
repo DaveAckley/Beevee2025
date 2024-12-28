@@ -1,0 +1,104 @@
+/** TOCK DRIVER. TOCK is a clock driver with internal state for
+    counting, sigh.
+    \symbol TK
+    \color #0ff
+ */
+element TOCK : TermSensor + Once {
+  constant Unsigned cBITS = 20u;
+  typedef Unsigned(cBITS) ClockState;
+  ClockState mClockState;
+  ClockState incr() {
+    if (mClockState == mClockState.maxof)
+      mClockState = mClockState.minof;
+    else ++mClockState;
+    return mClockState;
+  }
+
+  // 'static' method for GripInfo to call to map getSig values during
+  // switching
+  ASCII switchSigVal(GripInfo& gi, ASCII rawvalue, ClassId forDest) {
+    Bool tumblecw = getSigState(rawvalue,14u);
+    Bool sigleft = (forDest == MLRF.classidof);
+
+    Int val;
+    val = 25;    // left or right
+    return gi.intToSignedAscii(val);
+  }
+
+  constant Unsigned cSIG_SHIFT_DIST = 7u;
+  ASCII getSig() {
+    Bits bits = mClockState;
+    return (ASCII) ((bits>>cSIG_SHIFT_DIST)&0x7f); // 0x7f for positive doh
+  }
+
+  Bool getSigState(ASCII val, Unsigned idx) {
+    return getBitsState(((Bits)val)<<cSIG_SHIFT_DIST, idx);
+  }
+
+  Bool getState(Unsigned idx) {
+    return getBitsState((Bits) mClockState, idx);
+  }
+
+  Bool getBitsState(Bits bits, Unsigned idx) {
+    if (idx >= cBITS) return false;
+    return 0u != (bits & (1u<<idx));
+  }
+
+  @Override Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+
+    ARGB col = getColor(0u);
+    Int(16) cSIZE = 1024 + 200;
+    drawable.fillRectangle(C2D.instanceof(-cSIZE/2,-cSIZE/2), 
+                           C2D.instanceof(cSIZE,cSIZE),
+                           col);
+  }
+
+  @Override virtual ARGB getColor(Unsigned selector) {
+    ARGB ret;
+    Bool clockf = getState(4u);
+    Bool clockm = getState(7u);
+    Bool clocks = getState(11u);
+
+    ColorUtils cu;
+    return cu.color(clocks ? 0xdd : 0x00,
+                    clockm ? 0xdd : 0x00,
+                    clockf ? 0xdd : 0x00);
+  } 
+
+  @Override
+  Void behave() {
+    Random random;
+    if (new() || random.oneIn(10000u))
+      mClockState = (ClockState) random.bits(cBITS);
+
+    incr();
+    mD&&pR("TOCKSNBV10")&&pR(mClockState);
+
+    constant SN cGRIPSN = 2u;
+    if (!ew.isAccessible(cGRIPSN)) return;
+    mD&&pR("TOCKSNBV11");
+
+    Atom & a = ew[cGRIPSN];
+    if (a as GripSource) {
+      if (a.hasSymmetry()) {
+        
+        SlotSig & oss = a.getSlotSig(true); // check outgoing
+        if (!oss.isOccupied()) {
+          TermTargetLibrary ttl;
+          TapIdx tapidx = ttl.getTapIdx(self);
+          ASCII val = 32u; // XXX getSig();
+          if (val > 32u) val = 32u;
+          oss.setOccupied(val,tapidx);
+          mD&&pR("TOCKSNBV12")&&pR(oss);
+        }
+      }
+    } else {                    // ??
+      mD&&pR("TOCKSNBV13");
+      ew[0] = Empty.instanceof;
+      return;
+    }
+    mD&&pR("TOCKSNBV14");
+  }
+}

@@ -1,0 +1,131 @@
+/** GRIP DRIVER.
+    \symbol GP
+    \color #ffa500
+ */
+element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
+
+  //  @Override virtual GradIdx getGradientIndex() { return cGRADIDX_GRIP; }
+  @Override virtual ARGB getColor(Unsigned selector) {
+    ARGB ret = { 0xff, 0x00, 0xff, 0xff };
+    return ret;
+  } 
+
+  FixMax mFixColVals[2]; // [0] Yellow, [1] Red
+
+  FixMax getFixMaxYellowRaw() { return mFixColVals[0]; }
+
+  ASCII getFixMax(FixMax fm) { return (ASCII) (((Bits) fm)>>cFIX_BITS); }
+  ASCII getFixMaxYellow() { return getFixMax(mFixColVals[0]); }
+  ASCII getFixMaxRed() { return getFixMax(mFixColVals[1]); }
+
+  typedef XTimer(4u,15u,4u) WatchDogTimer;
+  WatchDogTimer mGripWatchDog;
+
+  Void tryChangeGripNumber(Unsigned newgripnum) {
+    EventWindow ew;
+    MinXPick emptypick;         // Look for an empty
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (!(ew[sn] is Empty)) continue;
+      C2D csn = ew.getCoord(sn);
+      emptypick.update(sn,csn.length());
+    }
+    if (emptypick.hasPick()) {
+      setGripNumber(newgripnum);
+      SendGrip sg(newgripnum);
+      SN esn = emptypick.getIdxSN();
+      ew[esn] = sg.atomof;
+    }
+  }
+
+  Void behave() {
+    {
+      EventWindow ew;
+      Random random;
+      if (ew[1] is Empty && random.oneIn(100u))
+        ew[1] = TriggerBoxStep.instanceof;
+    }
+    MinXPick colpicks[2]; // [0] Yellow, [1] Red
+    GripInfoMap gim(self);
+    mD&&pR("GRBV10")&&pR(gim);
+
+    Unsigned gripnum = getGripNumber(); // our current grip
+    mD&&pR("GRBV11")&&pR(gripnum);
+
+    ClassId giid = gim.getGripInfoClassId(gripnum); // of current grip
+    GripInfo & gin = gim.getGripInfo(giid);
+
+    mD&&pR("GRBV13")&&pR(giid)&&pR(gin);
+
+    //// FIND OUR XB
+    SN sn = 2u;
+    if (!ew.isAccessible(sn)) return;
+    if (!(ew[sn] is XBarSpace2D)) { die(); return; }
+    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+
+    mD&&pR("GRBV14")&&pR(xb);
+    if (!xb.hasSymmetry()) return;
+
+    ///// GRIP WATCHDOG TIMER
+    if (gim.isOrientGripNum(gripnum)) {
+      if (mGripWatchDog.countAlarm()) {
+        tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
+        mD&&pR("GRBV011")&&pR(self);
+      } else if (mGripWatchDog.current() > 3u) { // ugh anti-auto-race delay
+        Unsigned xbgrip = xb.getGripNumber();
+        if (xbgrip != gripnum) {
+          setGripNumber(xbgrip);
+          mD&&pR("GRBV012")&&pR(self);
+        }
+      }
+      return;
+    }
+    mGripWatchDog.reset();      // grip is ours from here on
+
+    mD&&pR("GRBV12")&&pR(gripnum);
+
+    //// UPDATE SIGNAL VALUES
+    mD&&pR("GRBV15");
+    SlotSig & iss = xb.getSlotSig(false); // get inbound
+    mD&&pR("GRBV16")&&pR(iss);
+
+    TermTargetLibrary ttl;
+    if (iss.isOccupied()) {
+      C2D c = ew.getCoord(sn);
+      ClassId srcid = ttl.getClassIdFromTapIdx(iss.mSource);
+      mD&&pR("GRBV17")&&pR(c)&&pR(srcid);
+
+      if (srcid == SLFY.classidof || srcid == SRFY.classidof)
+        colpicks[0].update(sn,1u,1u,iss.mValue); // random yellow value
+      else if (srcid == SLFR.classidof || srcid == SRFR.classidof) 
+        colpicks[1].update(sn,1u,1u,iss.mValue); // random red value
+      iss.reset();                             // consume signal
+      mD&&pR("GRBV18")&&pR(iss);
+
+      // every time we get any signal, age all our state
+      for (Unsigned picks = 0u; picks < colpicks.lengthof; ++picks) {
+        MinXPick & pick = colpicks[picks];
+        ASCII val = 0u;
+        if (pick.hasPick()) {
+          val = (ASCII) pick.getArg();
+          mD&&pR("GPBH2100")&&pR(picks)&&pR(val);
+        }
+        mFixColVals[picks] = updateFixMax(90u,mFixColVals[picks],val);
+        mD&&pR("GRBV19")&&pR(picks);
+      }
+    }
+
+    //// UPDATE GRIP
+    mD&&pR("GRBV210");
+
+    Unsigned newgripnum = gin.getNextGripNumber(self);
+    mD&&pR("GRBV211")&&pR(newgripnum);
+    
+    Random random;
+    if (newgripnum != gripnum || random.oneIn(50u)) { // if our grip is changing or random
+      mD&&pR("GRBV212")&&pR(newgripnum);
+      tryChangeGripNumber(newgripnum);
+    }
+    mD&&pR("GRBV213");
+  }
+}

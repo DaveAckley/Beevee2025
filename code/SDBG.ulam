@@ -1,0 +1,81 @@
+quark SDBG : TermSensor + QDebugUtils + Fail { }
+quark MDBG : TermMotor + QDebugUtils + Fail { }
+
+/////////////
+/** Sensor debug.
+    \symbol SD
+    \color #fa3
+*/
+element SDBG10 : SDBG {
+  ASCII mId;
+  Void behave() {
+    MinXPick floodpick;
+    MinXPick axtailpick;
+    MinXPick emptypick;
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      C2D c = ew.getCoord(sn);
+      Atom & a = ew[sn];
+      if (a is FloodFind) floodpick.update(sn,1u);
+      else if (a is AxonTail) axtailpick.update(sn,1u);
+      else if (a is Empty) emptypick.update(sn,1u);
+    }
+    if (axtailpick.hasPick()) {
+      Random random;
+
+      if (random.oneIn(100u)) {
+        SN atsn = axtailpick.getIdxSN();
+        AxonTail & at = (AxonTail&) ew[atsn];
+        SlotSig & ss = at.getAxonSig(cAXON_TAIL_IDX); // send up from tail
+        if (!ss.isOccupied()) {
+          BeeveeBIM bim;
+          Unsigned usidx = bim.getTapIdxFromClassId(SDBG10.classidof);
+
+          if (mId == 0u) mId = (ASCII) random.between(1,255);
+          ss.setOccupied(mId, (TapIdx) usidx);
+        }
+      }
+      return;
+    }
+    if (floodpick.hasPick())
+      return;
+    if (!emptypick.hasPick())
+      return;
+
+    BeeveeBIM bvb;
+    Unsigned ltapidx = bvb.getTapIdx(self);
+    Unsigned rtapidx = bvb.getTapIdxFromClassId(MDBG10.classidof);
+    if (ltapidx == Unsigned.maxof) fail(__FILE__,__LINE__); // can't happen?
+    if (rtapidx == Unsigned.maxof) fail(__FILE__,__LINE__);
+
+    FloodFindTAPIdx ff;
+    ff.mMaxRadius = 20u;
+    ff.mBranchOK = true;
+    ff.mLocal = (TapIdx) ltapidx;
+    ff.mRemote = (TapIdx) rtapidx;
+
+    SN empsn = emptypick.getIdxSN();
+    ew[empsn] = ff.atomof;
+  }
+}
+
+/** Motor debug.
+    \symbol MD
+    \color #3fa
+*/
+element MDBG10 : MDBG {
+  Void behave() {
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      C2D c = ew.getCoord(sn);
+      Atom & a = ew[sn];
+      if (a as AxonHead) {
+        SlotSig & ass = a.getAxonSig(cAXON_TAIL_IDX); // check incoming from tail
+        if (ass.isOccupied())
+          ass.reset();          // dump it
+      }
+    }
+  }
+}

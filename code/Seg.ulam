@@ -1,0 +1,177 @@
+transient Seg + DTU + Fail {
+  EventWindow ew;
+  Random random;
+  
+  SN seg[3];
+  Bool canSwap[2]; //< 0: withup, 1: withdown
+  Void init(FreeWormBase & fwb) {
+    SN csn = ew.getSiteNumber(fwb);
+    if (csn == SN.maxof) fail(__FILE__,__LINE__);
+    seg[0] = fwb.getUp();
+    seg[1] = csn;
+    seg[2] = fwb.getDown();
+    canSwap[0] = canSwapUD(seg[0],seg[1]);
+    canSwap[1] = canSwapUD(seg[1],seg[2]);
+  }
+
+  Bool canSwapUD(SN usn, SN dsn) {
+    if (usn == SN.maxof || dsn == SN.maxof) return false;
+    if (!ew.isAccessible(usn) || !ew.isAccessible(dsn)) return false;
+    if (!(ew[usn] is FreeWormBase)) return false;
+    if (!(ew[dsn] is FreeWormBase)) return false;
+    FreeWormBase & u = (FreeWormBase&) ew[usn];
+    FreeWormBase & d = (FreeWormBase&) ew[dsn];
+    return u.getCanSwapDown() && d.getCanSwapUp();
+  }
+
+  Void doSwapUD(SN usn, SN dsn) {
+    FreeWormBase & u = (FreeWormBase&) ew[usn];
+    FreeWormBase & d = (FreeWormBase&) ew[dsn];
+
+    u.notifyMotionTo(dsn);
+    d.notifyMotionTo(usn);
+
+    SN dsu = d.getUp();
+    SN usd = u.getDown();
+
+    d.setUp(u.getUp());
+    u.setDown(d.getDown());
+
+    d.setDown(usd);
+    u.setUp(dsu);
+
+    ew.swap(usn,dsn);
+  }
+
+  Bool tryRandomSwap() {
+    Unsigned count = 0u;
+    Unsigned swapi;
+    for (Unsigned i = 0u; i < 2u; ++i) {
+      if (canSwap[i] && random.oneIn(++count))
+        swapi = i;
+    }
+    if (count == 0u) return false;
+    doSwapUD(seg[swapi],seg[swapi+1u]);
+    return true;
+  }
+
+  Bool deleteSelf() {
+    SN usn = seg[0];
+    SN csn = seg[1];
+    SN dsn = seg[2];
+    if (!ew.isAccessible(usn)) return false;
+    if (!ew.isAccessible(csn)) return false;
+    if (!ew.isAccessible(dsn)) return false;
+
+    if (!(ew[usn] is FreeWormBase)) return false;
+    if (!(ew[csn] is FreeWormBase)) return false;
+
+    if (!(ew[dsn] is FreeWormBase)) return false;
+
+    FreeWormBase & u = (FreeWormBase&) ew[usn];
+    FreeWormBase & d = (FreeWormBase&) ew[dsn];
+
+    C2D usc = ew.getCoord(usn);
+    C2D dsc = ew.getCoord(dsn);
+    C2D diffc = dsc-usc;
+    if (diffc.length() > 4u) return false;
+
+    u.setDown(ew.getSiteNumber(diffc));
+    d.setUp(ew.getSiteNumber(-diffc));
+
+    ew[csn] = Empty.instanceof;
+    return true;
+  }
+
+  Bool insertAfter(Unsigned idx) {
+    if (!ew.isAccessible(seg[idx])) return false;
+    if (!ew.isAccessible(seg[idx+1u])) return false;
+    C2D usc = ew.getCoord(seg[idx]);
+    C2D dsc = ew.getCoord(seg[idx+1u]);
+    C2D midc = (usc+dsc)/2;
+    MinXPick mindist;
+    Unsigned emptycount = 0u, accessiblecount = 0u;
+    for (SN sn = 0u; sn < 41u; ++sn) {
+      C2D netc = midc + ew.getCoord(sn);
+      if (!ew.isAccessible(netc)) continue;
+      ++accessiblecount;
+      if (!ew[netc] is Empty) continue;
+      ++emptycount;
+      if (sn > 8u) continue;
+      Unsigned netdist =
+        usc.euclideanSquaredDistance(netc) +
+        dsc.euclideanSquaredDistance(netc);
+      mindist.update(ew.getSiteNumber(netc),netdist);
+    }
+    if (!mindist.hasPick()) return false;
+    if (4u*emptycount < accessiblecount) return false; // too crowded to insert
+    SN insn = mindist.getIdxSN();
+    C2D insc = ew.getCoord(insn);
+
+    FreeWormBase & u = (FreeWormBase&) ew[usc];
+    FreeWormBase & d = (FreeWormBase&) ew[dsc];
+
+    Atom a = u.makeTemp(u,d);
+    if (!(a is FreeWormBase)) return false; // temp maker unhappy
+    FreeWormBase & tmp = (FreeWormBase&) a;
+    
+    C2D uti = usc-insc;
+    C2D itd = insc-dsc;
+
+    u.setDown(ew.getSiteNumber(-uti));
+    tmp.setUp(ew.getSiteNumber(uti));
+    d.setUp(ew.getSiteNumber(itd));
+    tmp.setDown(ew.getSiteNumber(-itd));
+    ew[insc] = tmp.atomof;
+    return true;
+  }
+
+  Bool moveCenter(SN tosn) {
+    if (!ew.isAccessible(seg[0])) return false;
+    if (!ew.isAccessible(seg[1])) return false;
+    if (!ew.isAccessible(seg[2])) return false;
+
+    if (!ew.isAccessible(tosn)) return false;
+    if (!(ew[tosn] is Empty)) return false;
+
+    C2D origin;
+    C2D offc = ew.getCoord(tosn);
+
+    SN usn = seg[0];
+    C2D usc = ew.getCoord(usn);
+    C2D unewd = offc-usc;
+    SN udsn = ew.getSiteNumber(unewd);
+    if (!ew.isAccessible(udsn)) return false;
+
+    SN csn = seg[1];
+    C2D csc = ew.getCoord(csn);
+    C2D cnewd = offc-csc;
+    SN ccsn = ew.getSiteNumber(cnewd);
+    if (!ew.isAccessible(ccsn)) return false;
+    
+    SN dsn = seg[2];
+    C2D dsc = ew.getCoord(dsn);
+    C2D dnewu = offc-dsc;
+    SN dusn = ew.getSiteNumber(dnewu);
+    if (!ew.isAccessible(dusn)) return false;
+
+    FreeWormBase & u = (FreeWormBase&) ew[usn];
+    FreeWormBase & d = (FreeWormBase&) ew[dsn];
+
+    u.setDown(udsn);
+    d.setUp(dusn);
+
+    SN snewu = ew.getSiteNumber(-unewd);
+    SN snewd = ew.getSiteNumber(-dnewu);
+
+    FreeWormBase & s = (FreeWormBase&) ew[csn];
+
+    s.notifyMotionTo(tosn);
+
+    s.setDown(snewd);
+    s.setUp(snewu);
+
+    ew.swap(csn,tosn);
+    return true;
+  }
+}

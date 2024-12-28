@@ -1,0 +1,33 @@
+/** Beevee model parameters
+    \symbol MP
+    \color #0f0
+*/
+element BeeveeParms {
+  /**
+     Extra spins at end of turn (plus fifty).  Zero: Trim 50 spins; 50: no change; 100: add 50 spins
+
+     \unit spins
+     \range 0..100
+   */
+  parameter Unsigned pEXTRA_SPINS50 = 25u;
+
+  /**
+     Percent of max to hit.  How close to first max to trigger as second max. Default 90%.
+
+     \unit percent
+     \range 80..100
+   */
+  parameter Unsigned pGREEN_MAX_FRAC = 90u;
+
+  /**
+     Grey phase multiplier.  How hard to correct grey phase errors. Zero: No corrections
+
+     \unit sigval
+     \range 0..4
+   */
+  parameter Unsigned pGREY_MULTIPLIER = 1u;
+
+  /** Flip correction on mismatched states */
+  constant Bool pFLIP_STATES = false;
+
+}

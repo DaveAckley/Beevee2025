@@ -1,0 +1,64 @@
+quark PDAnchor : FreeWormBase + DTU {
+  @Override
+  Void behave() {
+    if (adjust()) return;
+    super.behave();
+  }
+
+  Bool adjust() {
+    SN tosn = hillClimbDir(2u,2u);
+    if (tosn != 0u && tosn != SN.maxof) {
+      endToEmpty(tosn,isHead());
+      return true;
+    }
+    return false;
+  }
+
+  SN hillClimbDir(Unsigned minh, Unsigned maxh) {
+    EventWindow ew;
+    MinXPick minhops;
+    MaxXPick maxhops;
+    C2D wvec;
+    Unsigned totalhops = 0u;
+    Unsigned totalls = 0u;
+    for (SN sn = 0u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      //XXX      if (a as LocalSpace) {
+      //XXX if (a as LocalSpace2D) {
+      if (a as LocalSpaceRect2D) {
+        //        Unsigned ahopsin = a.getLHopsIn();
+        Unsigned ahopsin = a.getLHops();
+        ++totalls;
+        minhops.update(sn,ahopsin);
+        maxhops.update(sn,ahopsin);
+        totalhops += ahopsin;
+      }
+    }
+    if (!minhops.hasPick() || !maxhops.hasPick())
+      return SN.maxof;          // uh oh we lost
+    Unsigned avghops = totalhops/totalls;
+    C2D toc;
+    if (avghops < minh) toc = maxhops.getIdxC2D();
+    else if (avghops > maxh) toc = minhops.getIdxC2D();
+    else if (random.oddsOf(9u,10u)) return 0u; // mostly just chill
+    //else toc = (0,0) <- just knock around here
+    SN tosn = emptyToward524(toc);
+    if (false) {
+      DebugUtils du;
+      du.print("PCNNDA10");
+      du.print(totalhops);
+      du.print(totalls);
+      du.print(avghops);
+      du.print(toc);
+      du.print(tosn);
+    }
+    return tosn;
+  }
+}
+
+element PDHeadAnchor : PDAnchor + FreeWormNoUp + FreeWormStgDown + QDebugUtils {
+}
+
+element PDTailAnchor : PDAnchor + FreeWormStgUp + FreeWormNoDown + QDebugUtils {
+}

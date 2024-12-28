@@ -1,0 +1,101 @@
+quark QSendT(Unsigned cBITS, Unsigned cFAILBITS) + DTU + QDebugUtils {
+  typedef C2DT(cBITS) QSPos;
+  typedef QSPos.Coord QSCoord;
+  constant QSCoord cQS_UNINIT = QSCoord.maxof;
+
+  Void setDest(Int x, Int y) {
+    mDestX = (QSCoord) x;
+    mDestY = (QSCoord) y;
+  }
+
+  QSCoord mDestX = cQS_UNINIT;
+  QSCoord mDestY = cQS_UNINIT;
+
+  typedef Unsigned(cFAILBITS) FailureCount;
+  FailureCount mFailures;
+
+  // QSendT API
+  virtual Bool tryDelivery(LocalSpaceRect2D & ls, SN sn) ; //< true if delivery done
+
+  Bool blocked() {
+    return ++mFailures == mFailures.maxof;
+  }
+  Void blockOrDie() {
+    if (blocked())
+      die();
+  }
+
+  Void behave() {
+    mD&&pR("QSNDBV10");
+    if (mDestX == cQS_UNINIT)
+      return die();
+
+    mD&&pR("QSNDBV11");
+    MinXPick minerr;
+    EventWindow ew;
+    C2D targc(mDestX,mDestY);
+    for (SN sn = 0u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      //      if (a as LocalSpace2D) {
+      if (a as LocalSpaceRect2D) {
+        if (!a.isInitted()) continue;
+        C2D pos = a.getPos2D();
+        Unsigned err = pos.manhattanDistance(targc);
+        minerr.update(sn,err);
+      }
+    }
+    mD&&pR("QSNDBV12");
+    mD&&pR(minerr);
+    if (!minerr.hasPick())
+      return blockOrDie();
+
+    SN minsn = minerr.getIdxSN();
+    C2D minc = ew.getCoord(minsn);
+
+    if (minc.length() < 2u) {
+      LocalSpaceRect2D & ls = (LocalSpaceRect2D&) ew[minsn];
+      if (tryDelivery(ls,minsn)) {
+        ew[0] = Empty.instanceof;
+        return;
+      }
+      if (blocked()) return die();
+    } // else bounce around if need be
+
+    MinXPick minemp;
+    for (SN sn = 0u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a is Empty) {
+        C2D c = ew.getCoord(sn);
+        Unsigned dist = minc.manhattanDistance(c);
+        minemp.update(sn,dist);
+      }
+    }
+    mD&&pR("QSNDBV13");
+    mD&&pR(minemp);
+    if (!minemp.hasPick()) return blockOrDie();
+    SN empsn = minemp.getIdxSN();
+
+    mD&&pR("QSNDBV14");
+    mD&&pR(minerr);
+    mD&&pR(empsn);
+    ew.swap(0u,empsn);       // advance
+  }
+}
+
+element SendGrip : QSendT(XBarSpace2D.cBITS,6u) {
+  Unsigned mGripNum = Unsigned.maxof;
+
+  // QSendT API
+  @Override
+  Bool tryDelivery(LocalSpaceRect2D & ls, SN sn) {
+    ls.setGripNumber(mGripNum);
+    return true;
+  }
+
+  Self(Unsigned gripnum) {
+    setDest(0,0);
+    mGripNum = gripnum;
+  }
+}

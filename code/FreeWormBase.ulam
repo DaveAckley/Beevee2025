@@ -1,0 +1,275 @@
+quark FreeWormBase + DTU {
+  EventWindow ew;
+  Random random;
+
+  //// FreeWormBase API
+  virtual SN getUp() ; //< SN.maxof -> none
+  virtual SN getDown() ; //< SN.maxof -> none
+
+  virtual Bool setUp(SN newUp) ;
+  virtual Bool setDown(SN newDown) ;
+
+  virtual Bool getCanSwapUp() ; 
+  virtual Bool getCanSwapDown() ; 
+
+  virtual Bool isTemp() ;
+
+  virtual Void notifyMotionTo(SN destsn) { }
+
+  virtual Atom makeTemp(FreeWormBase& fup, FreeWormBase& fud) {
+    FWTD fwt;
+    return fwt.atomof;
+  }
+
+  virtual Bool actHead() { return false; }
+  virtual Bool actMiddle() { return false; }
+  virtual Bool actTail() { return false; }
+
+
+  //// FreeWormBase SERVICES
+  Bool isHead() { return getUp() == SN.maxof; }
+  Bool isTail() { return getDown() == SN.maxof; }
+  Bool isMiddle() { return getUp() != SN.maxof && getDown() != SN.maxof; }
+
+  @Override
+  Void renderGraphics() {
+    renderBond(getUp(), 35u);
+    renderBond(getDown(), 55u);
+  }
+
+  Void renderBond(SN sn, Unsigned pct) {
+    renderBond(sn,pct,getColor(0u));
+  }
+
+  Void renderBond(SN sn, Unsigned pct, ARGB col) {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    if (sn <= 0u || sn >= 41u) return;
+    MDist md; // No ew when rendering!  Can't use ew.getCoordRaw()!
+    C2D origin;
+    C2D dest = md.getSiteCoord(sn);
+    Int spct = (Int) (1024u*pct/100u);
+    C2D scaled = dest*origin.make(spct,spct);
+    drawable.drawMaskedLineUnits(origin,scaled,col,col,0xffffffff, 100u, 256u);
+  }
+
+  Void behave() {
+    if (badLinking()) {
+      ew[0u] = Empty.instanceof;
+      return;
+    }
+    act();
+  }
+
+  Bool badLinking() {
+    SN oup = getUp();
+    SN odn = getDown();
+
+    if (oup != SN.maxof && badLink(oup,0u)) return true;
+
+    if (odn != SN.maxof && badLink(0u,odn)) return true; 
+
+    return false;
+  }
+
+  Bool badLink(SN usn, SN dsn) { // usn's down -> dsn and dsn's up -> usn
+    if (!ew.isAccessible(usn)) return true;
+    if (!ew.isAccessible(dsn)) return true;
+
+    if (!(ew[usn] is FreeWormBase)) return true;
+    if (!(ew[dsn] is FreeWormBase)) return true;
+
+    FreeWormBase & u = (FreeWormBase&) ew[usn];
+    FreeWormBase & d = (FreeWormBase&) ew[dsn];
+
+    SN udsn = u.getDown();
+    if (udsn == SN.maxof) return true;
+
+    SN dusn = d.getUp();
+    if (dusn == SN.maxof) return true;
+
+    C2D udc = ew.getCoord(udsn);
+    C2D duc = ew.getCoord(dusn);
+
+    return udc != -duc;
+  }
+
+  Bool act() {
+    if (isHead()) return actHead(); 
+    if (isTail()) return actTail();
+    return actMiddle();
+  }
+
+  SN randomEmpty524() { 
+    MinXPick minpick;
+    for (SN sn = 5u; sn <= 24u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (!(ew[sn] is Empty)) continue;
+      minpick.update(sn);
+    }
+    if (!minpick.hasPick()) return SN.maxof;
+    return minpick.getIdxSN();
+  }
+
+  SN emptyToward524(C2D dest) { 
+    MinXPick minpick;
+    Unsigned emptycount = 0u, accesscount = 0u;
+    for (SN sn = 0u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      ++accesscount;
+      if (!(ew[sn] is Empty)) continue;
+      ++emptycount;
+      if (sn >= 5u && sn <= 24u) {
+        C2D c = ew.getCoord(sn);
+        minpick.update(sn,dest.euclideanSquaredDistance(c));
+      }
+    }
+    if (4u*emptycount < accesscount) return SN.maxof;
+    if (!minpick.hasPick()) return SN.maxof;
+    return minpick.getIdxSN();
+  }
+
+  Bool advanceToEmpty(SN jsn) { return endToEmpty(jsn, true); }
+  Bool retreatToEmpty(SN jsn) { return endToEmpty(jsn, false); }
+  Bool endToEmpty(SN jsn, Bool headend) {
+    C2D toc = ew.getCoord(jsn);
+    SN fromsn = ew.getSiteNumber(-toc);
+    Atom temp = makeTemp(self,self); // XXXX ?? ARGS UNUSED?
+    FreeWormBase & old = (FreeWormBase&) temp;
+    //    FWTD old;
+    self.notifyMotionTo(jsn);
+    if (headend) {
+      old.setUp(jsn);
+      old.setDown(self.getDown());
+      self.setDown(fromsn);
+    } else {
+      old.setDown(jsn);
+      old.setUp(self.getUp());
+      self.setUp(fromsn);
+    }
+    ew[jsn] = self.atomof;
+    ew[0u] = old.atomof;
+    return true;
+  }
+}
+
+quark FreeWormTemp : FreeWormBase + QDebugUtils {
+  //// FreeWormBase API
+  @Override virtual Bool isTemp() { return true; }
+  @Override virtual Bool getCanSwapUp() { return true; }
+  @Override virtual Bool getCanSwapDown() { return true; } 
+
+  @Override virtual Bool actTail() { //< delete tail tmps
+    SN asn = getUp();
+    if (asn == SN.maxof) return dieTrue();
+    if (!ew.isAccessible(asn)) return dieTrue();
+    Atom & a = ew[asn];
+    if (a as FreeWormBase) {
+      a.setDown(SN.maxof);    // now it's tail
+      return dieTrue();       // and we're done
+    }
+    return dieTrue("Up not FW");  // something's screwed up
+  }
+
+  @Override virtual Bool actHead() { //< delete head tmps
+    SN asn = getDown();
+    if (asn == SN.maxof) return dieTrue();
+    if (!ew.isAccessible(asn)) return dieTrue();
+    Atom & a = ew[asn];
+    if (a as FreeWormBase) {
+      a.setUp(SN.maxof);        // now it's head
+      return dieTrue();         // and we're done
+    }
+    return dieTrue("Down not FW");  // something's screwed up
+  }
+  
+}
+
+quark FreeWormStgUp : FreeWormBase {
+  SN mUp = SN.maxof;
+
+  //// FreeWormBase API
+  @Override virtual SN getUp() { return mUp; }
+
+  @Override virtual Bool setUp(SN newUp) {
+    if (newUp != mUp) {
+      mUp = newUp;
+      return true;
+    }
+    return false;
+  }
+}
+
+quark FreeWormStgDown : FreeWormBase {
+  SN mDown = SN.maxof;
+
+  //// FreeWormBase API
+  @Override virtual SN getDown() { return mDown; }
+
+  @Override virtual Bool setDown(SN newDown) {
+    if (newDown != mDown) {
+      mDown = newDown;
+      return true;
+    }
+    return false;
+  }
+}
+
+quark FreeWormStg : FreeWormStgUp + FreeWormStgDown { }
+
+quark FreeWormPathAdjustingMiddle : FreeWormBase {
+  @Override Bool actMiddle() {
+    Seg s;
+    s.init(self);
+    return actMiddle(s);
+  }
+  //// FreeWormPathAdjustingMiddle SERVICES
+  Bool actMiddle(Seg & s) {     //< takes initted Seg
+    C2D cs[3];
+    for (Unsigned i = 0u; i < 3u; ++i) {
+      if (!ew.isAccessible(s.seg[i])) return false;
+      cs[i] = ew.getCoord(s.seg[i]);
+    }
+
+    //// DELETE IF TOO TIGHT
+    if (cs[0].manhattanDistance(cs[2]) <= 2u) {
+      if (s.deleteSelf()) return true;
+    }
+
+    //// INSERT IF TOO LOOSE
+    MaxXPick sepdist;
+    for (Unsigned i = 0u; i < 2u; ++i) {
+      Unsigned dist = cs[i].manhattanDistance(cs[i+1u]);
+      sepdist.update(i, dist);
+    }
+    if (sepdist.hasPick() && sepdist.getX() == 4u) {
+      Unsigned idx = sepdist.getIdx();
+      return s.insertAfter(idx);
+    }
+
+    MinXPick mindist;
+    for (SN sn = 0u; sn <= 4u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      C2D c = ew.getCoord(sn);
+      Unsigned dist =
+        cs[0].euclideanSquaredDistance(c) +
+        cs[2].euclideanSquaredDistance(c);
+      mindist.update(sn, dist);
+    }
+
+    if (!mindist.hasPick()) return false;
+    SN minsn = mindist.getIdxSN();
+
+
+    if (!(ew[minsn] is Empty)) return false; // includes ew[0]!
+
+    /// WE CAN STRAIGHTEN THE PATH
+    return s.moveCenter(minsn);
+  }
+}
+
+/** FreeWormTempDefault: A standard seat-filler for FreeWorms.
+    \symbol TD
+    \color #448
+*/
+element FWTD : FreeWormTemp + FreeWormStg + FreeWormPathAdjustingMiddle { }

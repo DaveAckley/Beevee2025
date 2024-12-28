@@ -1,0 +1,489 @@
+quark Axon : FreeWormBase + Fail + DTU + QDebugUtils {
+  TapIdx mAxonTaps[2] = { cTAPIDX_NONE }; // [AxonIdx] -> [0] head, [1] tail
+  Bool mAxonTapsValid[2] = { false }; // [AxonIdx] -> [0] head, [1] tail
+  SlotSig mAxonSigs[2];  // [0] downbound from head, [1] upbound from tail
+
+  typedef Unsigned(4) BranchCount;
+  BranchCount mBranchCount;
+
+  //// UrSelf API
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    ARGB ret = super.getColor(selector);
+    ColorUtils cu;
+    ARGB hc = cu.color(0xffffff00); // add yellow for each occupant
+    if (mAxonSigs[cAXON_HEAD_IDX].isOccupied()) 
+      ret = cu.between(ret,hc,50u);
+    if (mAxonSigs[cAXON_TAIL_IDX].isOccupied()) 
+      ret = cu.between(ret,hc,50u);
+    return ret;
+  }
+
+  //// FreeWormBase API
+  @Override
+  virtual Atom makeTemp(FreeWormBase& fup, FreeWormBase& fud) {
+    AxonMid am;
+    return am.atomof;
+  }
+
+  //// Axon API
+  virtual TapIdx getAxonTap(AxonIdx idx) {
+    return mAxonTaps[idx];
+  }
+
+  //// Axon SERVICES
+  Bool isTapValid(AxonIdx dir) {
+    if (dir > cAXON_TAIL_IDX) fail(__FILE__,__LINE__);
+    return mAxonTapsValid[dir];
+  }
+
+  SlotSig & getAxonSig(AxonIdx end) {
+    if (end > cAXON_TAIL_IDX) fail(__FILE__,__LINE__);
+    return mAxonSigs[end];
+  }
+
+  Bool updateTaps() {
+    SN upsn = getUp();
+    SN dnsn = getDown();
+
+    mD&&pR("UDTPAD10")&&pR(upsn)&&pR(dnsn);
+    Bool ret = false;
+    if (upsn != SN.maxof) 
+      ret = ret || propTap(upsn, 0u);
+    if (dnsn != SN.maxof) 
+      ret = ret || propTap(0u, dnsn);
+    return ret;
+  }
+
+  Bool propTap(SN usn, SN dsn) {
+    mD&&pR("PRTaP10")&&pR(usn)&&pR(dsn);
+    EventWindow ew;
+    
+    if (!ew.isAccessible(usn)) return true;
+    if (!ew.isAccessible(dsn)) return true;
+
+    mD&&pR("PRTaP11");
+    if (!(ew[usn] is Axon)) return true;
+    if (!(ew[dsn] is Axon)) return true;
+
+    Axon & u = (Axon&) ew[usn];
+    Axon & d = (Axon&) ew[dsn];
+
+    mD&&pR("PRTaP12")&&pR(u)&&pR(d);
+
+    d.mBranchCount = u.mBranchCount; // propagate bc always down
+
+    d.mAxonTapsValid[cAXON_HEAD_IDX] = u.mAxonTapsValid[cAXON_HEAD_IDX];
+    u.mAxonTapsValid[cAXON_TAIL_IDX] = d.mAxonTapsValid[cAXON_TAIL_IDX];
+
+    if (u.mAxonTaps[cAXON_HEAD_IDX] != d.mAxonTaps[cAXON_HEAD_IDX])
+      d.mAxonTaps[cAXON_HEAD_IDX] = u.mAxonTaps[cAXON_HEAD_IDX];
+      
+    if (d.mAxonTaps[cAXON_TAIL_IDX] != u.mAxonTaps[cAXON_TAIL_IDX])
+      u.mAxonTaps[cAXON_TAIL_IDX] = d.mAxonTaps[cAXON_TAIL_IDX];
+
+    mD&&pR("PRTaP13")&&pR(u)&&pR(d);
+    return false;               // ??
+  }
+
+  SN searchForTapIdxOrBranch(TapIdx tapidx, Bool branchOK, Bool & tookbranch) {
+    SN ret = SN.maxof;
+    tookbranch = false;
+    
+    TermTargetLibrary ttl;
+    ClassId cid = ttl.getClassIdFromTapIdx(tapidx);
+
+    EventWindow ew;
+    MinXPick cpick;
+    MinXPick bpick;             // if branchOK
+
+    ClassUtils cu;
+
+    mD&&pR("SFTIXOB10")&&pR(self);
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      C2D c = ew.getCoord(sn);
+      Unsigned clen = c.length();
+      Atom & a = ew[sn];
+      mD&&pR("SFTIXOB11")&&pR(a);
+      if (a as AxonMid) {
+        Unsigned bc = a.mBranchCount;
+        Bool tapvalid = a.isTapValid(cAXON_HEAD_IDX);
+        if (branchOK && tapvalid) {
+          TapIdx ahidx = a.getAxonTap(cAXON_HEAD_IDX);
+          mD&&pR("SFTIXOB12")&&pR(ahidx)&&pR(tapidx);
+          if (ahidx == tapidx)
+            bpick.update(sn,(bc+1u)*clen); // XXX WAS clen
+        }
+      } else {
+        ClassId aid = cu.getClassId(a);
+        if (cu.isBase(aid,cid)) {
+          mD&&pR("SFTIXOB13")&&pR(aid)&&pR(cid);
+          cpick.update(sn,c.length());
+        }
+      }
+    }
+    mD&&pR("SFTIXOB14")&&pR(cpick)&&pR(bpick);
+    if (cpick.hasPick()) {      // prefer direct
+      ret = cpick.getIdxSN();
+      if (self is AxonHead)
+        mBranchCount = 0u;      // only place branch count is zeroed
+    }
+    mD&&pR("SFTIXOB15")&&pR(ret);
+    if (ret == SN.maxof && bpick.hasPick()) { // but take branch if okay
+      ret = bpick.getIdxSN();
+      AxonMid & am = (AxonMid&) ew[ret];
+      mBranchCount = (BranchCount) (am.mBranchCount+1u);
+      if (mBranchCount == mBranchCount.maxof)
+        return SN.maxof;        // causes dieTrue() in caller as desired
+      tookbranch = true;
+    }
+    mD&&pR("SFTIXOB16")&&pR(ret);
+    return ret;
+  }
+
+  Bool isEmpty() {
+    return
+      !mAxonSigs[0].isOccupied() &&
+      !mAxonSigs[1].isOccupied();
+  }
+
+  Bool dieTrue() {
+    EventWindow ew;
+    ew[0] = Empty.instanceof;
+    return true;
+  }
+
+  @Override
+  Void behave() {
+    //XXX    if (adjust()) return;
+    if (updateTaps()) return (Void) dieTrue();
+    super.behave();
+  }
+
+  Bool adjust() {
+    SN tosn = hillClimbDir(2u,2u);
+    if (tosn != 0u && tosn != SN.maxof) {
+      endToEmpty(tosn,isHead());
+      return true;
+    }
+    return false;
+  }
+
+  SN hillClimbDir(Unsigned minh, Unsigned maxh) {
+    EventWindow ew;
+    MinXPick minhops;
+    MaxXPick maxhops;
+    C2D wvec;
+    Unsigned totalhops = 0u;
+    Unsigned totalls = 0u;
+    for (SN sn = 0u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      //XXX      if (a as LocalSpace) {
+      //XXX if (a as LocalSpace2D) {
+      if (a as LocalSpaceRect2D) {
+        //        Unsigned ahopsin = a.getLHopsIn();
+        Unsigned ahopsin = a.getLHops();
+        ++totalls;
+        minhops.update(sn,ahopsin);
+        maxhops.update(sn,ahopsin);
+        totalhops += ahopsin;
+      }
+    }
+    if (!minhops.hasPick() || !maxhops.hasPick())
+      return SN.maxof;          // uh oh we lost
+    Unsigned avghops = totalhops/totalls;
+    C2D toc;
+    if (avghops < minh) toc = maxhops.getIdxC2D();
+    else if (avghops > maxh) toc = minhops.getIdxC2D();
+    else if (random.oddsOf(9u,10u)) return 0u; // mostly just chill
+    //else toc = (0,0) <- just knock around here
+    SN tosn = emptyToward524(toc);
+    if (false) {
+      DebugUtils du;
+      du.print("PCNNDA10");
+      du.print(totalhops);
+      du.print(totalls);
+      du.print(avghops);
+      du.print(toc);
+      du.print(tosn);
+    }
+    return tosn;
+  }
+
+  Bool tryPropSig(AxonIdx aidx) {
+    Bool down = (aidx == cAXON_HEAD_IDX);
+    SlotSig & ss = getAxonSig(aidx);
+    mD&&pR("TRPRSIG10")&&pR(aidx)&&pR(ss)&&pR(self);
+    if (!ss.isOccupied()) return false;
+    EventWindow ew;
+    SN nextsn = down ? getDown() : getUp();
+
+    mD&&pR("TRPRSIG11")&&pR(nextsn);
+
+    if (!ew.isAccessible(nextsn)) return false; // includes SN.maxof
+    Atom & a = ew[nextsn];
+
+    mD&&pR("TRPRSIG12")&&pR(a);
+
+    if (a as Axon) {
+      SlotSig & ass = a.getAxonSig(aidx);
+      mD&&pR("TRPRSIG13")&&pR(ass);
+      if (!ass.isOccupied()) {
+        ass = ss;               // Yours now bud
+        ss.reset();
+        mD&&pR("TRPRSIG14")&&pR(self);
+        return true;
+      }
+    }
+    mD&&pR("TRPRSIG15");
+    return false;
+  }
+  
+}
+
+quark AxonEnd : Axon + QDebugUtils {
+  Bool mTapFound = false;
+  Bool mBranchOK = false;       //< can branch off an AxonMid vs seeing tap directly
+
+  //// AxonEnd API
+  virtual AxonIdx getAxonIdx() ;
+
+  @Override
+  virtual TapIdx getAxonTap(AxonIdx idx) {
+    if (getAxonIdx() == idx && !mTapFound) return cTAPIDX_NONE;
+    return super.getAxonTap(idx);
+  }
+
+  //// UrSelf API
+  @Override
+  Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    super.renderGraphics();
+
+    ARGB col = getColor(0u);
+    Int(16) cSIZE = 550;
+    drawable.fillRectangle(C2D.instanceof(-cSIZE/2,-cSIZE/2), 
+                           C2D.instanceof(cSIZE,cSIZE),
+                           col);
+  }
+
+  //// AxonEnd SERVICES
+  SlotSig & getEndSlotSig(Bool arriving) {
+    AxonIdx aidx = getAxonIdx(); // 0 we are head, 1 we are tail
+    if (arriving) aidx = (AxonIdx) (1u-aidx); // get inbound not outbound
+    return mAxonSigs[aidx];    
+  }
+
+  Bool searchForAnchor(SN & targsn) { // assuming no floodtrail
+    targsn = SN.maxof;          // assume failure
+
+    mD&&pR("AXESFA10")&&pR(self);
+    AxonIdx aix = getAxonIdx();            // head or tail
+
+    mAxonTapsValid[aix] = false; // assume bad until proven good
+
+    TapIdx tapidx = super.getAxonTap(aix); // skip mTapFound check
+    mTapFound = false;                     // Assume we don't find it
+
+    mD&&pR("AXESFA11")&&pR(tapidx);
+    if (tapidx == cTAPIDX_NONE) return false; // don't even have anchor to search for
+
+    Bool tookbranch;
+    targsn = searchForTapIdxOrBranch(tapidx,mBranchOK,tookbranch);
+    mD&&pR("AXESFA12")&&pR(tapidx)&&pR(targsn);
+    Bool berandom = false;
+    if (targsn == SN.maxof) {   // if can't see goal, be random
+      if (true) {
+        return dieTrue();
+      } else {
+        Random random;
+        targsn = (SN) random.between(1u,24u);
+        berandom = true;
+        mD&&pR("AXESFA13")&&pR(targsn);
+      }
+    } else {
+      mTapFound = true;    // Otherwise we found our tap..
+      mAxonTapsValid[aix] = true; // we can't really need both of these not really?
+    }
+    mD&&pR("AXESFA1310");
+    C2D targc = ew.getCoord(targsn);
+    if (targc.length() > 1u || berandom) {
+      SN destsn = SN.maxof;
+      MinXPick emppick;
+      for (SN offsn = 0u; offsn <= 8u; ++offsn) {
+        C2D offc = ew.getCoord(offsn);
+        C2D checkc = targc+offc;
+        mD&&pR("AXESFA1311")&&pR(offsn)&&pR(checkc);
+        SN checksn = ew.getSiteNumber(checkc);
+        if (!ew.isAccessible(checksn)) continue;
+        if (ew[checksn] is Empty)
+          emppick.update(checksn,offc.length());
+      }
+      mD&&pR("AXESFA14");
+      if (!emppick.hasPick()) return false;
+      SN empsn = emppick.getIdxSN();
+      mD&&pR("AXESFA15")&&pR(empsn);
+      Bool ret = endToEmpty(empsn,isHead());
+      mD&&pR("AXESFA16")&&pR(ret);
+      return ret;
+    }
+    mD&&pR("AXESFA17");
+    return false;
+  }
+}
+
+
+/** Axon head.
+    \symbol Ah
+    \color #844
+*/
+element AxonHead : AxonEnd + FreeWormNoUp + FreeWormStgDown + QDebugUtils {
+  //// AxonEnd API
+  @Override 
+  virtual AxonIdx getAxonIdx() { return cAXON_HEAD_IDX; }
+
+  //// AxonHead SERVICES
+  Bool searchForFloodTrail() {
+    mD&&pR("SFFLTR10")&&pR(self);
+
+    EventWindow ew;
+    TermTargetLibrary ttl;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as FloodFind) {
+        mD&&pR("SFFLTR11")&&pR(a);
+        if (a.mFloodState == a.cFS_TRACE) {
+          C2D ac = ew.getCoord(sn);
+          SN revsn = ew.getSiteNumber(-ac);
+          mD&&pR("SFFLTR12")&&pR(ac)&&pR(revsn);
+          if (a.mParentSN == revsn) { // Found a trail!
+            mD&&pR("SFFLTR13");
+            ew[sn] = Empty.instanceof;
+            return advanceToEmpty(sn);
+          }
+        }
+      }
+    }
+    mD&&pR("SFFLTR14");
+    return false;
+  }  
+
+  @Override virtual Bool actHead() { 
+    mD&&pR("AHAHD10");
+    Bool ret = super.actHead();      // See if we're okay
+    if (ret) return ret;             // We're not
+    mD&&pR("AHAHD11")&&pR(self);
+    if (searchForFloodTrail()) return true;
+    mD&&pR("AHAHD12");
+    SN anchorsn;
+    if (searchForAnchor(anchorsn)) return true;
+    if (mBranchOK) {            // do we maybe need to jump a branch?
+      mD&&pR("AHAHD12B10");
+      SlotSig & ss = getAxonSig(cAXON_TAIL_IDX);
+      if (ss.isOccupied()) {
+        mD&&pR("AHAHD12B11")&&pR(ss);
+        EventWindow ew;
+        Atom & a = ew[anchorsn];
+        if (a as AxonMid) {
+          SlotSig & ass = a.getAxonSig(cAXON_TAIL_IDX);
+          mD&&pR("AHAHD12B12")&&pR(ass);
+          if (!ass.isOccupied()) {
+            ass = ss;
+            ss.reset();
+            mD&&pR("AHAHD12B13")&&pR(ass);
+          }
+        }
+      }
+    }
+    mD&&pR("AHAHD13");
+    if (tryPropSig(cAXON_HEAD_IDX)) ret = true; // try to propagate down
+    mD&&pR("AHAHD14")&&pR(ret);
+    return ret;
+  }
+
+}
+
+/** Axon tail.
+    \symbol At
+    \color #448
+*/
+element AxonTail : AxonEnd + FreeWormStgUp + FreeWormNoDown + QDebugUtils {
+  //// AxonEnd API
+  @Override 
+  virtual AxonIdx getAxonIdx() { return cAXON_TAIL_IDX; }
+
+  @Override virtual Bool actTail() { 
+    mD&&pR("ATATD10");
+    Bool ret = super.actTail();      // See if we're okay
+    if (ret) return ret;             // We're not
+    mD&&pR("ATATD11")&&pR(self);
+    SN anchorsn;
+    if (searchForAnchor(anchorsn)) return true;
+    mD&&pR("ATATD12");
+    if (tryPropSig(cAXON_TAIL_IDX)) ret = true; // try to propagate up
+    mD&&pR("ATATD13")&&pR(ret);
+    return ret;
+  }
+}
+
+/** Axon mid.
+    \symbol Am
+    \color #484
+*/
+element AxonMid : Axon + FreeWormTemp + FreeWormStg + FreeWormPathAdjustingMiddle + QDebugUtils {
+  //// FreeWormBase API
+  @Override virtual Bool isTemp() { //< We're temporary if we're empty..
+    return isEmpty();
+  }
+
+  @Override Bool actMiddle() { //< Propagate signals if possible
+    if (super.actMiddle()) return true;
+    
+    Bool ret = false;
+    if (tryPropSig(cAXON_HEAD_IDX)) ret = true; // try down
+    if (tryPropSig(cAXON_TAIL_IDX)) ret = true; // try up
+    return ret;
+  }
+
+}
+
+/**
+   \symbol AB
+   \color #fab
+*/
+element SpikeAxonBuilder10 + DTU {
+  Random random;
+  EventWindow ew;
+  Void behave() {
+    MinXPick emp;
+    for (SN sn = 1u; sn <= 12u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (ew[sn] is Empty) {
+        C2D c = ew.getCoord(sn);
+        emp.update(sn,c.length());
+      }
+    }
+    if (!emp.hasPick()) return;
+    SN hsn = emp.getIdxSN();
+    C2D hc = ew.getCoord(hsn);
+    SN revhsn = ew.getSiteNumber(-hc);
+    TermTargetLibrary ttl;
+    TapIdx hanchor = (TapIdx) ttl.getTapIdxFromClassId(MLRF.classidof); // DEMO SPIKE
+    //    TapIdx tanchor = (TapIdx) ttl.getTapIdxFromClassId(HDGF.classidof);
+    TapIdx tanchor = (TapIdx) ttl.getTapIdxFromClassId(HFRG.classidof);
+    AxonHead ah;
+    AxonTail at;
+    ah.setDown(revhsn);
+    ah.mAxonTaps[0] = hanchor;
+    ah.mAxonTaps[1] = tanchor;
+    at.setUp(hsn);
+    at.mAxonTaps[0] = hanchor;
+    at.mAxonTaps[1] = tanchor;
+    ew[hsn] = ah.atomof;
+    ew[0] = at.atomof;
+  }
+}
