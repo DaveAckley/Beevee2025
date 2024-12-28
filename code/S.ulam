@@ -1,7 +1,38 @@
-element S {
+/** Project Beevee 2025
+    \author Dave Ackley
+    \copyright 2025 LCF
+    \license GPL-3
+    \symbol S
+    \version 243
+ */
+element S + DTU {
+  EventWindow ew;
   Void behave() {
-    Fail f;
-    f.fail(__FILE__,__LINE__,"WHY DON'T YOU WRITE ME?");
+    TileFinder t;
+    ew[0] = t.atomof;
+  }
+}
+
+
+
+/////
+element RootSpreader + DTU {
+  EventWindow ew;
+  Random random;
+  SN mDir;
+  Unsigned(6) mSteps = Unsigned(6).maxof;
+  Void behave() {
+    if (mSteps-- == 0u) {
+      Tissue pg;
+      ew[0] = pg.atomof; // deploy
+    } else {
+      SN trysn = mDir;
+      if (random.oneIn(8))
+        trysn = (SN) random.between(1,8);
+      if (ew.isAccessible(trysn) &&
+          ew.isEmpty(trysn)) 
+        ew.swap(0u, trysn);
+    }
   }
 }
 

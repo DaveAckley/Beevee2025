@@ -1,0 +1,196 @@
+transient LocalSpaceState : Intention + DTU {
+  //  typedef LocalSpace.LocalHops LocalHops;
+
+  EventWindow ew;
+  Random random;
+  DebugUtils du;
+
+  //// LocalSpaceState DATA STRUCTURES
+  MinXPick mMinLHopsIn;
+  MinXPick mMinLHopsOut;
+  MaxXPick mMaxLHopsOut;
+  MinXPick mMinEmpty;
+  MinXPick mMinInterPhase;
+
+  //// Intention API
+  @Override
+  virtual Bool init(Intender & in) {
+    mD&&pR("LoSpIN10");
+    if (super.init(in)) return true;
+    mMinLHopsIn.reset();
+    mMinLHopsOut.reset();
+    mMaxLHopsOut.reset();
+    mMinEmpty.reset();
+    mMinInterPhase.reset();
+    return false;
+  }
+
+  virtual Bool observe(Intender & in) {
+    mD&&pR("LoSpOB10");
+    if (super.observe(in)) return true;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      C2D c = ew.getCoord(sn);
+      Unsigned dist = c.euclideanSquaredLength();
+      Unsigned ph = getPhase(c);
+      if (a as LocalSpace) {
+        if (ph == 0u) {
+          Unsigned hopsin = a.getLHopsIn();
+          if (hopsin != a.getUninitLHops())
+            mMinLHopsIn.update(sn,hopsin);
+        } else
+          mMinInterPhase.update(sn,dist);
+      } else if (a is Empty && ph == 0u)
+        mMinEmpty.update(sn,dist);
+    }
+    return false;
+  }
+
+  virtual Bool stabilize(Intender & in) {
+    mD&&pR("LoSpSB10");
+    if (super.stabilize(in)) return true;
+
+    mD&&pR("LoSpSB11");
+    mD&&pR(mMinLHopsIn);
+    mD&&pR(mMinInterPhase);
+    mD&&pR(mMinEmpty);
+
+    mD&&pR("LoSpSBX1110");
+    mD&&pR(in);
+    LocalSpace & ls = (LocalSpace&) in;
+    mD&&pR("LoSpSBX111011");
+    mD&&pR(ls);
+
+    Unsigned lhopsin = ls.getLHopsIn();
+    mD&&pR("LoSpSBX111012");
+    Unsigned lhopsout = ls.getLHopsOut();
+    mD&&pR("LoSpSBX111013");
+    Unsigned lhopsmax = ls.getMaxLocalHops();
+    mD&&pR("LoSpSBX111014");
+
+    mD&&pR("LoSpSBX1111");
+    //// STABILIZE LHOPSIN
+    Unsigned hopsin = ls.getLHopsIn();
+    if (hopsin != ls.cROOT_LOCALHOPS) {
+      mD&&pR("LoSpSBX1112");
+      if (!mMinLHopsIn.hasPick()) return dieTrue();   // no upstream
+
+      Unsigned uplh = mMinLHopsIn.getX();
+      if (uplh >= ls.getMaxLocalHops()) return dieTrue(); // we too fah
+
+      Unsigned lh = (uplh + 1u);
+      if (hopsin != lh) {
+        ls.setLHopsIn(lh);
+        return true;        // gradient change
+      }
+      // ELSE FALL THROUGH
+    }
+    mD&&pR("LoSpSBX1113");
+
+    //// RESCAN FOR LHOPSOUT? (GAH?)
+    for (SN sn = 21u; sn <= 24u; ++sn) { // Dist 3 only
+      Unsigned minho = Unsigned.maxof;
+      Unsigned maxho = 0u;
+      if (!ew.isAccessible(sn)) minho = 0u;
+      else {
+        Atom & a = ew[sn];
+        if (a is Empty) minho = 0u;
+        else if (a as LocalSpace) {
+          Unsigned ahopsin = a.getLHopsIn();
+          Unsigned ahopsout = a.getLHopsOut();
+          Unsigned uninithops = a.getUninitLHops();
+          if (hopsin != uninithops &&
+              ahopsin > lhopsin) { // if strictly farther out than us
+            minho = ahopsout;
+          }
+          if (ahopsout != uninithops &&
+              ahopsout > maxho)
+            maxho = ahopsout;
+        }
+      }
+      if (minho != Unsigned.maxof)
+        mMinLHopsOut.update(sn,minho);
+      if (maxho != 0u)
+        mMaxLHopsOut.update(sn,maxho);
+    }
+
+    mD&&pR("LoSpSBX1114");
+    //// STABILIZE LHOPSOUT
+
+    if (!mMinLHopsOut.hasPick()) ls.setLHopsOut(0u);
+    else {
+      Unsigned olh = mMinLHopsOut.getX();
+      ls.setLHopsOut(olh+1u); // saturate if need be
+      // FALL THROUGH
+    }
+
+    mD&&pR("LoSpSBX1115");
+    //// FILL OUT LHOPS GRADIENT
+    if (lhopsin < lhopsmax && mMinEmpty.hasPick()) {
+      Unsigned newlh = (lhopsin + 1u);
+      SN sn = mMinEmpty.getIdxSN();
+      Atom a = ls.atomof;
+      LocalSpace & newself = (LocalSpace&) a;
+      newself.setLHopsIn(newlh);
+      ew[sn] = a;
+      return true;
+    }
+
+    return false;
+  }
+
+  virtual Bool act(Intender & in) {
+    mD&&pR("LoSpAC10");
+    if (super.act(in)) return true;
+    LocalSpace & ls = (LocalSpace&) in;
+    mD&&pR("LoSpAC10")&&pR(ls);
+
+    //// ROOT DRIFT SPIKE
+    if (ls.getLHopsIn() == ls.cROOT_LOCALHOPS) {
+      if (mMaxLHopsOut.hasPick() && random.oneIn(100u)) {
+        SN sn = mMaxLHopsOut.getIdxSN();
+        mD&&pR("LoSpAC11")&&pR(sn);
+        ew.swap(0u,sn);
+        return true;
+      }
+    }
+
+    mD&&pR("LoSpAC12");
+    return false;
+  }
+
+
+  //// LocalSpaceState SERVICES
+
+  /** \returns phase 0..8 of \c c relative to us (in sn 0), mapped as
+
+      <pre>
+
+         -4  -3  -2  -1   0  +1  +2  +3  +4
+      -4  .   .   .   .   .   .   .   .   .
+
+      -3  .   0   1   2   0   1   2   0   1
+
+      -2  .   3   4   5   3   4   5   3   4
+
+      -1  .   6   7   8   6   7   8   6   7
+
+       0  .   0   1   2   0   1   2   0   1
+
+      +1  .   3   4   5   3   4   5   3   4
+
+      +2  .   6   7   8   6   7   8   6   7
+
+      +3  .   0   1   2   0   1   2   0   1
+
+      +4  .   3   4   5   3   4   5   3   4
+      </pre>
+   */
+
+  Unsigned getPhase(C2D c) {
+    Int xo = (c.x + 6)%3;
+    Int yo = (c.y + 6)%3;
+    return (Unsigned) (3*yo + xo);
+  }
+}

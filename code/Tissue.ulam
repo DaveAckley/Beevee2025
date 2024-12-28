@@ -1,0 +1,231 @@
+element Tissue + DTU {
+  constant Unsigned cBITS = 6u;
+  typedef Unsigned(cBITS) Gradient;
+  constant Gradient cNOGRAD = Gradient.maxof;
+
+  typedef Unsigned(3) GradIdx;
+  constant Unsigned cTGRADS = GradIdx.maxof-1u;
+  constant Unsigned cNOTGRAD = GradIdx.maxof;
+  Gradient mTGrads[cTGRADS];
+
+  typedef Unsigned(8) Power;
+  Power mPower;
+  typedef Unsigned(4) Flow;
+  Flow mInFlows[4];
+  EventWindow ew;
+  Random random;
+
+  ARGB getCombinedGradients() {
+    ARGB black = { 0xff, 0x0, 0x0, 0x0 };
+    ARGB finalcolor = black;
+    Unsigned totgrad = 0u;
+    ClassUtils cu;
+    AtomUtils au;
+    ColorUtils clu;
+    typedef ClassUtils.ClassId ClassId;
+    Unsigned maxpct = 100u;
+    /*
+    for (Unsigned i = 0u; i < cTGRADS; ++i) {
+      if (mTGrads[i] == 0u || i >= Terminalias.cCLASSIDS_OF_GRADIENTS.lengthof)
+        continue;
+      
+      ClassId classid = Terminalias.cCLASSIDS_OF_GRADIENTS[i];
+      Int etype = cu.getElementType(classid);
+      if (etype < 0) continue; // ??
+      Atom a = au.new(etype);
+      Terminalias & ta = (Terminalias&) a;
+      ARGB tacol = ta.getGradientColor();
+      Unsigned gweight = (100u - mTGrads[i]*100u/mTGrads[i].maxof);
+      // come up from black by the weighted color
+      tacol = clu.between(tacol,black,gweight);
+      // mix into running col by declining powers of 2
+      finalcolor = clu.between(tacol,finalcolor,maxpct);
+      maxpct /= 2u;
+      }*/
+    return finalcolor;
+  }
+
+  Void renderGradients() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+
+    if (false) {
+      // just tiny cross to mark the grid
+      constant Int cWIDTH = 50;
+      constant Int cLENGTH = 300;
+      ARGB white = { 0xff, 0xff, 0xff, 0xff};
+      drawable.fillRectangle(C2D.instanceof(-cWIDTH/2,-cLENGTH/2), 
+                             C2D.instanceof(cWIDTH,cLENGTH),
+                             white);
+      drawable.fillRectangle(C2D.instanceof(-cLENGTH/2,-cWIDTH/2), 
+                             C2D.instanceof(cLENGTH,cWIDTH),
+                             white);
+    } else {
+      ARGB finalcolor = getCombinedGradients();
+      drawable.fillRectangle(C2D.instanceof(-300,-300),
+                             C2D.instanceof(600,600),
+                             finalcolor);
+    }
+  }
+
+  @Override
+  virtual Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    if (mPower == mPower.maxof) {
+      renderGradients();
+      return;
+    }
+
+    //// PHASE WAR RENDERING
+    ARGB oncol = self.getColor(0u);
+    drawable.fillRectangle(C2D.instanceof(-600,-600), // slightly oversize..
+                           C2D.instanceof(1200,1200),
+                           oncol);
+
+    MDist md; // No ew when rendering!  Can't use ew.getCoordRaw()!
+    constant Int cDIST = 96;
+    for (SN sn = 0u; sn < mInFlows.lengthof; ++sn) {
+      Int scaled = cDIST*mInFlows[sn];
+      C2D origin;
+      C2D sc = md.getSiteCoord((SN)(sn+1u))*origin.make(scaled,scaled);
+      drawable.drawMaskedLineUnits(origin,sc,oncol,oncol,0xffffffff, 100u, 200u);
+    }
+  }
+  
+  @Override
+  ARGB getColor(Unsigned selector) {
+    ARGB ret = { 0xff, 0x00, 0x00, 0x00 };
+    if (mPower == mPower.maxof) ret[3] = 0x60;
+    else {
+      ret[1] = (ASCII) min(0xff,16u*mPower);
+      ret[2] = (ASCII) min(0xff, 4u*mPower);
+      ret[3] = (ASCII) min(0xff, 1u*mPower);
+    }
+    return ret;
+  }
+
+  @Override
+  Void behave() {
+    if (random.oneIn(3u)) ++mPower;
+
+    MinXPick gridemptypick;
+    MinXPick nongridemptypick;
+    MinXPick gridtermpick;
+    MinXPick nongridtermpick;
+    MinXPick friendpickgive;
+    MaxXPick friendpicktake;
+    MinXPick enemypick;
+
+    /*
+    Unsigned mingrads[cTGRADS] = { Unsigned.maxof };
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (sn >= 21u && sn <= 24u) { // should be grid
+        if (a is Empty) gridemptypick.update(sn);
+        else if (a is Terminalias) gridtermpick.update(sn);
+        else if (a as Self) {
+          friendpickgive.update(sn,a.mPower); // want least powerful friend
+          friendpicktake.update(sn,a.mPower); // want most powerful friend
+
+          for (Unsigned i = 0u; i < cTGRADS; ++i) {
+            if (a.mTGrads[i] != 0u && a.mTGrads[i] < mingrads[i])
+              mingrads[i] = a.mTGrads[i];
+          }
+        }
+      } else {                  // shouldn't be grid
+        if (a is Self) enemypick.update(sn);
+        else if (a is Empty) nongridemptypick.update(sn);
+        else if (a is Terminalias) nongridtermpick.update(sn);
+      }
+    }
+
+    if (enemypick.hasPick()) { // highest priority
+      SN othsn = (SN) enemypick.getIdx();
+      Self& other = (Self&) ew[othsn];
+
+      constant ASCII cMINHIT = 5u;
+      ASCII weHit = (ASCII) (random.between(0u,mPower/2u)+cMINHIT);
+      ASCII theyHit = (ASCII) (random.between(0u,other.mPower/2u)+cMINHIT);
+
+      other.mPower -= weHit;
+      mPower -= theyHit;
+
+      if (other.mPower == 0u)   // they can die
+        ew[othsn] = Empty.instanceof;
+
+      if (mPower == 0u) {       // and we can die too
+        ew[0] = Empty.instanceof;
+        return;
+      }
+    }
+    
+    if (gridemptypick.hasPick() && mPower > 1u) {
+      mPower /= 2u;                                  // Split our power with the newb
+      ew[(SN) gridemptypick.getIdx()] = self.atomof;
+    }
+
+    if (friendpicktake.hasPick()) {
+      SN frnsn = (SN) friendpicktake.getIdx();
+      Self& friend = (Self&) ew[frnsn];
+      Unsigned frndir = frnsn-21u; // 0..3
+
+      Int delta = (Int) friend.mPower - (Int) mPower;
+      if (delta > 1) {          // They can stand to give to us
+        delta += mInFlows[frndir]; // take extra if it's a familiar flow
+        ASCII shift = (ASCII) (delta/2);
+        friend.mPower -= shift;
+        mPower += shift;
+        mInFlows[frndir]++;
+      } else mInFlows[frndir] /= 2u;
+    }
+
+    if (friendpickgive.hasPick()) {
+      SN frnsn = (SN) friendpickgive.getIdx();
+      Self& friend = (Self&) ew[frnsn];
+      Unsigned frndir = 3u-(frnsn-21u); // 3..0
+
+      Int delta = (Int) mPower - (Int) friend.mPower;
+      if (delta > 1) {          // We can stand to give to them
+        delta += friend.mInFlows[frndir]; // give extra if familiar flow
+        ASCII shift = (ASCII) (delta/2);
+        mPower -= shift;
+        friend.mPower += shift;
+        friend.mInFlows[frndir]++;
+      } else friend.mInFlows[frndir] /= 2u;
+    }
+
+    if (gridtermpick.hasPick()) {
+      // Move term off grid if possible
+      SN gtsn = (SN) gridtermpick.getIdx();
+      if (nongridemptypick.hasPick()) {
+        SN ngesn = (SN) nongridemptypick.getIdx();
+        ew.swap(gtsn,ngesn);
+      }
+      return;
+    }
+
+    // Anchor a gradient if indicated
+    if (nongridtermpick.hasPick()) {
+      SN ngtsn = (SN) nongridtermpick.getIdx();
+      Terminalias & term = (Terminalias&) ew[ngtsn];
+      Gradient gr = term.getGradientIndex();
+      if (gr != Gradient.cNOGRAD)   // OK, this terminal anchors a gradient
+        mingrads[gr] = 0u;          // mark we are authoritative for it
+    }
+
+    // Update our gradients
+    for (Unsigned i = 0u; i < cTGRADS; ++i) {
+      if (mingrads[i] == 0u)
+        mTGrads[i] = 1u;        // We are right there
+      else if (mingrads[i] >= Gradient.maxof) // including .maxof
+        mTGrads[i] = 0u;        // That grad is unknown here
+      else
+        mTGrads[i] = (Gradient) (mingrads[i] + 1u);
+    }
+    */
+  }
+}
+
+

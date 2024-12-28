@@ -1,0 +1,54 @@
+@Concrete
+quark OrientGripInfo : GripInfo { 
+  constant SenseDests cSD_TOCK = { MLEY.classidof, MREY.classidof, cNULLID };
+  // constant SenseDests cSD_SLFY = { cNULLID };
+  // constant SenseDests cSD_SRFY = { MLRF.classidof, GRIP.classidof, cNULLID };
+  // constant SenseDests cSD_SLFR = { GRIP.classidof, cNULLID };
+  // constant SenseDests cSD_SRFR = { GRIP.classidof, cNULLID };
+  // constant SenseDests cSD_SLLY = { MLEY.classidof, cNULLID };
+  // constant SenseDests cSD_SLRY = { MLEY.classidof, cNULLID };
+  // constant SenseDests cSD_SRLY = { MREY.classidof, cNULLID };
+  // constant SenseDests cSD_SRRY = { MREY.classidof, cNULLID };
+
+  constant SenseDests cSD_SLFG = { GREG.classidof, cNULLID };
+  constant SenseDests cSD_SRFG = { GREG.classidof, cNULLID };
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xff00ff80);
+  }
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & rawvalue) {
+    if (forDest == MLEY.classidof || forDest == MREY.classidof) {
+      if (forSensor == TOCK.classidof) {
+        Int cooked = -20;
+        rawvalue = intToSignedAscii(cooked); 
+        return true;
+      }
+    }
+
+    return true;            // default identity map
+  }
+
+  @Override String getGripName() { return "ORENT"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    which (sensid) {
+      case TOCK.classidof: { return cSD_TOCK; }
+
+      // Green processing in orient
+      case SLFG.classidof: { return cSD_SLFG; }
+      case SRFG.classidof: { return cSD_SRFG; }
+    }
+    return getDefaultDestinations(sensid);
+  }
+
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) { // might be called by any Grip& !
+    if (g as GREG) {
+      if (g.mState == GREG.cSTATE_REGRIP) return GripInfoMap.cGRIP_HUNTR;
+    }
+    return g.getGripNumber();
+  }
+
+}

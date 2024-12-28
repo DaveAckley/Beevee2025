@@ -1,0 +1,290 @@
+transient Router + DTU + QDebugUtils {
+  EventWindow ew;
+
+  typedef TermTargetLibrary.TargetCount TapIdx;
+  constant TapIdx cTAPIDX_NONE = TapIdx.maxof;
+
+  Self(QDebugUtils & du) { takeDebug(du); }
+
+  /** \return true to request switching the sig (modifying \c slot to
+     the result of the mapping if needed), false to reject switching
+     to this \c out
+   */
+  Bool mapSig(SlotSig & slot, TapIdx out, TapIdx in, XBarSpace2D &xb, XBarSpace2DState & xbs) {
+    mD&&pR("RTTRMSG10")&&pR(out)&&pR(in);
+    Unsigned gripnum = xb.getGripNumber();
+    GripInfoMap gim;
+    ClassId giid = gim.getGripInfoClassId(gripnum);
+    if (giid == 0u) return false;
+    
+    GripInfo & gi = gim.getGripInfo(giid);
+
+    TermTargetLibrary ttl;
+    ClassId outid = ttl.getClassIdFromTapIdx(out); // sensor
+    ClassId inid = ttl.getClassIdFromTapIdx(in);   // motor
+
+    mD&&pR("RTTRMSG11")&&pR(gi)&&pR(outid)&&pR(inid);
+
+    // Scan sd's (for now) to see if signal wanted..
+    typedef GripInfo.SenseDests SenseDests;
+    SenseDests sd = gi.getDestinations(outid);
+    for (Unsigned i = 0u; i < sd.lengthof; ++i) {
+      ClassId dest = sd[i];
+      mD&&pR("RTTRMSG12")&&pR(i)&&pR(dest)&&pR(inid);
+      SlotSig hold = slot;
+      if (dest == inid && gi.mapSourceSignalValue(outid,inid,slot.mValue)) { // remapping mValue if true        
+        mD&&pR("RTTRMSG1210")&&pR(dest)&&pR(hold)&&pR(slot);
+        return true;
+      }
+    }
+    mD&&pR("RTTRMSG13");
+    return false;
+  }
+
+  /** Switch an outgoing (column) signal to an incoming (row) signal
+      if the conditions are all favorable 
+
+      \returns true if a signal was switched, or false if nothing
+      happened due to lack of signal or blocked row
+  */
+  Bool trySwitch(XBarSpace2D &xb, XBarSpace2DState & xbs) {
+    /// ESTABLISH CONDITIONS FOR A SWITCHING
+    // (0) Do we have a symmetry?
+    if (!xb.hasSymmetry()) return false; // no we do not
+
+    // (1) Do we have an outgoing signal?
+    SlotSig & oss = xb.getSlotSig(true);
+    mD&&pR("RTTRSW10")&&pR(xb)&&pR(oss);
+    if (!oss.isOccupied()) return false; // no we do not
+    // We have an outgoing signal
+
+    // (2) Do we have an outbound tap source?
+    TapIdx otix = xb.getTapIdxIfAny(true);
+    mD&&pR("RTTRSW11")&&pR(otix);
+    if (otix == cTAPIDX_NONE) return false; // no we do not
+    // We have an outgoing tap
+
+    // (3) Do we have an inbound tap sink?
+    TapIdx itix = xb.getTapIdxIfAny(false);
+    mD&&pR("RTTRSW12")&&pR(itix);
+    if (itix == cTAPIDX_NONE) { // when out of westbounds, start consuming
+      mD&&pR("RTTRSW14")&&pR(oss);
+      if (!xbs.mMinTap.hasPick()) {
+        oss.reset();            // discard outbound UNLESS AT A TAP
+        mD&&pR("RTTRSW15")&&pR(oss);
+      }
+      return false;             // no switching happened (?)
+    }
+    // We have an inbound tap
+
+    // (4) Do we want to switch from outbound to inbound?
+    SlotSig osscopy = oss;      // (including source tapidx)
+    mD&&pR("RTTRSW13")&&pR(osscopy);
+
+    if (mapSig(osscopy,otix,itix,xb,xbs)) { // Yes we want to switch (and have mapped osscopy)
+      SlotSig & iss = xb.getSlotSig(false);
+      mD&&pR("RTTRSW210")&&pR(iss);
+      // (4a) Is there room to switch into?
+      if (!iss.isOccupied()) {     // Yes
+        iss = osscopy;          // SWITCH IT! (including source tapidx)
+        mD&&pR("RTTRSW14")&&pR(iss)&&pR(oss);
+      } else {                  // No there is already an inbound signal there
+        /// XXXX HANDLE INBOUND COLLISIONS HOW? DISCARD, OVERWRITE, BLOCK?
+        // XXX (FOR NOW, JUST MOVE ON??)
+        mD&&pR("RTTRSW211")&&pR(iss);
+
+        if (iss.mSource == otix) {
+          mD&&pR("RTTRSW212")&&pR(osscopy);
+          // OVERWRITE OUR OWN SIGNALS "FOR FRESHNESS"
+          iss.mValue = osscopy.mValue;
+        }
+        // ELSE ???
+
+      }
+    }
+    mD&&pR("RTTRSW213")&&pR(false);
+    // We are done with switching for now
+
+    return false;
+
+  }
+
+  Bool tryPropagation(XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+    mD&&pR("RTTRPOP0")&&pR(xb);
+    if (!xb.hasSymmetry()) return false;
+
+    return
+      tryOutboundPropagation(xb,xbs) ||
+      tryInboundPropagation(xb,xbs);
+  }
+
+  Bool tryOutboundPropagation(XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+    mD&&pR("RTTROBPOP0")&&pR(xb);
+    SlotSig & oss = xb.getSlotSig(true); 
+    if (!oss.isOccupied()) return false;
+    TapIdx obsource = oss.mSource;
+
+    // We have an outbound signal
+    mD&&pR("RTTROBPOP10");
+
+    // check for cross-street inbound taps
+    Bool ataTAP = xbs.mMinTap.hasPick();
+    if (!ataTAP &&
+        xb.getTapInTaps(false,false) == cTAPIDX_NONE &&
+        xb.getTapInTaps(false,true) == cTAPIDX_NONE) {
+      oss.reset();              // if none, consume signal
+      mD&&pR("RTTROBPOP11");
+      return true;
+    }
+
+    // We have cross-street tap(s) OR WE ARE ataTAP
+    mD&&pR("RTTROBPOP12")&&pR(ataTAP);
+
+    // Search for outbound direction
+    AxialDir ad = xb.getPropagationDir(true,false); // try 'fwd' dir first
+    AxialDir oppad = oppositeAxialDir(ad);
+    mD&&pR("RTTROBPOP13")&&pR(ad)&&pR(xb.mTaps[ad]);
+    TapIdx tix = cTAPIDX_NONE;
+    if (xb.mTaps[oppad] == obsource) tix = xb.mTaps[oppad]; // outbound heads away from source!
+    else {
+      ad = xb.getPropagationDir(true,true); // else try 'reverse' dir
+      oppad = oppositeAxialDir(ad);
+      mD&&pR("RTTROBPOPx1013")&&pR(ad)&&pR(xb.mTaps[ad]);
+      if (xb.mTaps[oppad] == obsource) tix = xb.mTaps[oppad]; // ditto
+    }
+    mD&&pR("RTTROBPOP14")&&pR(ad)&&pR(tix);
+    
+    if (!ataTAP && tix == cTAPIDX_NONE) {  // no inbound direction? AND NOT ataTAP
+      oss.reset();              // then consume signal
+      mD&&pR("RTTROBPOP15")&&pR(xb);
+      return true;
+    }
+
+    // Want to move ad. Can we?
+    mD&&pR("RTTROBPOP16")&&pR(xb);
+    return trySwapAD(true,ad,oss,true,xb,xbs);
+  }
+
+  Bool tryInboundPropagation(XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+    mD&&pR("RTTRIBPOP0")&&pR(xb);
+    SlotSig & iss = xb.getSlotSig(false); 
+    if (!iss.isOccupied()) return false;
+
+    // We have an inbound signal
+    // Do we have a TAP to eat it?
+    Bool hasTAP = xbs.mMinTap.hasPick();
+    if (hasTAP) return false;   // yes
+
+    // Search for inbound direction
+    AxialDir ad = xb.getPropagationDir(false,false); // try 'fwd' dir first
+    TapIdx tix = cTAPIDX_NONE;
+    if (xb.mTaps[ad] != cTAPIDX_NONE) tix = xb.mTaps[ad];
+    else {
+      ad = xb.getPropagationDir(false,true); // else try 'reverse' dir
+      if (xb.mTaps[ad] != cTAPIDX_NONE) tix = xb.mTaps[ad];
+    }
+    if (tix == cTAPIDX_NONE) {  // no inbound direction?
+      iss.reset();              // then consume signal
+      return true;
+    }
+    // Want to move ad. Can we?
+    mD&&pR("RTTRIBPOP210");
+    return trySwapAD(false,ad,iss,false,xb,xbs);
+  }
+
+  Bool maybeDiscard(SlotSig & fromsig, Bool discard, Bool ret) {
+    if (discard) fromsig.reset();
+    return ret;
+  }
+
+  Bool trySwapAD(Bool orDiscard, AxialDir ad, SlotSig & fromss, Bool outbound, XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+    SN colngbsn = xbs.mGrid[ad]; 
+    mD&&pR("RTTRTSAD10")&&pR(colngbsn);
+    if (!ew.isAccessible(colngbsn)) return maybeDiscard(fromss, orDiscard, false);
+
+    Atom & a = ew[colngbsn];
+    mD&&pR("RTTRTSAD11")&&pR(a);
+    if (!(a is XBarSpace2D)) return maybeDiscard(fromss, orDiscard, false);
+
+    XBarSpace2D & dxb = (XBarSpace2D&) a;
+    mD&&pR("RTTRTSAD12");
+    if (!dxb.hasSymmetry()) return maybeDiscard(fromss, orDiscard, false);
+
+    SlotSig & dss = dxb.getSlotSig(outbound);
+    mD&&pR("RTTRTSAD13")&&pR(dss);
+
+    // PROPAGATE OVER OCCUPIED "FOR FRESHNASS":    if (dss.isOccupied()) return false;
+    
+    // WE CAN PROPAGATE
+    dss = fromss;               // Now it's your problem
+    fromss.reset();             // And our sigslot is open
+    mD&&pR("RTTRTSAD14")&&pR(xb)&&pR(dxb);
+    return true;
+  }
+
+  // Bool tryPropagationOLD(XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+  //   mD&&pR("RTTRPOP0")&&pR(xb);
+  //   if (!xb.hasSymmetry()) return false;
+
+  //   for (Unsigned i = 0u; i <= 1u; ++i) {
+  //     // Do we have an out- (or in-) bound signal?
+  //     Bool outbound = (i == 0u);
+  //     SlotSig & ss = xb.getSlotSig(outbound); 
+  //     mD&&pR("RTTRPOP10")&&pR(i)&&pR(ss);
+  //     if (!ss.isOccupied()) continue;        // We do not
+      
+  //     // We expect to be called after trySwitch and are therefore
+  //     // allowed to propagate any sig if we can (?)
+      
+  //     // Can we propagate the sig?
+
+  //     //        AxialDir ad = (i == 0u) ? cS : cW; // HARDCODED PROPDIRS BOGUE-A-LOGUS
+
+  //     Bool propped = false;
+  //     for (Unsigned j = 0u; j < 2u; ++j) {
+  //       Bool reverse = (j == 1u);  // try to go forward first
+  //       TapIdx & tix = xb.getTapInTaps(outbound, reverse); // get tap for cross street
+  //       mD&&pR("RTTRPOP11")&&pR(tix);
+  //       if (tix == cTAPIDX_NONE) { // when out of cross streets, start consuming
+  //           mD&&pR("RTTRPOP12");    
+  //           ss.reset();              // discard sig
+  //           continue;
+  //         }
+  //       }
+
+  //       SN colngbsn = xbs.mGrid[ad]; 
+  //       mD&&pR("RTTRPOP15")&&pR(colngbsn);
+  //       Bool propout = false;
+  //       if (ew.isAccessible(colngbsn)) {
+  //         Atom & a = ew[colngbsn];
+  //         mD&&pR("RTTRPOP16")&&pR(a);
+          
+  //         if (a as XBarSpace2D) {
+  //           mD&&pR("RTTRPOP17");
+  //           if (a.hasSymmetry()) {
+  //             SlotSig & ass = a.getSlotSig(i == 0u); // 0 out 1 in
+  //             if (!ass.isOccupied()) {
+  //               // WE CAN PROPAGATE
+  //               propout = true;     // Mark done
+  //               ass = ss;           // Now it's your problem
+  //               ss.reset();         // And our sigslot is open
+  //               mD&&pR("RTTRPOP18")&&pR(a);
+  //             }
+  //           }
+  //         }
+  //       }
+  //       if (!propout && !xbs.mMinTap.hasPick()) { // Consume if can't propagate and no tap?
+  //         mD&&pR("RTTRPOP19")&&pR(ss);
+  //         ss.reset();           // So our outbound is open anyway
+  //       }
+  //     }
+  //   }
+  //   mD&&pR("RTTRPOP210");
+  //   return false;
+  // }
+}

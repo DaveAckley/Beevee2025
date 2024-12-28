@@ -1,0 +1,67 @@
+quark LocalSpace : Intender {
+  //// INTENDER API
+  @Override
+  virtual ClassId getIntentionClass() { return LocalSpaceState.classidof; }
+
+  //// URSELF API  
+  @Override
+  Void behave() { pursueIntention(); }
+
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    Unsigned maxhops = getMaxLocalHops();
+    Unsigned hopsin = getLHopsIn();
+    Unsigned hopsout = getLHopsOut();
+    Unsigned uninithops = getUninitLHops();
+
+    if (hopsin == 0u) return cu.color(0xffffffff);
+    if (hopsin == uninithops) return cu.color(0xff000000);
+
+    ASCII lhi = (ASCII) (255u * hopsin / maxhops);
+    ASCII ilhi = (ASCII) (255u - lhi);
+    ASCII lho = (ASCII) (255u * hopsout / maxhops); // max+1 here?
+    ASCII ilho = (ASCII) (255u - lho);
+    return cu.color(ilhi, 0u, ilho);
+  }
+
+  //// LOCALSPACE API
+  constant Unsigned cROOT_LOCALHOPS = 0u;
+
+  virtual Unsigned getMaxLocalHops() ;
+  virtual Unsigned getUninitLHops() ;
+  virtual Unsigned getLHopsIn() ;
+  virtual Unsigned getLHopsOut() ;
+  virtual Void setLHopsIn(Unsigned hopsin) ;
+  virtual Void setLHopsOut(Unsigned hopsout) ;
+}
+
+quark LocalSpaceT(Unsigned cHOPSBITS,Unsigned cMAX_LOCALHOPS,Unsigned cTAGBITS) : LocalSpace {
+
+  //// LocalSpace API
+  virtual Unsigned getMaxLocalHops() { return cMAX_LOCALHOPS; }
+  virtual Unsigned getUninitLHops() { return cUNINIT_LOCALHOPS; }
+  virtual Unsigned getLHopsIn() { return mLHopsIn; }
+  virtual Unsigned getLHopsOut() { return mLHopsOut; }
+  virtual Void setLHopsIn(Unsigned hopsin) { mLHopsIn = (LocalHops) hopsin; }
+  virtual Void setLHopsOut(Unsigned hopsout) { mLHopsOut = (LocalHops) hopsout; }
+
+  //// LocalSpaceT API
+  typedef Unsigned(cHOPSBITS) LocalHops;
+  typedef Unsigned(cTAGBITS) LocalSpaceTag;
+
+  constant LocalHops cUNINIT_LOCALHOPS = LocalHops.maxof;
+
+  LocalHops mLHopsIn = cUNINIT_LOCALHOPS; //< distance from root
+  LocalHops mLHopsOut = cUNINIT_LOCALHOPS; //< distance from edge
+
+  //  LocalSpaceTag mTag;
+}
+
+/** Test LocalSpace element
+    \symbol S0
+    \color #339
+*/
+element SpikeLocalSpace10 : LocalSpaceT(4u,7u,8u) {
+
+}

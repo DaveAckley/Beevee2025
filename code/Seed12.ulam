@@ -1,0 +1,53 @@
+
+use Once;
+/** Seed adapted for TileFinder deployment
+    \symbol Sc
+    \color 0x22e
+ */
+element Seed12 + DTU {
+  typedef TermTargetLibrary.TargetCount TargetCount;
+  TargetCount mTargetCount;
+  typedef Unsigned(7) DeployStep;
+  DeployStep mDeployStep;
+  Void behave() {
+    EventWindow ew;
+    if (mDeployStep == 0u) {
+      ++mDeployStep;
+      ew.swap(0u,10u);          // up 2
+      return;
+    }
+    if (mDeployStep == 1u) {
+      constant SN cROOTSN = 10u; // up 2 more
+      SN esn = cROOTSN;
+      if (ew.isAccessible(esn) && ew[esn] is Empty) {
+        XBarSpace2D root;
+        root.setPos2D(C2D.instanceof(0,0));
+        ew[esn] = root.atomof;
+        ++mDeployStep;
+      }
+      return;
+    }
+    if (mDeployStep++ < mDeployStep.maxof) // delay before starting deliveries
+      return;
+
+    TermTargetLibrary ttl;
+    if (mTargetCount >= ttl.getTargetCount()) {
+      /// DECAY DECAY DECAY
+      ew[0] = Empty.instanceof;
+      return;
+    }
+    DeliverTerm dt;
+    dt.mTermTargetIdx = mTargetCount;
+
+    MinXPick emppick;
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (ew.isAccessible(sn) && ew[sn] is Empty)
+        emppick.update(sn);
+    }
+    if (emppick.hasPick()) {
+      SN empsn = emppick.getIdxSN();
+      //XXX DONT RELEASE ANY DTS      ew[empsn] = dt.atomof;
+      ++mTargetCount;
+    }
+  }
+}

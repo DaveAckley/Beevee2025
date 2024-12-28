@@ -1,0 +1,241 @@
+quark QTF + DTU {
+  typedef Unary(2) Phase;
+  typedef Unsigned(6) Hops;
+  typedef Unsigned(12) EventCount;
+  typedef Unsigned(7) Pct;
+
+  constant Phase cCOUNT = 0u;
+  constant Phase cSHRINK = 1u;
+  //Phase mPhase;
+  Bool mHot;
+  Bool mDone;
+  Hops mHops;
+  Hops mEdgeDists[4] = { Hops.maxof };
+  EventCount mLocalEvents;
+  EventCount mSharedMaxEvents;
+
+  Void updatePct(Self& uphot) {
+    Unsigned pct = 0u;
+    Unsigned totevts = mLocalEvents + uphot.mLocalEvents;
+    if (totevts < (mLocalEvents.maxof / 8u)  || !uphot.mHot)
+      pct = 0u;
+    else
+      pct = (Pct) (100u * mLocalEvents / totevts);
+    mHot = pct > 45u && pct < 55u;
+  }
+
+  @Override
+  ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (mSharedMaxEvents == 0u || mLocalEvents == 0u)
+      return cu.color(0xff000000);
+    Unsigned mincount = 0u;
+    Unsigned totdist = 0u;
+    Unsigned dircols[4] = {
+      0xffff0000,
+      0xff00ff00,
+      0xff00ffff,
+      0xffffff00,
+    };
+    ARGB ret = cu.color(0xff000000);
+    for (Unsigned i = 0u; i < mEdgeDists.lengthof; ++i) {
+      if (mEdgeDists[i] != mEdgeDists[i].maxof) {
+        ++mincount;
+        totdist += mEdgeDists[i];
+        ret = cu.between(cu.color(dircols[i]),ret,(ASCII) (2u*mEdgeDists[i]));
+      }
+    }
+    if (mincount > 0u)
+      return ret;
+    Unsigned amt = 2u * 256u * mLocalEvents / mSharedMaxEvents;
+    ret = cu.color((ASCII) amt, 0u, (ASCII) (256u-amt));
+    if (mHot) ret = cu.between(ret,cu.color(0xffffffff),50u);
+    return ret;
+  }
+}
+
+element TFDeployer + DTU {
+  EventWindow ew;
+  typedef QTF.Hops Hops;
+  Hops mEdgeDists[4] = { Hops.maxof };
+  typedef Unsigned(9) MaxHops;
+  MaxHops mMaxHops;
+
+  Void behave() {
+    MinXPick uphill;
+    Unsigned readydims = 0u;
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      Unsigned idx = sn - 1u;
+      Unsigned oidx = 3u - idx;
+      if (mEdgeDists[idx] > mEdgeDists[oidx])
+        uphill.update(sn);
+      if (sn <= 2u &&           // for first two dims
+          ((mEdgeDists[idx] == mEdgeDists[oidx]) || // if match, or
+           (mEdgeDists[idx]+1u == mEdgeDists[oidx]))) { // low is one less 
+        readydims++;                                    // this dim is ready 
+      }
+    }
+
+    if (readydims == 2u || ++mMaxHops == mMaxHops.maxof) {
+      ew[0] = Seed12.instanceof;
+      return;
+    }
+
+    if (uphill.hasPick()) {
+      SN sn = uphill.getIdxSN();
+      Unsigned idx = sn - 1u;
+      Unsigned oidx = 3u - idx;
+      mEdgeDists[idx]--;
+      mEdgeDists[oidx]++;
+      ew.swap(0u,sn);
+    }
+  }
+}
+
+element TileFinder : QTF + QDebugUtils {
+  Bool mFreeBool; // Just to generate more cache traffic
+  typedef Unsigned(8) WaitTime;
+  WaitTime mWaitTime;
+
+  Void die() {
+    EventWindow ew;
+    ew[0] = Empty.instanceof;
+  }
+
+  Void behave() {
+    if (mDone)
+      return behaveDone();
+    if (mSharedMaxEvents < mSharedMaxEvents.maxof)
+      return behaveCount();
+    if (actShrink()) return;
+    if (actMindists()) {
+      mWaitTime = 0u;
+      return;
+    }
+    if (mHops == 0u && ++mWaitTime == mWaitTime.maxof) {
+      EventWindow ew;
+      TFDeployer ss;
+      ss.mEdgeDists = mEdgeDists;
+      for (SN sn = 1u; sn <= 4u; ++sn) {
+        if (!ew.isAccessible(sn)) continue;
+        Atom & a = ew[sn];
+        if (a as Self) 
+          a.mDone = true;
+      }
+      ew[0] = ss.atomof;
+    }
+  }
+
+  Void behaveDone() {
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as Self) 
+        a.mDone = true;
+    }
+    return die();
+  }
+
+  Bool actShrink() {
+    EventWindow ew;
+    if (mHops == 0u) return false;    // root don't shrink
+    mD&&pR("BHVSK10");
+    MinXPick uphops;
+    MinXPick downhops;
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as Self) {
+        if (a.mSharedMaxEvents < mSharedMaxEvents.maxof)
+          return true;               // wait for all ngbs to max
+        if (a.mHops < mHops)
+          uphops.update(sn);
+        else if (a.mHops > mHops)
+          downhops.update(sn);
+      }
+    }
+    mD&&pR("BHVSK11");
+    mD&&pR(uphops);
+    mD&&pR(downhops);
+
+    // If non-root but no up, die.
+    if (!uphops.hasPick()) return dieTrue();
+
+    if (!mHot) return dieTrue();
+
+    mD&&pR("BHVSK14");
+
+    mD&&pR("BHVSK15");
+    mD&&pR(self);
+
+    return false;
+  }
+
+  Bool setEdgeDist(Unsigned idx, Hops newval) {
+    if (mEdgeDists[idx] != newval) {
+      mEdgeDists[idx] = newval;
+      return true;
+    }
+    return false;
+  }
+
+  Bool actMindists() {
+    EventWindow ew;
+
+    Bool ret = false;
+    // update mindists
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      Unsigned idx = sn-1u;
+      if (!ew.isAccessible(sn) || ew[sn] is Empty) {
+        ret = setEdgeDist(idx,0u) || ret;
+        continue;
+      }
+      Atom & a = ew[sn];
+      if (a as Self) {
+        Hops odist = a.mEdgeDists[idx];
+        ret = setEdgeDist(idx,(Hops) (odist + 1u)) || ret;
+      }
+    }
+    return ret;
+  }
+
+  Void behaveCount() {
+    EventWindow ew;
+    if (mSharedMaxEvents < mSharedMaxEvents.maxof &&
+        ++mLocalEvents > mSharedMaxEvents) 
+      mSharedMaxEvents = mLocalEvents;
+    mHot = mHops == 0u;         // initially only root is hot
+
+    MinXPick empties;
+    MinXPick uphops;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (sn <= 4u && a is Empty) empties.update(sn);
+      if (a as Self) {
+        a.mFreeBool = !a.mFreeBool; // modify all that we see
+        if (sn > 4u) continue;
+        if (a.mHops < mHops) uphops.update(sn,a.mHops);
+        if (a.mSharedMaxEvents > mSharedMaxEvents) {
+          mSharedMaxEvents = a.mSharedMaxEvents;
+        }
+        continue;
+      }
+    }
+    if (uphops.hasPick()) {
+      Self & up = (Self&) ew[uphops.getIdxSN()];
+      if (up.mHops == mHops.maxof) return die();
+      if (mHops != up.mHops + 1u) {
+        mHops = (Hops) (up.mHops + 1u);
+        return; // stabilizing..
+      }
+      updatePct(up);
+    }
+    if (empties.hasPick() && mHops < mHops.maxof) {
+      Self s = self;
+      s.mHops++;
+      ew[empties.getIdxSN()] = s.atomof;
+    }
+  }
+}
