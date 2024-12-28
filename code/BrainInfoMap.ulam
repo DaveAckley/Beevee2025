@@ -1,0 +1,24 @@
+transient BrainInfoMap + DTU + QDebugUtils + Fail {
+  constant Unsigned cMAX_RECAST_SIZE = 4096u;
+  typedef BitStorageT(cMAX_RECAST_SIZE) XBInfoBuffer;
+
+  //// BrainInfoMap API
+  virtual Unsigned getXBCount() ;
+  virtual Unsigned getContainingXBIndex(C2D absc) ;
+  virtual XBInfo & getXBInfo(Unsigned idx, XBInfoBuffer buf) ;
+  virtual Unsigned getTapIdxFromClassId(ClassId cid) ;
+
+  virtual Unsigned getTAPCount() ;  
+  virtual ClassId getTAPClassIdFromTapIdx(Unsigned tapidx) ;  
+  virtual String getTAPNameFromTapIdx(Unsigned tapidx) ;  
+
+  //// BrainInfoMap SERVICES
+  TapIdx getTapIdx(TAP & tap) {
+    ClassUtils cu;
+    ClassId cid = cu.getClassId(tap);
+    Unsigned idx = getTapIdxFromClassId(cid);
+    if (idx == idx.maxof) fail(__FILE__,__LINE__);
+    return (TapIdx) idx;
+  }
+
+}

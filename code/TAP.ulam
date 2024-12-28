@@ -1,0 +1,662 @@
+local typedef XBarSpace2D GripSource; //< What grid we are built to live in..
+
+/** Terminal Alias Point. Represents a sensory or motor connection to
+    the spine, or an internal 'hidden tap' that works similarly.
+ */
+quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
+
+  BVBrainStem mBS;
+  Bool(3) mSenseVert = false;   // default is sense horiz
+
+  //// TAP API
+
+
+  //// UrSelf API
+  @Override
+  Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+
+    ARGB col = getColor(0u);
+    Int(16) cSIZE = 800;
+    drawable.fillRectangle(C2D.instanceof(-cSIZE/2,-cSIZE/2), 
+                           C2D.instanceof(cSIZE,cSIZE),
+                           col);
+  }
+  
+  //// TAP SERVICES
+  Bool trySendSig(AxonEnd & axon, SlotSig & outsig) {
+    if (outsig.isOccupied()) {
+      SlotSig & axonslot = axon.getEndSlotSig(false); // get outbound slot
+      if (!axonslot.isOccupied()) {
+        axonslot = outsig;
+        outsig.reset();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Bool tryRecvSig(AxonEnd & axon, SlotSig & insig) {
+    if (!insig.isOccupied()) {
+      SlotSig & axonslot = axon.getEndSlotSig(true); // get inbound slot
+      if (axonslot.isOccupied()) {
+        insig = axonslot;
+        axonslot.reset();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  SN findMatchingAxonEnd() { //< SN of axon matching our tapidx or SN.maxof if none
+    mD&&pR("FNMTAXE10");
+    SN ret = SN.maxof;
+    TermTargetLibrary ttl;
+    TapIdx tapidx = ttl.getTapIdx(self);
+    if (tapidx == cTAPIDX_NONE) return ret;
+
+    mD&&pR("FNMTAXE11")&&pR(tapidx);
+    MinXPick snpick;
+    EventWindow ew;
+    for (SN sn = 0u; sn <= 12u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as AxonEnd) {
+        AxonIdx aix = a.getAxonIdx();
+        if (a.getAxonTap(aix) == tapidx) // that's our axon
+          snpick.update(sn);
+      }
+    }
+    if (snpick.hasPick())
+      ret = snpick.getIdxSN();
+    mD&&pR("FNMTAXE12")&&pR(ret);
+    return ret;
+  }
+
+  SN findMatchingAxonEndWithClassId(ClassId otherclassid) { 
+    BeeveeBIM bim;
+    Unsigned otheridx = bim.getTapIdxFromClassId(otherclassid);
+    if (otheridx == Unsigned.maxof) return SN.maxof;
+    return findMatchingAxonEndWith((TapIdx) otheridx);
+  }
+
+  SN findMatchingAxonEndWith(TapIdx otheridx) { //< SN of axon matching our tapidx and otheridx or SN.maxof if none
+    mD&&pR("FNMTAXEF10");
+    SN ret = SN.maxof;
+    TermTargetLibrary ttl;
+    TapIdx tapidx = ttl.getTapIdx(self);
+    if (tapidx == cTAPIDX_NONE) return ret;
+    if (otheridx == cTAPIDX_NONE) return ret;
+
+    mD&&pR("FNMTAXEf11")&&pR(tapidx)&&pR(otheridx);
+    MinXPick snpick;
+    EventWindow ew;
+    for (SN sn = 0u; sn <= 12u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as AxonEnd) {
+        mD&&pR("FNMTAXEf12")&&pR(a);
+        AxonIdx aix = a.getAxonIdx();
+        if (a.getAxonTap(aix) == tapidx && // that's our axon
+            a.getAxonTap((AxonIdx)(1u-aix)) == otheridx) // from to the tap we want
+          snpick.update(sn);
+      }
+    }
+    if (snpick.hasPick())
+      ret = snpick.getIdxSN();
+    mD&&pR("FNMTAXEf13")&&pR(ret);
+    return ret;
+  }
+  
+  /*
+  Bool scanAxons() {
+    EventWindow ew;
+    for (SN sn = 0u; sn <= 12u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as AxonEnd) {
+        if (considerAxonEnd(a)) 
+          return true;
+      }
+    }
+    return false;
+  }
+  */
+}
+
+quark TermHiddenIO : TAP + QDebugUtils { // Place holder for internal nodes
+  EventWindow ew;
+  Random random;
+
+  //// TermHiddenIO API
+  typedef Unary(2) RouteDir;
+  constant RouteDir cNONE_TO_NONE = 0u;
+  constant RouteDir cXBAR_TO_AXON = 1u;
+  constant RouteDir cAXON_TO_XBAR = 2u;
+
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) ; /*{
+    return cNONE_TO_NONE;
+    }*/
+  
+  /** \return true if (possibly modified) signal should be
+    transhipped; \return false if signal should be dropped
+   */
+  virtual Bool transshipSigHook(SlotSig & iss, GripSource & gripsrc) {
+    return false;
+  }
+
+  @Override
+  Void behave() {
+    BeeveeBIM bvb;
+    Unsigned tapidx = bvb.getTapIdx(self);
+
+    MinXPick grippick;          // least lhops
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as GripSource) {
+        mD&&pR("THIO12");
+        mD&&pR(a);
+        grippick.update(sn,a.getLHops(),1u,a.getGripNumber()); // Pick from closest-to-root ngb
+        mD&&pR(grippick);
+      }
+    }
+    mD&&pR("THION1210");
+    if (!grippick.hasPick()) return; // no grip source?
+
+    Bool tookSig = false;
+    Unsigned gripnum = grippick.getArg();
+    setGripNumber(gripnum);
+
+    mD&&pR("THION1210")&&pR(gripnum);
+
+    GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
+    if (!gs.hasSymmetry()) return; // grip source not ready?
+
+    RouteDir rd = getHiddenRouteDir(gs);
+    if (rd == cXBAR_TO_AXON) {
+      SlotSig & iss = gs.getSlotSig(false); // check incoming
+      mD&&pR("X2ATHION1211")&&pR(iss);
+      if (iss.isOccupied()) { // 
+        mD&&pR("X2ATHION1212")&&pR(self);
+        if (transshipSigHook(iss,gs)) {
+          SN axonsn = findMatchingAxonEnd();
+          mD&&pR("X2AXTHIO13")&&pR(axonsn);
+          if (axonsn != SN.maxof) {
+            AxonEnd & axon = (AxonEnd&) ew[axonsn];
+            mD&&pR("X2ATHIO14")&&pR(axonsn);
+            trySendSig(axon, iss); // Don't care return value
+          }
+        }
+        iss.reset();          // no matter what
+      }
+    } else if (rd == cAXON_TO_XBAR) {
+      SN axonsn = findMatchingAxonEnd();
+      mD&&pR("A2XXTHIO13")&&pR(axonsn);
+      if (axonsn != SN.maxof) {
+        AxonEnd & axon = (AxonEnd&) ew[axonsn];
+        SlotSig & iss = axon.getEndSlotSig(true); // check incoming on axon
+        mD&&pR("A2XTHION1211")&&pR(iss);
+        if (iss.isOccupied()) { //
+          mD&&pR("A2XTHION1212")&&pR(self);
+          if (transshipSigHook(iss,gs)) {
+            SlotSig & oss = gs.getSlotSig(true); // check outbound slot
+            if (!oss.isOccupied()) {             // transship if room
+              oss = iss;
+              oss.mSource = (TapIdx) tapidx; // relabeling sig as from us..
+            }
+          }
+          iss.reset();          // consume iss either way
+        }
+      }
+    } else /* rd == cNONE_TO_NONE */ {
+      mD&&pR("A2XTHION1213")&&pR(self); // XXX SHOULD CONSUME THINGS?
+    }
+    mD&&pR("A2XTHIO210");
+  }
+}
+
+quark TermSensor : TAP + QDebugUtils {
+  EventWindow ew;
+  Random random;
+
+  Void behave() {
+    mD&&pR("TMSNBV10");
+    TermTargetLibrary ttl;
+    TapIdx tapidx = ttl.getTapIdx(self);
+    String name = ttl.getClassNameFromTapIdx(tapidx);
+    if (!(Bool) name) return;
+    mD&&pR("TMSNBV11");
+    mD&&pR(name);
+    if (!mBS.open()) return;
+    mD&&pR("TMSNBV12");
+    SMTerm sterm = mBS.readTermByName(name);
+    mD&&pR(sterm);
+    if (!sterm.newValue()) return; // proxy for everybody else..
+
+    /* Can't do it here, e.g.: greys used 255 in band for sure
+    if (sterm.getValue() == 0xff) {
+      DebugUtils du;
+      du.print("DROPPINGZSH");
+      du.print(name);
+      du.print(sterm);
+      return; // some kind of bogus signal?
+    }
+    */
+
+    mD&&pR("TMSNBV13");
+    MinXPick grippick;          // least lhops
+
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      C2D c = ew.getCoord(sn);
+      Atom & a = ew[sn];
+      if (a as GripSource) { //NB: whether or not it has a symmetry
+        mD&&pR("TMSNS12");
+        mD&&pR(a);
+        grippick.update(sn,1u,1u,a.getGripNumber()); 
+        mD&&pR(grippick);
+      }
+    }
+
+    mD&&pR("TMSNBV14");
+    mD&&pR(grippick);
+    if (grippick.hasPick()) {
+      Unsigned gripnum = grippick.getArg();
+      setGripNumber(gripnum);
+
+      mD&&pR("TMSNBV15");
+      GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
+      if (gs.hasSymmetry()) {            // but can't getslotsig without symmetry
+        SlotSig & oss = gs.getSlotSig(true); // check outgoing
+        if (!oss.isOccupied()) {
+          ASCII val = sterm.getValueUnsigned();
+          oss.setOccupied(val,tapidx);
+          //mBS.writeTerm(sterm);
+          mD&&pR("TMSNBV15INJ10");
+          mD&&pR(oss);
+        }
+      }
+    }
+    mD&&pR("TMSNBV16");
+    mBS.close();
+  }
+}
+
+quark TermMotor : TAP + QDebugUtils {
+  EventWindow ew;
+  Random random;
+
+  //// TERMMOTOR API
+  /** \return true if signal handled; \return false if signal should
+    be shipped to spinal motor
+   */
+  virtual Bool handleSigHook(SlotSig & iss, GripSource & gripsrc) {
+    return false;
+  }
+
+  @Override
+  Void behave() {
+    BeeveeBIM bim;
+    Unsigned tapidx = bim.getTapIdx(self);
+    String name = bim.getTAPNameFromTapIdx(tapidx);
+    //    TermTargetLibrary ttl;
+    //    Unsigned tapidx = ttl.getTapIdx(self);
+    if (!(Bool) name) return;
+    if (!mBS.open()) return;
+
+    MinXPick grippick;          // least lhops
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as GripSource) {
+        mD&&pR("TMTOR12");
+        mD&&pR(a);
+        grippick.update(sn,a.getLHops(),1u,a.getGripNumber()); // Pick from closest-to-root ngb
+        mD&&pR(grippick);
+      }
+    }
+    mD&&pR("TMTORN1210");
+    if (grippick.hasPick()) {
+      Bool tookSig = false;
+      Unsigned gripnum = grippick.getArg();
+      setGripNumber(gripnum);
+
+      GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
+      if (gs.hasSymmetry()) {
+        SlotSig & iss = gs.getSlotSig(false); // check incoming
+        mD&&pR("TMTORN1211")&&pR(iss);
+        if (iss.isOccupied()) {
+          mD&&pR("TMTORN1212")&&pR(self);
+          if (!handleSigHook(iss,gs)) {
+            SMTerm sterm = mBS.readTermByName(name); // if it exists
+            Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+            mD&&pR("TMTORN1213")&&pR(signedval);
+            iss.reset();
+            sterm.setValueSigned(signedval);
+            mBS.writeTerm(sterm);
+            tookSig = true;
+          }
+        }
+      }
+
+      if (!tookSig) {
+        mD&&pR("TMTOR13");
+        SN axonsn = findMatchingAxonEnd();
+        mD&&pR("XTMTOR13")&&pR(axonsn);
+        if (axonsn != SN.maxof) {
+          AxonEnd & axon = (AxonEnd&) ew[axonsn];
+          mD&&pR("TMTOR14")&&pR(axonsn);
+          SlotSig iss;
+          if (tryRecvSig(axon, iss)) {
+            mD&&pR("TMTOR15")&&pR(iss);
+            if (!handleSigHook(iss,gs)) {
+              SMTerm sterm = mBS.readTermByName(name); // if it exists
+              Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+              mD&&pR("TMTORN16")&&pR(signedval)&&pR(name)&&pR(sterm);
+              iss.reset();
+              sterm.setValueSigned(signedval);
+              mBS.writeTerm(sterm);
+            }
+          }
+          mD&&pR("TMTORN17");
+        }
+      }
+    }
+    mD&&pR("TMTOR210");
+    mBS.close();
+  }
+}
+
+
+///// HIDDEN UNITS
+element HALT : TermHiddenIO {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cNONE_TO_NONE;
+  }
+}
+
+///// SENSORS
+element BVREQ : TermSensor {
+}
+
+/** Sensor Left (Front), Right (Half) Yellow
+    \symbol Lr
+    \color #bb5
+*/
+element SLRY :  TermSensor {
+}
+
+/** Sensor Left Front Yellow
+    \symbol LY
+    \color #ee1
+*/
+element SLFY :  TermSensor {
+}
+
+/** Sensor Left (Front), Left (Half) Yellow
+    \symbol Ll
+    \color #bb5
+*/
+element SLLY :  TermSensor {
+}
+
+/** Sensor Left Front Red
+    \symbol LR
+    \color #e11
+*/
+element SLFR :  TermSensor {
+}
+
+/** Sensor Right Front Yellow
+    \symbol RY
+    \color #ee1
+*/
+element SRFY :  TermSensor {
+}
+
+/** Sensor Right Front Red
+    \symbol RR
+    \color #e11
+*/
+element SRFR :  TermSensor {
+}
+
+/** Sensor Right (Front), Left (Half) Yellow
+    \symbol Rl
+    \color #bb5
+*/
+element SRLY :  TermSensor {
+}
+
+/** Sensor Right (Front), Right (Half) Yellow
+    \symbol Rr
+    \color #bb5
+*/
+element SRRY :  TermSensor {
+}
+
+
+/** Sensor Up, Yellow
+    \symbol Yu
+    \color #bb5
+*/
+element SUPY :  TermSensor {
+}
+
+/** Sensor Up, Red
+    \symbol Ru
+    \color #b55
+*/
+element SUPR :  TermSensor {
+}
+
+/** Sensor Front Left Grey
+    \symbol G0
+    \color #aaa
+*/
+element SFLG :  TermSensor {
+}
+
+/** Sensor Front Right Grey
+    \symbol G1
+    \color #aaa
+*/
+element SFRG :  TermSensor {
+}
+
+/** Sensor Rear Left Grey
+    \symbol G2
+    \color #aaa
+*/
+element SRLG :  TermSensor {
+}
+
+/** Sensor Rear Right Grey
+    \symbol G3
+    \color #aaa
+*/
+element SRRG :  TermSensor {
+}
+
+/** BVPITCH Beevee pitch
+    \symbol BP
+    \color #aaa
+*/
+element BVPITCH :  TermSensor {
+}
+
+/** BVROLL Beevee roll
+    \symbol BR
+    \color #aaa
+*/
+element BVROLL :  TermSensor {
+}
+
+/** SLLR Left Left-side Red Detector
+    \symbol LL
+    \color #aaa
+*/
+element SLLR :  TermSensor {
+}
+
+/** SLRR Left Right-side Red Detector
+    \symbol LR
+    \color #aaa
+*/
+element SLRR :  TermSensor {
+}
+
+/** SRLR Right Left-side Red Detector
+    \symbol RL
+    \color #aaa
+*/
+element SRLR :  TermSensor {
+}
+
+/** SRRR Right Right-side Red Detector
+    \symbol RR
+    \color #aaa
+*/
+element SRRR :  TermSensor {
+}
+
+
+///// MOTORS (with gradients)
+/*
+element BVACT : TermMotor {
+  @Override virtual String hasTerminalNamed() { return "BVACT"; }
+  @Override virtual GradIdx getGradientIndex() { return cGRADIDX_BVACT; }
+  //take default @Override virtual ARGB getGradientColor() { ARGB ret; } 
+}
+*/
+
+quark IFix(Unsigned cBITS, Unsigned cFIX_BITS) {
+  typedef Int(cBITS*2+1) DblInt; // DblInt DblInt um
+  typedef Int(cBITS) IFrac;
+  constant Int cDIV = (Int) (((Bits) 1u) << cFIX_BITS);
+  IFrac mFrac;
+  IFrac updateFrac(Unsigned pct, IFrac fr, Int newval) {
+    DblInt ipct = (DblInt) pct;
+    DblInt newfrac = (DblInt) (((Bits) newval)<<cFIX_BITS);
+    IFrac ret = (IFrac) ((fr*ipct + (100 - ipct)*newfrac)/100);
+    return ret;
+  }
+  IFrac update(Unsigned pct, Int newval) { return mFrac = updateFrac(pct,mFrac,newval); }
+  Int getFrac() {
+    return getFrac(mFrac);
+  }
+  Int getFrac(IFrac fr) {
+    return ((Int) fr) / cDIV;
+  }
+}
+
+quark TermEyeStalk : TermMotor {
+  typedef IFix(20u,10u) FixMax;
+  /*
+  typedef Unsigned(20u) FixMax;
+  constant Unsigned cFIX_BITS = 6u;
+  FixMax mStalkAngle; 
+  FixMax updateFixMax(Unsigned pct, FixMax fm, ASCII newvalue) {
+    Unsigned newfix = (Unsigned) (((Bits) newvalue)<<cFIX_BITS);
+    FixMax ret = (FixMax) ((fm*pct + (100u-pct)*newfix)/100u);
+    return ret;
+    }
+  */
+  FixMax mStalkAngle;
+
+  Int getFixMaxAngle() { return mStalkAngle.getFrac(); }
+
+  //  virtual String getTermName() ;
+
+  //// TERMMOTOR API
+  @Override
+  virtual Bool handleSigHook(SlotSig & iss,GripSource & gs) {
+    ASCII val = iss.mValue; // pick up value (ignoring source tapidx)
+    Int ival = signedAsciiToInt(val);
+    mD&&pR("TEYS10")&&pR(iss)&&pR(ival)&&pR(mStalkAngle);
+    mStalkAngle.update(90u,ival);
+    Int aval = getFixMaxAngle();
+    iss.mValue = intToSignedAscii(ival);
+    mD&&pR("TEYS11")&&pR(iss)&&pR(aval)&&pR(mStalkAngle);
+    return false;
+  }
+  
+
+  /*
+  @Override
+  Void behave() {
+    String name = getTermName();
+    if (!(Bool) name) return;
+    if (!mBS.open()) return;
+    SMTerm esterm = mBS.readTermByName(name);
+
+    //// UPDATE SIGNAL VALUES
+
+    ClassUtils cu;
+    ClassId selfid = cu.getClassId(self.atomof);
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as Signal) {
+        ClassId destid = getClassIdOfGradientIndex(a.mClimbGradIdx);
+        if (destid == selfid) {
+          mStalkAngle = updateFixMax(90u,mStalkAngle,a.mValue);
+          ew[sn] = Empty.instanceof; 
+        }
+      }
+    }
+    ASCII val = getFixMaxAngle();
+    sterm.setValue(val);
+    mBS.writeTerm(esterm);
+    mBS.close();
+  }
+  */
+
+}
+
+/** Motor Rear Right Forward 
+    \symbol MR
+    \color #3d3
+*/
+element MRRF : TermMotor {
+}
+
+/** Motor Left Rear Forward 
+    \symbol ML
+    \color #33d
+*/
+element MLRF : TermMotor {
+}
+
+
+/** Motor Left EYestalk 
+    \symbol EL
+    \color #55b
+*/
+element MLEY : TermEyeStalk {
+}
+
+/** Motor Right EYestalk
+    \symbol ER
+    \color #5b5
+*/
+element MREY : TermEyeStalk {
+}
+
+/** SLFG Left Front Green Detector
+    \symbol LG
+    \color #3a3
+*/
+element SLFG :  TermSensor {
+}
+
+/** SRFG Right Front Green Detector
+    \symbol RG
+    \color #3a3
+*/
+element SRFG :  TermSensor {
+}
+

@@ -1,0 +1,78 @@
+/** description of an xbar
+ */
+transient XBInfo + DTU + Fail + QDebugUtils {
+  //// XBInfo API
+  virtual String getXBInfoName() ;
+  virtual C2D getXBInfoPosition() ;
+  virtual C2D getXBInfoSize() ;
+  virtual PocketDir getXBInfoOrigin() ;
+  virtual ClassId getXBInfoTAP(C2D relc, Bool sensor) ;
+  virtual AxialDir getXBInfoTAPEdge(Bool sensor) ;
+  virtual Bool getXBInfoFeedDir(C2D relc, AxialDir & feedad, Bool & isinput) ;
+  virtual TapIdx getXBInfoAxonTarget(TapIdx tapidx) ; //< or cTAPIDX_NONE if none
+
+  //// XBInfo SERVICES
+  C2D absToRel(C2D absc) {
+    return absc - getXBInfoPosition();
+  }
+
+  Bool containsAbs(C2D absc) {
+    return getXBInfoSize().contains(absToRel(absc));
+  }
+
+  ClassId getXBInfoTAPAbs(C2D absc, Bool sensor) {
+    return getXBInfoTAP(absToRel(absc),sensor);
+  }
+
+  Atom makeTAPInstance(ClassId tapid) {
+    ClassUtils cu;
+    Int etype = cu.getElementType(tapid);
+    if (etype < 0) die();
+    AtomUtils au;
+    Atom a = au.new(etype);
+    if (a as TAP) {
+      AxialDir sad = getXBInfoTAPEdge(true);
+      a.mSenseVert = (sad == cE || sad == cW);
+    }
+    return a;
+  }
+}
+
+transient ByteArrayT(Unsigned cCOLS, Unsigned cROWS) + Fail {
+  typedef Unsigned(8) Byte;
+  C2D getSize() { C2D ret(cCOLS,cROWS); return ret; }
+  Byte getByte(C2D idx) {
+    if (idx.x < 0 || idx.y < 0 ||
+        idx.x >= cCOLS || idx.y >= cROWS)
+      fail(__FILE__,__LINE__);
+    return mRows[idx.y][idx.x];
+  }
+  String mRows[cROWS];
+}
+
+/*
+load "BVBrain.inc";
+  
+////// BEGIN GENERATED 
+@Concrete
+transient XBInfoHOTBOX : XBInfo {
+  @Override String getXBInfoName() { return "HOTBOX"; }
+  @Override C2D getXBInfoPosition() { C2D ret(-5,2); return ret; }
+  @Override C2D getXBInfoSize() { C2D ret(9,4); return ret; }
+  Void func() {
+    ByteArrayT(3,3) wow = { .mRows = { "kld", "*Ws", "123" } };
+  }
+}
+
+//local constant DTU.ClassId cXBClassIds[] = { XBInfoHOTBOX.classidof };
+////// END GENERATED 
+
+local constant String cCoordFuncs =
+  "\xff\x12\
+   \x23\x34\
+  "
+  ;
+
+@Concrete
+
+*/

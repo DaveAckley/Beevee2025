@@ -1,0 +1,32 @@
+use TAP;
+
+quark Grip + DTU {
+  /// Grip API
+  virtual Unsigned getGripBits() ;
+  virtual Unsigned getGripNumber();
+}
+
+quark GripStg : Grip {
+  /// GripStg API
+  virtual Bool setGripNumber(Unsigned newgrip) ;
+}
+
+quark GripStgT(Unsigned cBITS) : GripStg {
+  typedef Unsigned(cBITS) GripStgTVal;
+  GripStgTVal mGripStgTVal = GripInfoMap.cGRIP_BV2BY;
+
+  /// Grip API
+  @Override virtual Unsigned getGripBits() { return cBITS; }
+  @Override virtual Unsigned getGripNumber() { return mGripStgTVal; }
+  
+  /// GripStg API
+  @Override virtual Bool setGripNumber(Unsigned newgrip) {
+    GripStgTVal ng = (GripStgTVal) newgrip;
+    if (ng != mGripStgTVal) {
+      mGripStgTVal = ng;
+      return true;
+    }
+    return false;
+  }
+}
+

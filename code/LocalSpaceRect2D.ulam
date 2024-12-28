@@ -1,0 +1,154 @@
+quark LocalSpaceRect2D : Intender + DTU + Fail {
+  //// LOCALSPACERECT2D API
+  virtual Bool legalCoord(Int c) ;
+  virtual Bool isInitted() ;
+  virtual Void makeUninitted() ;
+  virtual Unsigned getBits2D() ; //< Coord is Int(this)
+  virtual C2D getPos2D() ; //< xpos,ypos expanded to C2D
+  virtual Void setPos2D(C2D newpos) ; 
+  virtual Unsigned getGripNumber() ;
+  virtual Bool setGripNumber(Unsigned newgrip) {
+    fail(__FILE__,__LINE__);
+    return true; // NOT REACHED
+  }
+
+  //// LOCALSPACE2D SERVICES  
+  Unsigned getLInfinityHops() {
+    C2D c = getPos2D();
+    Unsigned ux = abs(c.getX());
+    Unsigned uy = abs(c.getY());
+    return ux >= uy ? ux : uy;
+  }
+
+  Unsigned getLHops() {
+    C2D c = getPos2D();
+    Unsigned ux = abs(c.getX());
+    Unsigned uy = abs(c.getY());
+    return ux + uy;
+  }
+
+  Bool legalPos(C2D pos) {
+    return legalCoord(pos.x) && legalCoord(pos.y);
+  }
+
+  Unsigned getMaxLHops() {
+    return ((Unsigned) (1u<<(getBits2D() - 1u)))/2u-1u;
+  }
+
+  //// INTENDER API
+  @Override
+  virtual ClassId getIntentionClass() { return LocalSpaceRect2DState.classidof; }
+
+  //// URSELF API  
+  @Override
+  Void behave() { pursueIntention(); }
+
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (!isInitted()) return cu.color(0xff0f0f0f);
+
+    Unsigned maxhops = getMaxLHops();
+    Unsigned hopsin = getLHops();
+    Unsigned hopsout = maxhops-hopsin;
+    if (hopsin == 0u) return cu.color(0xffffffff); // root
+
+    ASCII lhi = (ASCII) (255u * hopsin / maxhops);
+    ASCII ilhi = (ASCII) (150u - lhi); // reduce maxes to push..
+    ASCII lho = (ASCII) (255u * hopsout / maxhops); 
+    ASCII ilho = (ASCII) (150u - lho); // ..localspace more to bkgd
+    return cu.color(ilhi, 0u, ilho);
+  }
+
+  @Override
+  Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    super.renderGraphics();
+
+    ARGB col = getColor(0u);
+
+    // crosses for background grid?
+    Int(16) cLEN = 1024;
+    Int(16) cWID = 256;
+    drawable.fillRectangle(C2D.instanceof(-cLEN/2,-cWID/2), 
+                           C2D.instanceof(cLEN,cWID),
+                           col);
+    drawable.fillRectangle(C2D.instanceof(-cWID/2,-cLEN/2), 
+                           C2D.instanceof(cWID,cLEN),
+                           col);
+
+  }
+  
+}
+
+quark LocalSpaceRect2DT(Unsigned cBITS,Unsigned cTAGBITS,Unsigned cGRIPBITS) : LocalSpaceRect2D {
+
+  //// LocalSpaceRect2D API
+  @Override virtual Bool isInitted() { return mPosX != LocalCoord.minof; }
+  @Override virtual Void makeUninitted() { mPosX = mPosY = LocalCoord.minof; }
+  @Override virtual Unsigned getBits2D() { return cBITS; }
+  @Override virtual C2D getPos2D() { return C2D.instanceof(mPosX,mPosY); }
+  @Override virtual Void setPos2D(C2D newpos) {
+    mPosX = (LocalCoord) newpos.getX();
+    mPosY = (LocalCoord) newpos.getY();
+  }
+
+  @Override Unsigned getGripNumber() { return mLocalSpaceRect2DGrip.getGripNumber(); }
+  @Override Bool setGripNumber(Unsigned newgrip) {
+    return mLocalSpaceRect2DGrip.setGripNumber(newgrip);
+  }
+
+  //// LocalSpaceRect2DT API
+  typedef C2DT(cBITS) LocalPos;
+  typedef LocalPos.Coord LocalCoord;
+  @Override
+  Bool legalCoord(Int c) {
+    return
+      c > LocalCoord.minof &&   // note > vs <=
+      c <= LocalCoord.maxof;    // minof is not a legal coord
+  }
+
+  typedef GripStgT(cGRIPBITS) LocalSpaceRect2DGrip;
+
+  LocalCoord mPosX = LocalCoord.minof;
+  LocalCoord mPosY = LocalCoord.minof;
+
+  LocalSpaceRect2DGrip mLocalSpaceRect2DGrip;
+
+  C2D localPosToC2D(LocalPos lp) {
+    return C2D.instanceof(mPosX, mPosY);
+  }
+
+}
+
+/** Test LocalSpaceRect2D element
+    \symbol S2
+    \color #393
+*/
+element SpikeLocalSpaceRect2D10 : LocalSpaceRect2DT(6u,3u,4u) {
+
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    // Do default color if maxhops isn't set up
+    Unsigned maxhops = getMaxLHops();
+    if (maxhops == 0u) return super.getColor(selector);
+    
+    // Otherwise do tapered grip color - increasing with distance
+    ColorUtils cu;
+    Unsigned gripnum = getGripNumber();
+
+    GripInfoMap gim;
+    ClassId gripid = gim.getGripInfoClassId(gripnum);
+    if (gripid == 0u) return super.getColor(selector); // Um.
+
+    GripInfo & gi = gim.getGripInfo(gripid);
+    
+    ARGB gripcol = gi.getGripColor(selector);
+    ARGB darkgrey = cu.color(0xff202020);
+
+    Unsigned hopsin = getLHops();
+    Unsigned pctdark = 100u * (maxhops - hopsin) / maxhops;
+    return cu.between(darkgrey, gripcol, pctdark);
+  }
+}

@@ -1,0 +1,211 @@
+
+transient XBarSpace2DState : LocalSpaceRect2DState {
+  //// Intention API
+  @Override
+  virtual Bool init(Intender & in) {
+    mD&&pR("XBSpIN10");
+    if (super.init(in)) return true;
+    return false;
+  }
+  BeeveeBIM mBrainMap;
+
+  MinXPick mMinTap;
+
+  @Override
+  virtual Bool observe(Intender & in) {
+    mD&&pR("XBSpOB10");
+    if (super.observe(in)) return true;
+    for (SN sn = 1u; sn <= 8u; ++sn) { // moore ngb
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      C2D c = ew.getCoord(sn);
+      Unsigned dist = c.euclideanSquaredLength();
+      if (a is TAP) mMinTap.update(sn,dist); // nearest TAP if any
+    }
+    return false;
+  }
+
+  Bool makeTAP(XBarSpace2D & xb) {
+    C2D absc = xb.getPos2D(); // our pos
+    Unsigned xbidx = mBrainMap.getContainingXBIndex(absc);
+    mD&&pR("MTXBSBNEW10")&&pR(absc)&&pR(xbidx);
+
+    // do we have an xb containing absc?
+    if (xbidx == Unsigned.maxof) return false; // we do not
+
+    mD&&pR("MTXBSBNEW11");
+    // we do
+    BrainInfoMap.XBInfoBuffer xbib;
+    XBInfo & xbi = mBrainMap.getXBInfo(xbidx,xbib);
+    
+    mD&&pR("MTXBSBNEW12")&&pR(xbi);
+
+    // do we want a TAP at this absc?
+    Bool issense = false;
+    ClassId tapid = xbi.getXBInfoTAPAbs(absc,false);
+    if (tapid == 0u) {
+      tapid = xbi.getXBInfoTAPAbs(absc,true);
+      issense = true;
+    }
+
+    mD&&pR("MTXBSBNEW13")&&pR(tapid);
+    if (tapid == 0u) return false; // we do not
+    // we do
+
+    C2D tapc(0,1);
+    Atom a = xbi.makeTAPInstance(tapid); // with initted mSenseVert?
+    // a.mSenseVert == issense ??
+    ew[tapc] = a;
+    mD&&pR("XBSBNEW17")&&pR(tapc)&&pR(ew[tapc]);
+    return true;            // Needed and made a TAP
+  }
+
+  /*
+  Bool makeTAPOLD(XBarSpace2D & xb) {
+    TermTargetLibrary ttl(self);
+    C2D c = xb.getPos2D(); // our pos
+    mD&&pR("XBSBNEW16")&&pR(c);
+    Unsigned tapidx = ttl.getTapIdxAt(c);
+    if (tapidx != Unsigned.maxof) { // we should
+      C2D tapc(0,1);
+      Atom a = ttl.makeTAPInstance(tapidx); // with initted mSenseVert
+      ew[tapc] = a;
+      mD&&pR("XBSBNEW17")&&pR(tapc)&&pR(ew[tapc]);
+      return true;            // Needed and made a TAP
+    }
+    return false;             // Didn't need or already had a TAP
+    }*/
+
+  @Override
+  virtual Bool stabilize(Intender & in) {
+    /// CALL SUPER, BAIL IF DONE
+    mD&&pR("XBSBNEW10");
+    if (super.stabilize(in)) return true;
+
+    /// SET OUR MTAPS ALL NONE
+    XBarSpace2D & xb = (XBarSpace2D&) in;
+    mD&&pR("XBSBNEW11")&&pR(xb);
+    for (Unsigned i = 0u; i < xb.mTaps.lengthof; ++i)
+      xb.mTaps[i] = cTAPIDX_NONE;
+
+    /// SET OUR SYMMETRY TO UNKNOWN
+    xb.mSymmetry = xb.cXSU;
+
+    mD&&pR("XBSBNEW12")&&pR(xb);
+    /// SEE IF HAVE OR NEED A TAP
+    Bool hasTAP = mMinTap.hasPick();
+    if (!hasTAP && makeTAP(xb))
+      return true;            // Didn't have, but needed and made a TAP
+
+    // now either hasTAP or don't need a TAP
+    mD&&pR("XBSBNEW13")&&pR(xb)&&pR(mMinTap)&&pR(hasTAP);
+
+    //// SET SYMMETRY IF HASTAP
+    if (hasTAP) {
+      TAP & tap = (TAP&) ew[mMinTap.getIdxSN()];
+      xb.mSymmetry = (tap.mSenseVert ? cXSV : cXSH);
+
+      /// ALSO SET ORIGINATING mTaps
+      if (false) { // OLD WAY
+        TermTargetLibrary ttl(self);
+        TapIdx tapidx = ttl.getTapIdx(tap);
+        Bool isSense = (tap is TermSensor);
+        if (tap.mSenseVert == isSense) 
+          xb.mTaps[cW] = xb.mTaps[cE] = tapidx; // swapped sensors and normal motors
+        else
+          xb.mTaps[cN] = xb.mTaps[cS] = tapidx; // normal sensors and swapped motors
+      } else { // NEW WAY
+        C2D absc = xb.getPos2D();
+        mD&&pR("NEWXBSBNEW10")&&pR(absc);
+        BeeveeBIM bim;
+        Unsigned xbidx = bim.getContainingXBIndex(absc);
+        if (xbidx == Unsigned.maxof) fail(__FILE__,__LINE__);
+        BrainInfoMap.XBInfoBuffer xbib;
+        XBInfo & xbinfo = bim.getXBInfo(xbidx,xbib);
+        C2D relc = xbinfo.absToRel(absc);
+        mD&&pR("NEWXBSBNEW11")&&pR(relc)&&pR(xbinfo);
+        AxialDir ad;
+        Bool isinput;
+        if (xbinfo.getXBInfoFeedDir(relc,ad,isinput)) {
+          ClassUtils cu;
+          Unsigned tapidx = bim.getTapIdxFromClassId(cu.getClassId(tap));
+          if (tapidx == Unsigned.maxof) fail(__FILE__,__LINE__);
+          xb.mTaps[ad] = (TapIdx) tapidx;
+          mD&&pR("NEWXBSBNEW12")&&pR(ad)&&pR(isinput);
+        }
+      }
+      mD&&pR("XBSBNEW14")&&pR(tap)&&pR(xb);      
+
+    } else {
+
+      /// SEARCH NGBS FOR DOMINANT SYMMETRY
+      Unsigned symCount[3];
+      for (Unsigned i = 0u; i < mGrid.lengthof; ++i) {
+        SN sn = mGrid[i];
+        mD&&pR(sn);
+        if (!ew.isAccessible(sn)) continue;
+        Atom & a = ew[sn];
+        if (a as XBarSpace2D) 
+          symCount[a.mSymmetry]++;
+      }
+      mD&&pR("XBSBNEW15")&&pR(symCount[0])&&pR(symCount[1])&&pR(symCount[2]);
+      if (symCount[cXSH] > 1u && symCount[cXSH] > symCount[cXSV])
+        xb.mSymmetry = cXSH;
+      else if (symCount[cXSV] > 1u && symCount[cXSV] > symCount[cXSH])
+        xb.mSymmetry = cXSV;
+      else
+        return true;            // blocked for lack of symmetry
+      mD&&pR("XBSBNEW16")&&pR(xb);
+    }
+
+    //// WE NOW HAVE A SYMMETRY
+    mD&&pR("XBSBNEW17")&&pR(xb);
+
+    //// PROPAGATE INTO OUR mTaps
+
+    for (Unsigned i = 0u; i <= AxialDir.maxof; ++i) {
+      AxialDir ad = (AxialDir) i;
+      AxialDir oppad = oppositeAxialDir(ad);
+
+      /// IF NGB HAS PROP TO US AND OUR MTAP IS UNSET, SET IT
+      mD&&pR("XBSBNEW18")&&pR(i)&&pR(ad)&&pR(oppad);
+      if (xb.mTaps[i] != cTAPIDX_NONE) continue; // we're originating this one
+
+      EventWindow ew;
+      SN sn = mGrid[i];
+      mD&&pR("XBSBNEW19")&&pR(sn);
+      if (!ew.isAccessible(sn)) continue;
+
+      Atom & a = ew[sn];
+      if (a as XBarSpace2D) {
+        AxialDir ad = (AxialDir) (sn-21u);
+        if (a.mTaps[ad] != cTAPIDX_NONE) {
+          mD&&pR("XBSBNEW210")&&pR(a.mTaps[ad]);
+          xb.mTaps[i] = (XBarSpace2D.TapIdx) a.mTaps[ad]; // PROPAGATE
+        }
+      }
+    }
+    mD&&pR("XBSBNEW211")&&pR(xb);
+    return false;
+  }
+
+  @Override
+  virtual Bool act(Intender & in) {
+    mD&&pR("XBSpAC10");
+    if (super.act(in)) return true;
+    XBarSpace2D & xb = (XBarSpace2D&) in;
+
+    Router r(self);
+    mD&&pR("XBSpAC11")&&pR(r);
+    if (r.trySwitch(xb,self)) return true;
+    mD&&pR("XBSpAC12");
+    if (r.tryPropagation(xb, self)) return true;
+
+    mD&&pR("XBSpAC13");
+    return false;
+  }
+}
+
+  
+
+

@@ -1,0 +1,149 @@
+//local typedef LocalSpace2DT(6u,0u,3u,1u,0u) QSpace2D;
+local typedef LocalSpaceRect2DT(6u,0u,3u) QSpace2D;
+
+/** LocalSpace with minimal gradients, for use with other routing
+    mechanisms such as crossbars.
+    \symbol X2
+    \color #393
+*/
+@Concrete
+element XBarSpace2D : QSpace2D + DTU {
+  constant Unsigned cBITS = QSpace2D.cBITS; //XXX needed? why?
+
+  //// URSELF API
+  @Override
+  virtual ARGB getColor(Unsigned selector) {
+    
+    ColorUtils cu;
+    Unsigned gripnum = getGripNumber();
+
+    Unsigned tapcount = 0u;
+    for (Unsigned i = 0u; i < mTaps.lengthof; ++i) {
+      if (mTaps[i] != cTAPIDX_NONE) ++tapcount;
+    }
+
+    ARGB ret = cu.color(0xff000000); // black
+
+    if (tapcount < 2u) {             // only do gripcol for non 'xb' sites
+      GripInfoMap gim;
+      ClassId gripid = gim.getGripInfoClassId(gripnum);
+      if (gripid == 0u) return super.getColor(selector); // Um.
+
+      GripInfo & gi = gim.getGripInfo(gripid);
+    
+      ARGB gripcol = gi.getGripColor(selector);
+      ARGB darkgrey = cu.color(0xff202020);
+
+      Unsigned maxhops = getMaxLHops();
+      if (maxhops == 0u)
+        ret = cu.brighter(darkgrey);
+      else {
+        Unsigned hopsin = getLHops();
+        hopsin = 3u*maxhops/4u; // try just doing 75% for everything..
+        Unsigned pctdark = 100u * (maxhops - hopsin) / maxhops;
+        ret = cu.between(darkgrey, gripcol, pctdark);
+      }
+    }
+
+    Bits col = 0xff000000u;                        // black
+    if (hasSymmetry()) {
+      if (getSlotSig(true).isOccupied()) col |= 0x00ff0000u;  // outbound with red
+      if (getSlotSig(false).isOccupied()) col |= 0x0000ff00u; // inbound with green
+    }
+    return col != 0xff000000u ? cu.color(col) : ret;
+  }
+
+  //// UrSelf API
+  @Override
+  Void renderGraphics() {
+    if (!hasSymmetry()) return super.renderGraphics();
+
+    Bool outbound = getSlotSig(true).isOccupied();
+    Bool inbound = getSlotSig(false).isOccupied();
+
+    if (!outbound && !inbound) return super.renderGraphics();
+    
+    ColorUtils cu;
+    if (outbound) {
+      SN sn = (SN) (1u+getPropagationDir(true,false)); // w0 n1 s2 e3
+      FWTD tmp;
+      tmp.renderBond(sn, 100u, cu.color(0xffff0000));
+    }
+    if (inbound) {
+      SN sn = (SN) (1u+getPropagationDir(false,false)); // w0 n1 s2 e3
+      FWTD tmp;
+      tmp.renderBond(sn, 100u, cu.color(0xff00ff00));
+    }
+  }
+  
+
+  //// INTENDER API
+  @Override
+  virtual ClassId getIntentionClass() { return XBarSpace2DState.classidof; }
+  
+  //// LocalSpace2D API
+  @Override virtual Void makeUninitted() {
+    super.makeUninitted();
+    for (Unsigned i = 0u; i < mSigs.lengthof; ++i) mSigs[i].reset();
+    for (Unsigned i = 0u; i < mTaps.lengthof; ++i) mTaps[i] = cTAPIDX_NONE;
+  }
+
+  TapIdx mTaps[4] = { cTAPIDX_NONE }; // [AxialDir] -> [0] W, [1] N, [2] S, [3] E
+
+  TapIdx getTapIdxIfAny(Bool outbound) {
+    if (mSymmetry == cXSU) return cTAPIDX_NONE;
+
+    Unsigned dirs[2];
+    if (mSymmetry == cXSH) {
+      if (outbound) { dirs[0] = cN; dirs[1] = cS; }
+      else {          dirs[0] = cW; dirs[1] = cE; }
+    } else { /* (mSymmetry == cXSV) */
+      if (outbound) { dirs[0] = cW; dirs[1] = cE; }
+      else {          dirs[0] = cN; dirs[1] = cS; }
+    }
+
+    for (Unsigned i = 0u; i < dirs.lengthof; ++i) {
+      if (mTaps[dirs[i]] != cTAPIDX_NONE)
+        return mTaps[dirs[i]];
+    }
+
+    return cTAPIDX_NONE;
+  }
+
+  SlotSig mSigs[2]; // [0] column (default outbound), [1] row (default inbound)
+
+  Bool hasSymmetry() { return mSymmetry != cXSU; }
+
+  SlotSig & getSlotSig(Bool outbound) {
+    if (mSymmetry == cXSU) fail(__FILE__,__LINE__);
+
+    if (mSymmetry == cXSH)
+      return outbound ? mSigs[0] : mSigs[1] ;
+    else
+      return outbound ? mSigs[1] : mSigs[0] ;
+  }
+
+  AxialDir getPropagationDir(Bool outbound, Bool reverse) {
+    if (mSymmetry == cXSU) fail(__FILE__,__LINE__);
+
+    if (mSymmetry == cXSV) {   // senses outbound are W and e, motor inbound are N and s
+      if (outbound)
+        return reverse ? cE : cW;
+      return reverse ? cS : cN;
+    }
+    // else (mSymmetry == cXSH) - senses are S and n, motors are W and e
+    {
+      if (outbound)
+        return reverse ? cN : cS;
+      return reverse ? cE : cW;
+    }
+  }
+
+  TapIdx & getTapInTaps(Bool sensor, Bool reverse) {
+    AxialDir ad = getPropagationDir(sensor, reverse); // or fail
+    return mTaps[ad];
+  }
+
+  XBSSy mSymmetry = cXSU;       // xbar sensor orientation unknown
+}
+

@@ -1,13 +1,16 @@
 all:	code
 
-code:	FORCE
+code:	scripts
 	make -C code
 
 clean:	FORCE
 	make -C code clean
 
-run:	FORCE
+run:	scripts
 	make -C code run
+
+scripts:	FORCE
+	cd scripts; make
 
 ishtar:	FORCE
 	make -C code ishtar

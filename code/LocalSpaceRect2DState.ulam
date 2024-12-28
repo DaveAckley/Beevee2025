@@ -1,0 +1,217 @@
+@Concrete
+transient LocalSpaceRect2DState : Intention + DTU + Fail {
+  //  typedef LocalSpace.LocalHops LocalHops;
+
+  EventWindow ew;
+  Random random;
+  DebugUtils du;
+
+  //// LocalSpaceRect2DState DATA STRUCTURES
+  MinXPick mMinLHopsIn;
+  MinXPick mMinLHopsOut;
+  MaxXPick mMaxLHopsOut;
+  MinXPick mMinEmpty;
+  MinXPick mMinInterPhase;
+  SN mGrid[4u];                 // localspace ngbs if exist and initted
+
+  //// Intention API
+  @Override
+  virtual Bool init(Intender & in) {
+    mD&&pR("LoRSpIN10");
+    if (super.init(in)) return true;
+    mMinLHopsIn.reset();
+    mMinLHopsOut.reset();
+    mMaxLHopsOut.reset();
+    mMinEmpty.reset();
+    mMinInterPhase.reset();
+    for (Unsigned i = 0u; i < 4u; ++i)
+      mGrid[i] = SN.maxof;
+    return false;
+  }
+
+  virtual Bool observe(Intender & in) {
+    mD&&pR("LoRSpOB10");
+    if (super.observe(in)) return true;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      C2D c = ew.getCoord(sn);
+      Unsigned dist = c.euclideanSquaredLength();
+      Unsigned ph = getPhase(c);
+      if (a as LocalSpaceRect2D) {
+        if (a.isInitted()) {
+          if (ph == 0u) {
+            {
+              SN sn0 = getSNPhase0(c);
+              if (sn0 > 0u)
+                mGrid[sn0-1u] = sn;
+            }
+            Unsigned hopsin = a.getLHops();
+            C2D apos = a.getPos2D();
+            C2D aoff = c/3u;
+            // They can only be upstream of us if
+            // we would end up downstream of them --
+            if (apos.length() < (apos-aoff).length()) {
+              mMinLHopsIn.update(sn,hopsin);
+              mD&&pR("LoRSpOB1013");
+              mD&&pR(sn);
+              mD&&pR(hopsin);
+            } else {
+              mD&&pR("LoRSpOB101310REJECTO");
+              mD&&pR(apos);
+              mD&&pR(aoff);
+            }
+          } else
+            mMinInterPhase.update(sn,dist);
+        }
+      } else if (a is Empty && ph == 0u)
+        mMinEmpty.update(sn,dist);
+    }
+    return false;
+  }
+
+  virtual Bool stabilize(Intender & in) {
+    mD&&pR("LoRSpSB10");
+    if (super.stabilize(in)) return true;
+
+    mD&&pR("LoRSpSB11");
+    mD&&pR(mMinLHopsIn);
+    mD&&pR(mMinInterPhase);
+    mD&&pR(mMinEmpty);
+
+    mD&&pR("LoRSpSB11ain");
+    mD&&pR(in);
+
+    LocalSpaceRect2D & ls = (LocalSpaceRect2D&) in;
+    mD&&pR("LoRSpSB11ain11");
+    Unsigned lhopsin = ls.getLHops();
+    //Unsigned lhopsmax = ls.getMaxLHops();
+    //Unsigned lhopsout = lhopsmax-lhopsin;
+
+    mD&&pR("LoRSpSB11ain12")&&pR(lhopsin)/*&&pR(lhopsmax)&&pR(lhopsout)*/;
+
+    //// STABILIZE LHOPSIN AND GRIP
+    C2D ourpos = ls.getPos2D();
+    if (!ls.legalPos(ourpos))    // uninitted or flat-out illegal?
+      return dieTrue();          // use legalPos instead of maxlhops
+    
+    if (lhopsin != 0u) {
+      mD&&pR("LoRSpSB11ain1210");
+      if (!mMinLHopsIn.hasPick()) return dieTrue();   // no upstream
+
+      mD&&pR("LoRSpSB11ain1211");
+
+      SN upsn = mMinLHopsIn.getIdxSN();
+
+      LocalSpaceRect2D & upls = (LocalSpaceRect2D&) ew[upsn];
+
+      /// Unconditionally take upstream grip
+      ls.setGripNumber(upls.getGripNumber());
+
+      /// Check pos consistency with upstream
+      mD&&pR("LoRSpSB11ain1212");
+      {
+        C2D upc = ew.getCoord(upsn);
+        C2D allegeddestc = upls.getPos2D()-upc/3u;
+        mD&&pR("LoRSpSB11ain1213")&&pR(ls)&&pR(upc)&&pR(allegeddestc)&&pR(ourpos);
+        if (ourpos != allegeddestc) {
+          mD&&pR("LoRSpSB11ain1214");
+          if (allegeddestc.length() == 0u) //< cannot stabilize into root!
+            ls.makeUninitted();
+          else ls.setPos2D(allegeddestc);
+          mD&&pR("LoRSpSB11ain1215");
+          mD&&pR(ls);
+          return true;        // gradient change
+        }
+      }
+      // ELSE FALL THROUGH
+    }
+
+    mD&&pR("LoRSpSB11ain1310");
+
+    //// FILL OUT FIELD
+    if (mMinEmpty.hasPick()) {
+      SN sn = mMinEmpty.getIdxSN();
+      C2D themc = ew.getCoord(sn);
+      C2D thempos = ls.getPos2D() + themc/3u;
+      if (ls.legalPos(thempos)) {
+        Atom a = ls.atomof;
+        LocalSpaceRect2D & newself = (LocalSpaceRect2D&) a;
+        newself.setPos2D(thempos);
+        ew[sn] = a;
+        mD&&pR("LoRSpSB11ain1311");
+        mD&&pR(sn);
+        mD&&pR(ew[sn]);
+        return true;
+      }
+    }
+
+    mD&&pR("LoRSpSB11ain14");
+
+    return false;
+  }
+
+  virtual Bool act(Intender & in) {
+    mD&&pR("LoRSp2sAC10");
+    if (super.act(in)) return true;
+    LocalSpaceRect2D & ls = (LocalSpaceRect2D&) in;
+    mD&&pR("LoRSp2sAC11")&&pR(ls);
+
+    //// ROOT DRIFT SPIKE
+    if (ls.getLHops() == 0u) {
+      if (false && random.oneIn(100u)) { //XXX NO DRIFT
+        SN sn = (SN) random.between(21u,24u); // axes dist 3 
+        if (ew.isAccessible(sn) && ew[sn] is LocalSpaceRect2D) {
+          LocalSpaceRect2D & other = (LocalSpaceRect2D&) ew[sn];
+          other.setPos2D(-other.getPos2D()); // now other side of root
+          mD&&pR("LoRSp2sAC12")&&pR(other);
+          ew.swap(0u,sn);
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  //// LocalSpaceRect2DState SERVICES
+
+  /** \returns phase 0..8 of \c c relative to us (in sn 0), mapped as
+
+      <pre>
+
+         -4  -3  -2  -1   0  +1  +2  +3  +4
+      -4  .   .   .   .   .   .   .   .   .
+
+      -3  .   0   1   2   0   1   2   0   1
+
+      -2  .   3   4   5   3   4   5   3   4
+
+      -1  .   6   7   8   6   7   8   6   7
+
+       0  .   0   1   2   0   1   2   0   1
+
+      +1  .   3   4   5   3   4   5   3   4
+
+      +2  .   6   7   8   6   7   8   6   7
+
+      +3  .   0   1   2   0   1   2   0   1
+
+      +4  .   3   4   5   3   4   5   3   4
+      </pre>
+   */
+
+  Unsigned getPhase(C2D c) {
+    Int xo = (c.x + 6)%3;
+    Int yo = (c.y + 6)%3;
+    return (Unsigned) (3*yo + xo);
+  }
+
+  SN getSNPhase0(C2D c) {
+    if (c.x < 0) return 1u;
+    if (c.y < 0) return 2u;
+    if (c.y > 0) return 3u;
+    if (c.x > 0) return 4u;
+    return 0u; 
+  }
+}
