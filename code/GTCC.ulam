@@ -1,0 +1,70 @@
+/** single Grip Tile Clock Counter. Count tile edges while in current grip.
+    \symbol GT
+    \color #c3e
+ */
+element GTCC : HOpUnary + Grip + Fail {
+
+  typedef Unsigned(XBarSpace2D.cGRIPBITS) MyGripVal;
+  MyGripVal mLastGrip = MyGripVal.maxof;
+
+  typedef XTimer(3u,5u,1u) ChangeTimer; //< for debouncing edges
+  ChangeTimer mEdgeTimer;
+  ChangeTimer mRegripTimer;
+
+  typedef CLOK.ClokState ClokState;
+  ClokState mNewClock = CLOK.cCLOK_NONE;
+  ClokState mLastClock = CLOK.cCLOK_NONE;
+
+  typedef Unsigned(6u) TileCount;
+  TileCount mTilesInGrip;
+  
+  Void behave() {
+
+    /// RUN GRIP TIMER
+    Unsigned gripnum = getGripNumber(); // our 'official' current grip
+    if (gripnum == mLastGrip) mRegripTimer.reset();
+    else if (mRegripTimer.countAlarm()) {
+      mLastGrip = (MyGripVal) gripnum;
+      mD&&pR("GTCCX12")&&pR(self);
+      mTilesInGrip = 0u;
+    }
+
+    /// RUN EDGE TIMER
+    if (mNewClock == mLastClock) mEdgeTimer.reset();
+    else if (mNewClock != CLOK.cCLOK_NONE && mEdgeTimer.countAlarm()) {
+      if (mLastClock != CLOK.cCLOK_NONE) ++mTilesInGrip;
+      mLastClock = mNewClock;
+    }
+
+    /// AND DO NORMAL BUSINESS
+    super.behave();
+  }
+
+  //// HOpArgsT API
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("GTCS2S10")&&pR(self);
+
+    BeeveeBIM bim;
+    TapIdx idx = sig.mSource;
+    if (idx == bim.getTapIdxFromClassId(CLOK.classidof)) // clock edges
+      return 0;             
+
+    return Int.maxof;           // or don't want
+  }
+
+  @Override
+  virtual Bool execute(SlotSig & result) {
+    mD&&pR("GTCCX10")&&pR(self);
+    SlotSig & sig = getSlotSig(0);
+
+    if (!sig.isOccupied()) return false;
+    mD&&pR("GTCCX1010")&&pR(self);
+
+    /// PICK UP CLOCK SIG
+    mNewClock = (ClokState) sig.getValueUnsigned();
+
+    return false; // NOT REACHED
+ }
+}
+

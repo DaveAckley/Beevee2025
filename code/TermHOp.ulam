@@ -112,7 +112,7 @@ quark HOpArgsT(Unary(3) cOPERANDS) : TermHOp {
   @Override
   virtual Bool accept(SlotSig& sig, Unsigned gripnum) {
     if (!sig.isOccupied()) return false;
-    TapIdx sidx = sig.mSource;
+    //    TapIdx sidx = sig.mSource; unused? let sigToSlot deal with it?
     Unsigned cops = getArity();
     Int idx = sigToSlot(sig,gripnum);
     if (idx < 0) return false;  // don't want it
@@ -260,6 +260,20 @@ element HFLG : HOpPLL10 {
   }
 }
 
+/** Front Center cycle tracker
+    \symbol Lc
+    \color #baa
+ */
+/* not using ?
+element HFCG : HOpPLL10 {
+  //// HOpPLL10 API
+  @Override
+  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    return ttl.getTapIdxFromClassId(SFCG.classidof);
+  }
+}
+*/
+
 /** Front Right cycle tracker
     \symbol L1
     \color #baa
@@ -318,6 +332,17 @@ element IFRG : HOpUnaryDupe {
   }
 }
 
+/** Input Front Center cycle tracker
+    \symbol Ic
+    \color #baa
+ */
+element IFCG : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cAXON_TO_XBAR;
+  }
+}
+
 /** Input Rear Right cycle tracker
     \symbol I2
     \color #baa
@@ -340,6 +365,18 @@ element IRLG : HOpUnaryDupe {
     return cAXON_TO_XBAR;
   }
 }
+
+/** Front tile CLOK tracker
+    \symbol IC
+    \color #bac
+ */
+element OCLK : HOpUnaryDupe {
+  @Override
+  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+    return cXBAR_TO_AXON;
+  }
+}
+
 
 quark HOpPhaseDiff : HOpBinary {
 
@@ -474,51 +511,6 @@ element HFQA : HOpUnaryDupe {
   @Override
   virtual RouteDir getHiddenRouteDir(GripSource & gs) {
     return cAXON_TO_XBAR;
-  }
-}
-
-
-element HDGROLD : HOpDiff {
-  //// TermHOp API
-  @Override
-  virtual Bool isEnabled(Unsigned gripnum) {
-    return
-      gripnum == GripInfoMap.cGRIP_HUNTR ||
-      gripnum == GripInfoMap.cGRIP_TRAVL;
-  }
-
-  @Override
-  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
-    if (!isEnabled(gripnum)) return -1;
-    TermTargetLibrary ttl;
-    TapIdx idx = sig.mSource;
-    if (idx == ttl.getTapIdxFromClassId(SRLG.classidof))
-      return 0;                 // left arg
-    if (idx == ttl.getTapIdxFromClassId(SRRG.classidof))
-      return 1;                 // right arg
-    return -1;                  // don't want it
-  }
-}
-
-
-element HDGFOLD : HOpDiff {
-  //// TermHOp API
-  @Override
-  virtual Bool isEnabled(Unsigned gripnum) {
-    return
-      gripnum == GripInfoMap.cGRIP_HUNTR ||
-      gripnum == GripInfoMap.cGRIP_TRAVL;
-  }
-
-  @Override
-  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
-    TermTargetLibrary ttl;
-    TapIdx idx = sig.mSource;
-    if (idx == ttl.getTapIdxFromClassId(SFLG.classidof))
-      return 0;                 // left arg
-    if (idx == ttl.getTapIdxFromClassId(SFRG.classidof))
-      return 1;                 // right arg
-    return -1;                  // don't want it
   }
 }
 

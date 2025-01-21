@@ -1,0 +1,62 @@
+@Concrete
+quark TrackGripInfo : GripInfo { 
+  // Keep GRIP in the loop about R+Y?
+  constant SenseDests cSD_SLFY = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFY = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFR = { GRIP.classidof, cNULLID };
+
+  // TOCK just for faaaaahn?
+  constant SenseDests cSD_TOCK = { MLEY.classidof, MREY.classidof, cNULLID };
+
+  constant SenseDests cSD_SFLG = { TRAK.classidof, CLOK.classidof, cNULLID };  
+  constant SenseDests cSD_SFCG = { TRAK.classidof, cNULLID };  
+  constant SenseDests cSD_SFRG = { TRAK.classidof, CLOK.classidof, cNULLID };  
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xff0080ff);
+  }
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & rawvalue) {
+    if (forDest == MLEY.classidof || forDest == MREY.classidof) {
+      if (forSensor == TOCK.classidof) {
+        Int cooked = -20;
+        rawvalue = intToSignedAscii(cooked); 
+        return true;
+      }
+    }
+
+    return true;            // default identity map
+  }
+
+  @Override String getGripName() { return "TRAK"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    which (sensid) {
+      case TOCK.classidof: { return cSD_TOCK; }
+
+      // Keep GRIP in the loop about R+Y?
+      case SLFY.classidof: { return cSD_SLFY; }
+      case SRFY.classidof: { return cSD_SRFY; }
+      case SLFR.classidof: { return cSD_SLFR; }
+      case SRFR.classidof: { return cSD_SRFR; }
+
+      // Grey processing in track - include CLOK
+      case SFLG.classidof: { return cSD_SFLG; }
+      case SFCG.classidof: { return cSD_SFCG; }
+      case SFRG.classidof: { return cSD_SFRG; }
+
+    }
+    return getDefaultDestinations(sensid);
+  }
+
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) { // might be called by any Grip& !
+    if (g as GREG) {
+      if (g.mState == GREG.cSTATE_REGRIP) return GripInfoMap.cGRIP_HUNTR;
+    }
+    return g.getGripNumber();
+  }
+
+}

@@ -108,6 +108,47 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     mD&&pR("FNMTAXEf13")&&pR(ret);
     return ret;
   }
+
+  Bool trySendSigViaTAP(ASCII sig, ClassId toclassid) { /// imported from TRAK
+    EventWindow ew;
+    Fail f;
+    BeeveeBIM bim;
+    TapIdx mytapidx = bim.getTapIdx(self);
+    Unsigned themt = bim.getTapIdxFromClassId(toclassid);
+    if (themt == Unsigned.maxof)
+      f.fail(__FILE__,__LINE__);
+    TapIdx themtapidx = (TapIdx) themt;
+    SN axonsn = findMatchingAxonEndWithClassId(toclassid);
+    if (axonsn != SN.maxof) {
+      AxonEnd & axon = (AxonEnd&) ew[axonsn];
+      mD&&pR("TMTOR14")&&pR(axonsn);
+      SlotSig oss;
+      oss.mValue = sig;
+      oss.mSource = mytapidx;
+      return trySendSig(axon,oss);
+    }
+
+    // no axon
+    MinXPick emppick;
+    Random random;
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (sn <= 8u && ew[sn] is Empty) emppick.update(sn);
+      if (ew[sn] is FloodFind) 
+        return false;          // Flooding in progress
+    }
+    if (emppick.hasPick()) {
+      SN empsn = emppick.getIdxSN();
+      FloodFindTAPIdx fix;
+      fix.mBranchOK = true;      // XXXX TESTING DENDRITIC TREES
+      fix.mMaxRadius = 20u;
+      fix.mLocal = mytapidx;
+      fix.mRemote = themtapidx;
+      mD&&pR("TOPHSH17")&&pR(fix);
+      ew[empsn] = fix.atomof;
+    }
+    return false;
+  }  
   
   /*
   Bool scanAxons() {
@@ -454,14 +495,21 @@ element SUPR :  TermSensor {
 }
 
 /** Sensor Front Left Grey
-    \symbol G0
+    \symbol Gl
     \color #aaa
 */
 element SFLG :  TermSensor {
 }
 
+/** Sensor Front Center Grey
+    \symbol Gc
+    \color #aaa
+*/
+element SFCG :  TermSensor {
+}
+
 /** Sensor Front Right Grey
-    \symbol G1
+    \symbol Gr
     \color #aaa
 */
 element SFRG :  TermSensor {

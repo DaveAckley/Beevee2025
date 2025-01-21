@@ -66,22 +66,6 @@ element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
     mD&&pR("GRBV14")&&pR(xb);
     if (!xb.hasSymmetry()) return;
 
-    ///// GRIP WATCHDOG TIMER
-    if (gim.isOrientGripNum(gripnum)) {
-      if (mGripWatchDog.countAlarm()) {
-        tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
-        mD&&pR("GRBV011")&&pR(self);
-      } else if (mGripWatchDog.current() > 3u) { // ugh anti-auto-race delay
-        Unsigned xbgrip = xb.getGripNumber();
-        if (xbgrip != gripnum) {
-          setGripNumber(xbgrip);
-          mD&&pR("GRBV012")&&pR(self);
-        }
-      }
-      return;
-    }
-    mGripWatchDog.reset();      // grip is ours from here on
-
     mD&&pR("GRBV12")&&pR(gripnum);
 
     //// UPDATE SIGNAL VALUES
@@ -114,6 +98,23 @@ element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
         mD&&pR("GRBV19")&&pR(picks);
       }
     }
+
+    ///// GRIP WATCHDOG TIMER (and bail on grips not controlled by us)
+    if (gim.isOrientGripNum(gripnum) ||
+        gripnum == GripInfoMap.cGRIP_TRACK) {
+      if (mGripWatchDog.countAlarm()) {
+        tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
+        mD&&pR("GRBV011")&&pR(self);
+      } else if (mGripWatchDog.current() > 3u) { // ugh anti-auto-race delay
+        Unsigned xbgrip = xb.getGripNumber();
+        if (xbgrip != gripnum) {
+          setGripNumber(xbgrip);
+          mD&&pR("GRBV012")&&pR(self);
+        }
+      }
+      return;
+    }
+    mGripWatchDog.reset();      // grip is ours from here on
 
     //// UPDATE GRIP
     mD&&pR("GRBV210");

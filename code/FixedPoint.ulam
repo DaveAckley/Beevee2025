@@ -1,0 +1,140 @@
+quark FixedPoint(Unary cINT_BITS, Unary cFRAC_BITS) { //< Signed? fixed point hack?
+  constant Int cMULTIPLIER = (Int) (1u<<cFRAC_BITS);
+  constant Unsigned cTOTAL_BITS = cINT_BITS + cFRAC_BITS;
+  constant Unsigned cDECIMAL_FRAC =
+    ((cFRAC_BITS <= 3u)  ? 10u :
+    ((cFRAC_BITS <= 6u)  ? 100u :
+    ((cFRAC_BITS <= 9u)  ? 1000u :
+    ((cFRAC_BITS <= 13u) ? 10000u :
+    ((cFRAC_BITS <= 16u) ? 100000u :
+    ((cFRAC_BITS <= 19u) ? 1000000u :
+     1000000u                   // nahgahhanlit
+     ))))));
+
+  typedef Int(cTOTAL_BITS) FP;
+  Self getMin() {
+    Self ret;
+    ret.mFP = FP.minof;
+    return ret;
+  }
+  Self getMax() {
+    Self ret;
+    ret.mFP = FP.maxof;
+    return ret;
+  }
+
+  typedef Int(64) Int64;
+  FP mFP;
+
+  Self(Self other) {
+    self.set(other);
+  }
+
+  Self(Int raw) {
+    self.setInt(raw);
+  }
+
+  Self(Int num, Int den) {
+    self.setFraction(num,den);
+  }
+
+  Self & set(Self other) {
+    mFP = other.mFP;
+    return self;
+  }
+  Self & setInt(Int raw) {
+    mFP = (FP) (raw * cMULTIPLIER);
+    return self;
+  }
+  Self & setFraction(Int numerator, Int denominator) {
+    Self den;
+    self = numerator;
+    den = denominator;
+    self /= den;
+    return self;
+  }
+  Int getInt() {
+    return ((Int) mFP) / cMULTIPLIER;
+  }
+  Int round() {
+    return (((Int) mFP) + cMULTIPLIER/2) / cMULTIPLIER;
+  }
+  Int getFrac() {
+    return ((Int) mFP) % cMULTIPLIER;
+  }
+  Int randomRound() {
+    Random random;
+    Int amt = (Int) random.bits((Unsigned) cFRAC_BITS); // 0..cMULTIPLIER-1; avg cMULTIPLIER/2
+    if (mFP < 0) amt = -amt;
+    return (((Int) mFP) + amt) / cMULTIPLIER;
+  }
+  Self & absSelf() {
+    Self zero(0);
+    if (self < zero) self = zero-self;
+    return self;
+  }
+  Self & addTo(Self other) {
+    mFP = (FP) (mFP + other.mFP);
+    return self;
+  }
+  Self & subFrom(Self other) {
+    mFP = (FP) (mFP - other.mFP);
+    return self;
+  }
+  Self & mulBy(Self other) {
+    mFP = (FP) ((((Int64) mFP) * (Int64) other.mFP) / cMULTIPLIER);
+    return self;
+  }
+  Self & divBy(Self other) {
+    mFP = (FP) ((((Int64) mFP) * cMULTIPLIER) / other.mFP);
+    return self;
+  }
+  Self & printToLog() {
+    ByteStreamLogger log;
+    printTo(log);
+    return self;
+  }
+  Self & printTo(ByteStreamWriter & bs) {
+
+    Int i = getInt();
+    if (mFP < 0 && i == 0) bs.printf("-0."); // we're between -0.99.. and 0
+    else bs.printf("%d.",i);
+
+    // gah bs.printf doesn't implement field widths or pad chars
+    Int f = (Int) ((((Int64) getFrac()) * cDECIMAL_FRAC) / cMULTIPLIER);
+    if (mFP < 0) f = -f;        // XXX
+    for (Int d = 10; d <= cDECIMAL_FRAC; d = d*10) {
+      f = f*10;
+      Unsigned dig = (Unsigned) ((f/cDECIMAL_FRAC)%10);
+      ASCII c = (ASCII) (dig+'0');
+      bs.printChar(c);
+    }
+    return self;
+  }
+
+  Self & operator=(Int val) { return self.setInt(val); }
+  Self & operator=(Unsigned val) { return self.setInt((Int) val); }
+  Self & operator=(Self other) { return self.set(other); }
+
+  Bool operator<(Self other) { return self.mFP < other.mFP; }
+  Bool operator>(Self other) { return self.mFP > other.mFP; }
+  Bool operator<=(Self other) { return self.mFP <= other.mFP; }
+  Bool operator>=(Self other) { return self.mFP >= other.mFP; }
+  Bool operator==(Self other) { return self.mFP == other.mFP; }
+  Bool operator!=(Self other) { return self.mFP != other.mFP; }
+
+  Self operator+(Self other) { Self ret = self; ret.addTo(other); return ret; }
+  Self operator-(Self other) { Self ret = self; ret.subFrom(other); return ret; }
+  Self operator*(Self other) { Self ret = self; ret.mulBy(other); return ret; }
+  Self operator/(Self other) { Self ret = self; ret.divBy(other); return ret; }
+
+  Self & operator+=(Self other) { return self.addTo(other); }
+  Self & operator-=(Self other) { return self.subFrom(other); }
+  Self & operator*=(Self other) { return self.mulBy(other); }
+  Self & operator/=(Self other) { return self.divBy(other); }
+
+  Self abs() { Self ret(self); ret.absSelf(); return ret; }
+  Self max(Self other) { return (self < other) ? other : self; }
+  Self min(Self other) { return (self > other) ? other : self; }
+
+}

@@ -1,0 +1,109 @@
+@Concrete
+quark HunterGripInfo : GripInfo { // seek Y
+  constant SenseDests cSD_TOCK = { MRRF.classidof, MLRF.classidof, cNULLID };
+  constant SenseDests cSD_SLFY = { MRRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFY = { MLRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLLY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SLRY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SRLY = { MREY.classidof, cNULLID };
+  constant SenseDests cSD_SRRY = { MREY.classidof, cNULLID };
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xff0000ff);
+  }
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & rawvalue) {
+    /*
+    if ((forDest == GRIP.classidof) &&
+        (false
+         || forSensor == SLFR.classidof
+         || forSensor == SLFY.classidof
+         || forSensor == SLLR.classidof
+         || forSensor == SLLY.classidof
+         || forSensor == SLRR.classidof
+         || forSensor == SLRY.classidof
+         || forSensor == SRFR.classidof
+         || forSensor == SRFY.classidof
+         || forSensor == SRLR.classidof
+         || forSensor == SRLY.classidof
+         || forSensor == SRRR.classidof
+         || forSensor == SRRY.classidof
+         ) &&
+        (rawvalue == 255u)) {
+      return false;             // dump weird color 255's? could this be a bigger hack?
+    }
+    if ((forDest == GRIP.classidof) &&
+        (false
+         || forSensor == SLFR.classidof
+         || forSensor == SLFY.classidof
+         || forSensor == SLLR.classidof
+         || forSensor == SLLY.classidof
+         || forSensor == SLRR.classidof
+         || forSensor == SLRY.classidof
+         || forSensor == SRFR.classidof
+         || forSensor == SRFY.classidof
+         || forSensor == SRLR.classidof
+         || forSensor == SRLY.classidof
+         || forSensor == SRRR.classidof
+         || forSensor == SRRY.classidof
+         )) {
+      rawvalue = intToASCII((Int) rawvalue); // sensors come as 0..255
+      return true;
+    }
+    */
+
+    if ((rawvalue > 0u) && (rawvalue < 10u) &&
+        (forSensor == SLFY.classidof || forSensor == SRFY.classidof))
+      rawvalue = 10u;           // amplify small yellows (for all dests) when hunting?
+
+    if (forDest == MLRF.classidof || forDest == MRRF.classidof) {
+      if (forSensor == SLFY.classidof || forSensor == SRFY.classidof) {
+        if (rawvalue == 0u) return false; // don't ship 0s when hunting
+        rawvalue = intToSignedAscii((Int) rawvalue); 
+      } /*else if (forSensor == TOCK.classidof) {
+        // Here, rawvalue is the result of TOCK.getSig()
+        TOCK tock;              // dummy tock to call on
+        rawvalue = tock.switchSigVal(self, rawvalue,forDest);
+        }*/
+      /*
+      else if (forSensor == SLLY.classidof || forSensor == SRRY.classidof) { // heavy outside yellow
+        rawvalue = intToSignedAscii((Int) rawvalue);                           // signal turn outward
+      } else if (forSensor == SLRY.classidof || forSensor == SRLY.classidof) { // heavy inside yellow
+        rawvalue = intToSignedAscii(-(Int) rawvalue);                          // signal turn inward
+        }*/
+    }
+    return true;
+  }
+
+  @Override String getGripName() { return "HUNTR"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    Self makeme;
+    which (sensid) {
+      case TOCK.classidof: { return cSD_TOCK; }
+      case SLFY.classidof: { return cSD_SLFY; }
+      case SRFY.classidof: { return cSD_SRFY; }
+      case SLFR.classidof: { return cSD_SLFR; }
+      case SRFR.classidof: { return cSD_SRFR; }
+      case SLLY.classidof: { return cSD_SLLY; }
+      case SLRY.classidof: { return cSD_SLRY; }
+      case SRLY.classidof: { return cSD_SRLY; }
+      case SRRY.classidof: { return cSD_SRRY; }
+
+    }
+    return getDefaultDestinations(sensid);
+  }  
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) {
+    if (g as GRIP) {
+      if (g.getFixMaxRed() > 3u) return GripInfoMap.cGRIP_NORED;
+      if (g.getFixMaxYellow() > 4u) return GripInfoMap.cGRIP_BV2BY;
+      Random random;
+      if (random.oneIn(200u)) return GripInfoMap.cGRIP_TRACK; //XXX FLIPPO FUNGO
+    }
+    return g.getGripNumber();
+  }
+}

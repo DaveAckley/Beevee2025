@@ -28,9 +28,8 @@ quark TermTargetLibrary + DTU + QDebugUtils + Fail {
     HRRG.classidof,  //< 23 Rear Right Grey PLL
     SDBG10.classidof,  //< 24 Sensor Debug 10
     MDBG10.classidof,  //< 25 Motor Debug 10
-    /*
-    HALT.classidof,  //< 26 xbar tap propagation barrier
-    */
+    SFCG.classidof,  //< 26 Front Center Floor Grey Sensor
+    CLOK.classidof,  //< 27 Grey sensor tile clocks
   };
   constant Unsigned cTARGETS = cTARGET_IDS.lengthof;
 

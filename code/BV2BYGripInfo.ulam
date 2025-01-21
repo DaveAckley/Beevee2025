@@ -1,0 +1,61 @@
+@Concrete
+quark BV2BYGripInfo : GripInfo { // BV2B on Yellow
+  constant SenseDests cSD_SLFY = { MRRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFY = { MLRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFR = { GRIP.classidof, cNULLID };
+
+  constant SenseDests cSD_SLLY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SLRY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SRLY = { MREY.classidof, cNULLID };
+  constant SenseDests cSD_SRRY = { MREY.classidof, cNULLID };
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xffffff00);
+  }
+
+  @Override String getGripName() { return "BV2BY"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    which (sensid) {
+      case SLFY.classidof: { return cSD_SLFY; }
+      case SRFY.classidof: { return cSD_SRFY; }
+      case SLFR.classidof: { return cSD_SLFR; }
+      case SRFR.classidof: { return cSD_SRFR; }
+
+      case SLLY.classidof: { return cSD_SLLY; }
+      case SLRY.classidof: { return cSD_SLRY; }
+      case SRLY.classidof: { return cSD_SRLY; }
+      case SRRY.classidof: { return cSD_SRRY; }
+    }
+    return getDefaultDestinations(sensid);
+  }
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & raw) {
+    if (forDest != GRIP.classidof) {
+      if (forSensor == SLFY.classidof || forSensor == SRFY.classidof) {
+        if (raw > 0u && raw < 5u) raw = (ASCII) (raw*raw + 4u);     // 1..4     -> 5..20
+        else if (raw >= 5u && raw < 16u) raw = (ASCII) (raw + 20u); // 5..15    -> 25..35
+        else if (raw >= 16u) raw = (ASCII) (raw/2u + 30u);          // 16..130..250  -> 38..95..155
+        raw = (ASCII) (raw/2u);            // XXX HACK GAH TONE ALL DOWN SINCE FAST WHEELS JUST SKID 19..47..77
+        raw = intToSignedAscii((Int) raw); // map to signed motor vals
+      } else if (forSensor == SLLY.classidof || forSensor == SRRY.classidof) {
+        raw = intToSignedAscii(0);                           // return to rest
+      } else if (forSensor == SLRY.classidof || forSensor == SRLY.classidof) { 
+        raw = intToSignedAscii(-0); // return to rest
+      }
+    }
+    return true;
+  }
+
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) {
+    if (g as GRIP) {
+      if (g.getFixMaxRed() > 15u) return GripInfoMap.cGRIP_NORED;
+      if (g.getFixMaxYellow() < 1u) return GripInfoMap.cGRIP_HUNTR;
+      //      if (g.getFixMaxYellow() < 1u) return GripInfoMap.cGRIP_TRACK;
+    }
+    return g.getGripNumber();
+  }
+}

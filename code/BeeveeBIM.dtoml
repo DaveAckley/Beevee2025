@@ -1,4 +1,6 @@
 # -*- mode: conf-toml; -*-
+# Sun Jan 19 07:49:20 2025 move CLOK ahead of shipping its values
+# Fri Jan  3 13:59:41 2025 re-laying out to shorten TRAK->motor paths
 # Sat Nov  2 00:22:20 2024 spread out the xbs hoping to make serloop tile numbering clearer
 # Tue Sep 10 09:16:34 2024 try right before left S & M to see if affects Beevee bias
 [Config]
@@ -20,32 +22,35 @@
   axons=[[GREG,MRRF],
          [GREG,MLRF]]
 
-# [xbar.CTLGREEN]
-#   indir=E
-#   outdir=N
-#   pos=[-9,9]
-#   inputs=[IDFG]
-#   outputs=[GREG]
-
 [xbar.GREYS]
-  indir=N
-  outdir=E
-#  pos=[-17,-1]
-  pos=[-21,-1]
-  inputs=[SFLG, SFRG, SRRG, SRLG]
-  outputs=[HFLG, HFRG, HRRG, HRLG]
+  indir=E
+  outdir=N
+  pos=[-18,-1]
+  inputs=[SFLG, SFCG, SFRG, SRRG, SRLG]
+  outputs=[CLOK, HFLG, HFRG, HRRG, HRLG, TRAK]
   axons=[[HFLG,IFLG],
          [HFRG,IFRG],
          [HRRG,IRRG],
-         [HRLG,IRLG]]
+         [HRLG,IRLG],
+         [TRAK,MRRF],
+         [TRAK,MLRF],
+         [CLOK,GTCC]]
 
 [xbar.CTLGREY]
-  indir=W
-  outdir=S
+  indir=S
+  outdir=E
 #  pos=[-10,-2]
-  pos=[-14,-2]
+#  pos=[-14,-2]
+   pos=[-13,-11]
+#  inputs=[IFLG, IFCG, IFRG, IRRG, IRLG]
   inputs=[IFLG, IFRG, IRRG, IRLG]
   outputs=[HFQA, HPDF, HPDR]
   axons=[[HPDF, MLRF],
          [HPDR, MRRF]]
   
+[xbar.TILES]
+  indir=E
+  outdir=S
+  pos=[-22,1]
+  inputs=[GTCC]
+  outputs=[OCLK]

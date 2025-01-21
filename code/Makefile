@@ -2,8 +2,8 @@ NAME:=$(notdir $(realpath ..))
 THIS_DIR:=$(strip $(notdir $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))))
 MFZ:=../$(NAME).mfz
 # Customize ULAM_BIN_DIR and MFM_BIN_DIR if necessary
-ULAM_BIN_DIR:=/data/ackley/PART4/code/D/ULAM/bin
-MFM_BIN_DIR:=/data/ackley/PART4/code/D/MFM/bin
+ULAM_BIN_DIR:=/data/ackley/PART4/code/E/ULAM/bin
+MFM_BIN_DIR:=/data/ackley/PART4/code/E/MFM/bin
 ULAM:=$(ULAM_BIN_DIR)/ulam
 MFZRUN:=$(MFM_BIN_DIR)/mfzrun
 #UFLAGS:=-g
@@ -23,8 +23,11 @@ all:	$(MFZ)
 run:	$(MFZ)
 	$(MFZRUN) $(MFZ)
 
-$(MFZ):	$(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) | Makefile
+$(MFZ):	$(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) FixedPoint.ulam | Makefile
 	$(ULAM) $(UFLAGS) $^ $(MFZ)
+
+FixedPoint.ulam: ../../FixedPoint/code/FixedPoint.ulam
+	cp $^ $@
 
 clean:
 	rm -f *~

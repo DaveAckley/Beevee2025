@@ -1,0 +1,73 @@
+@Concrete
+quark NoRedGripInfo : GripInfo { // avoid red
+  constant SenseDests cSD_SLFY = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFY = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLFR = { MRRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFR = { MLRF.classidof, GRIP.classidof, cNULLID };
+
+  constant SenseDests cSD_SLLR = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SRRR = { MREY.classidof, cNULLID };
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xffff0000);
+  }
+
+  @Override String getGripName() { return "NORED"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    Random random;
+    which (sensid) {
+      case SLFY.classidof: { return cSD_SLFY; }
+      case SRFY.classidof: { return cSD_SRFY; }
+      case SLFR.classidof: { return cSD_SLFR; }
+      case SRFR.classidof: { return cSD_SRFR; }
+
+      case SLLR.classidof: { return cSD_SLLR; }
+      case SRRR.classidof: { return cSD_SRRR; }
+    }
+    return getDefaultDestinations(sensid);
+  }  
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & rawvalue) {
+    if (forDest == MLEY.classidof || forDest == MREY.classidof) {
+      if (forSensor == SLLR.classidof || forSensor == SRRR.classidof) {
+        if (rawvalue > 0u) {
+          Int cooked = ((Int) rawvalue)*10; // XXX MAGIC NUMBER
+          if (cooked > 90) cooked = 90;     // XXX MORE MAGIC NUMBER
+          rawvalue = intToSignedAscii(cooked); 
+          return true;
+        }
+      }
+    }
+
+    if ((forSensor == SLFR.classidof || forSensor == SRFR.classidof) &&
+        (forDest == MLRF.classidof || forDest == MRRF.classidof)) {
+      /*
+      Int cooked = ((Int) rawvalue)/5;
+      if (cooked > 12) cooked = 12;
+      rawvalue = intToSignedAscii(-cooked); // back away faster on the less red side
+      */
+      Int cooked;
+      if (rawvalue < 2u) cooked = 2*((Int) rawvalue);  // 0..1 -> 0..2
+      else if (rawvalue < 4u) cooked = 1+((Int) rawvalue); // 2..3 -> 3..4
+      else if (rawvalue < 8u) cooked = 3+((Int) rawvalue)/2; // 4..7 -> 5..8
+      else cooked = 7+((Int) rawvalue)/4;                    // 8..100 -> 9..32
+      if (cooked > 14) cooked = 14;
+      rawvalue = intToSignedAscii(-cooked); // back away faster on the less red side
+    }
+    return true;            // default identity map
+  }
+
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) {
+    if (g as GRIP) {
+      if (g.getFixMaxRed() == 0u) {
+        if (g.getFixMaxYellow() > 2u) return GripInfoMap.cGRIP_BV2BY;
+        //XXX        else return GripInfoMap.cGRIP_HUNTR;
+        else return GripInfoMap.cGRIP_TRACK;
+      }
+    }
+    return g.getGripNumber();
+  }
+}

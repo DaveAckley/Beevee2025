@@ -1,5 +1,6 @@
 //local typedef LocalSpace2DT(6u,0u,3u,1u,0u) QSpace2D;
-local typedef LocalSpaceRect2DT(6u,0u,3u) QSpace2D;
+//local typedef LocalSpaceRect2DT(6u,0u,3u) QSpace2D;
+local typedef LocalSpaceRect2DT(6u,0u,4u) QSpace2D; // 202412310926 urgh need more grips
 
 /** LocalSpace with minimal gradients, for use with other routing
     mechanisms such as crossbars.
@@ -9,6 +10,7 @@ local typedef LocalSpaceRect2DT(6u,0u,3u) QSpace2D;
 @Concrete
 element XBarSpace2D : QSpace2D + DTU {
   constant Unsigned cBITS = QSpace2D.cBITS; //XXX needed? why?
+  constant Unsigned cGRIPBITS = QSpace2D.cGRIPBITS;
 
   //// URSELF API
   @Override
@@ -58,8 +60,10 @@ element XBarSpace2D : QSpace2D + DTU {
   Void renderGraphics() {
     if (!hasSymmetry()) return super.renderGraphics();
 
-    Bool outbound = getSlotSig(true).isOccupied();
-    Bool inbound = getSlotSig(false).isOccupied();
+    SlotSig oss = getSlotSig(true);
+    SlotSig iss = getSlotSig(false);
+    Bool outbound = oss.isOccupied();
+    Bool inbound = iss.isOccupied();
 
     if (!outbound && !inbound) return super.renderGraphics();
     

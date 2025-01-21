@@ -1,0 +1,36 @@
+element TRAKPD {
+  typedef FixedPoint(9u,14u) FP500;
+  FP500 mLastError;
+  FP500 mIntegralErrors;
+
+  FP500 getKP(FP500 maxspeed, FP500 maxerror) {
+    return maxspeed/maxerror;   //< DEFAULT VALUE
+  }
+  FP500 getKI(FP500 maxspeed, FP500 maxerror) {
+    return FP500.instanceof(0);   //< DEFAULT VALUE
+  }
+  FP500 getKD(FP500 maxspeed, FP500 maxerror) {
+    return getKP(maxspeed,maxerror)*FP500.instanceof(4);   //< DEFAULT VALUE: kD = 4*kP
+  }
+
+  FP500 getLastError() { return mLastError; }
+  Void setLastError(FP500 error) { mLastError = error; }
+
+  FP500 updateError(FP500 thisError, Unsigned pctNew) {
+    Int ipct = (Int) pctNew;
+    FP500 fracN(ipct,100);
+    FP500 fracO(100-ipct,100);
+    mLastError = mLastError*fracO + thisError*fracN;
+    return mLastError;
+  }
+
+  typedef FixedPoint(7u,7u) FP30;
+  FP30 mTargetSpeed;
+
+  typedef FP30 MotorSpeeds[2];
+
+  Void update(FP500 linePos, MotorSpeeds speeds) {
+    speeds[0].setFraction(3,5);
+    speeds[1].setFraction(-5,3);
+  }
+}

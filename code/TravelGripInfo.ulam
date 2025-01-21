@@ -1,0 +1,65 @@
+@Concrete
+quark TravelGripInfo : GripInfo { // Grid aligned movement
+  constant SenseDests cSD_TOCK = { MRRF.classidof, MLRF.classidof, cNULLID };
+  constant SenseDests cSD_SLFY = { MRRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFY = { MLRF.classidof, GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SRFR = { GRIP.classidof, cNULLID };
+  constant SenseDests cSD_SLLY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SLRY = { MLEY.classidof, cNULLID };
+  constant SenseDests cSD_SRLY = { MREY.classidof, cNULLID };
+  constant SenseDests cSD_SRRY = { MREY.classidof, cNULLID };
+
+  @Override ARGB getGripColor(Unsigned selector) {
+    ColorUtils cu;
+    return cu.color(0xff0080ff);
+  }
+
+  @Override
+  virtual Bool mapSourceSignalValue(ClassId forSensor, ClassId forDest, ASCII & rawvalue) {
+    fail(__FILE__,__LINE__); // XXX CONTINUE HERE 
+    if ((rawvalue > 0u) && (rawvalue < 10u) &&
+        (forSensor == SLFY.classidof || forSensor == SRFY.classidof))
+      rawvalue = 10u;           // amplify small yellows (for all dests) when hunting?
+
+    if (forDest == MLRF.classidof || forDest == MRRF.classidof) {
+      if (forSensor == SLFY.classidof || forSensor == SRFY.classidof) {
+        if (rawvalue == 0u) return false; // don't ship 0s when hunting
+        rawvalue = intToSignedAscii((Int) rawvalue); 
+      } else if (forSensor == TOCK.classidof) {
+        // Here, rawvalue is the result of TOCK.getSig()
+        TOCK tock;              // dummy tock to call on
+        rawvalue = tock.switchSigVal(self, rawvalue,forDest);
+      } else if (forSensor == SLLY.classidof || forSensor == SRRY.classidof) { // heavy outside yellow
+        rawvalue = intToSignedAscii((Int) rawvalue);                           // signal turn outward
+      } else if (forSensor == SLRY.classidof || forSensor == SRLY.classidof) { // heavy inside yellow
+        rawvalue = intToSignedAscii(-(Int) rawvalue);                          // signal turn inward
+      }
+    }
+    return true;
+  }
+
+  @Override String getGripName() { return "TRAVL"; }
+  @Override SenseDests getDestinations(ClassId sensid) {
+    fail(__FILE__,__LINE__); // XXX CONTINUE HERE 
+    which (sensid) {
+      case TOCK.classidof: { return cSD_TOCK; }
+      case SLFY.classidof: { return cSD_SLFY; }
+      case SRFY.classidof: { return cSD_SRFY; }
+      case SLFR.classidof: { return cSD_SLFR; }
+      case SRFR.classidof: { return cSD_SRFR; }
+      case SLLY.classidof: { return cSD_SLLY; }
+      case SLRY.classidof: { return cSD_SLRY; }
+      case SRLY.classidof: { return cSD_SRLY; }
+      case SRRY.classidof: { return cSD_SRRY; }
+    }
+    return getDefaultDestinations(sensid);
+  }  
+  @Override
+  virtual Unsigned getNextGripNumber(Grip& g) {
+    fail(__FILE__,__LINE__); // XXX CONTINUE HERE     
+    //    if (g.getFixMaxRed() > 3u) return GripInfoMap.cGRIP_NORED;
+    //    if (g.getFixMaxYellow() > 1u) return GripInfoMap.cGRIP_BV2BY; 
+    return g.getGripNumber();
+  }
+}

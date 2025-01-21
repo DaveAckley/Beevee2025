@@ -356,7 +356,8 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
 
  // release the grip
  Bool executeREGRIP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
-   tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
+   //XXX   tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
+   tryChangeGripNumber(GripInfoMap.cGRIP_TRACK);
    return true;
  }
 
@@ -436,6 +437,17 @@ element TriggerBoxStep + DTU {
     GRIP & grip = (GRIP&) ew[gripsn];
 
     Unsigned curgrip = grip.getGripNumber();
+
+    //XXXXXX
+    {
+      if (curgrip != GripInfoMap.cGRIP_TRACK &&
+          curgrip != GripInfoMap.cGRIP_NORED) {
+        grip.tryChangeGripNumber(GripInfoMap.cGRIP_TRACK);
+      }
+      return;
+    }
+    //XXXXXX
+    
     which (mMyState) {
       case cAWAIT_RED: {
         if (curgrip == GripInfoMap.cGRIP_NORED) {
@@ -494,7 +506,8 @@ element TriggerORIENT + DTU {
       Atom & a = ew[sn];
       if (a as GRIP) {
         ew[0] = Empty.instanceof; // kill self early? Safe?
-        a.tryChangeGripNumber(GripInfoMap.cGRIP_TURNS);
+        //XXX a.tryChangeGripNumber(GripInfoMap.cGRIP_TURNS);
+        a.tryChangeGripNumber(GripInfoMap.cGRIP_TRACK);
         return;
       }
     }
