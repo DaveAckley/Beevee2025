@@ -1,0 +1,923 @@
+{90}  -*-  mode: text; fill-column: 50;  -*-
+[0:
+
+Sat Dec 28 15:31:46 2024 OK, we tried to make a
+'fresh start' here but code dependencies pulled in
+pretty much everything from the BVBrain physics..
+
+[1:
+
+Sat Dec 28 15:33:48 2024 Did manage to get rid of
+a chunk of files, though, like from obsolete
+configuration automation attemps.. So, whatever.
+
+[2:
+
+Sat Dec 28 15:34:41 2024 So, let's migrate our
+existing to-do in here since that's where it
+really belongs:
+
+TODO
+(DONE previously) - reboot lcf5820c
+(DONE previously) - make BVBrain2025?
+[6: Sun Dec 29 11:48:08 2024 So far just 'SFCG', but
+DONE :6] - three new grey sensors
+[31: Fri Jan 10 01:47:51 2025
+DONE :31] - line-follwing demo
+[32: DONE  :32] - new grip "Track", alternate to Explore
+[33: Fri Jan 10 01:48:01 2025 mostly
+DONE :33] - beevee follows lines in track
+   until yellow/red grip changes
+
+and next up is three new gray sensors. Let's start
+with one next front-and-center gray sensor and see
+how that goes..[3:
+
+Sat Dec 28 16:17:54 2024 OK made SFCG - Sensor
+Front Center Grey - plus the associated
+paraphernalia..
+
+Now need to hack in PyBulletTime..
+
+:3]
+
+:2]
+
+:1]
+
+:0]
+[4:
+
+Sun Dec 29 02:14:24 2024 OK let's get refreshed
+instructions how to set up the damn simulation
+environment, here..
+
+[5:
+
+Sun Dec 29 02:21:08 2024
+
+RELEVANT DIRS/FILES:
+
+ - PyBulletTime/scripts/RootWire.sh:
+   Makes /mnt/T2TMP and runs socat?
+
+    root@lcf5820c:/data/ackley/PART4/code/D/PyBulletTime# ./scripts/RootWire.sh
+    HAVE /mnt/T2TMP
+    MADE RAMDISK
+    2024/12/29 02:27:57 socat[165176] N PTY is /dev/pts/12
+    2024/12/29 02:27:57 socat[165176] N PTY is /dev/pts/13
+    2024/12/29 02:27:57 socat[165176] N starting data transfer loop with FDs [5,5] and [7,7]
+    SOCAT RUNNING IN 165176
+    lrwxrwxrwx 1 root root 11 Dec 29 02:27 /dev/ttyS98 -> /dev/pts/12
+    lrwxrwxrwx 1 root root 11 Dec 29 02:27 /dev/ttyS99 -> /dev/pts/13
+    ^C to exit -
+
+ - PyBulletTime/cfg/Makevars.mk:
+   Set DEBUG_DEV based on RootWire.sh output above:
+
+    DEBUG_DEV:=/dev/pts/12
+
+ - PyBulletTime/cfg/Makevars.mk and sm*.dtoml
+   Set SPINE_TAG to current dtoml:
+
+    ##
+    SPINE_TAG:=sm226
+    #
+
+ - T2-12/base/apps/sercon/mfmsserloopRunner.sh
+   Set SERDEV based on RootWire.sh output above:
+
+    SERDEV=/dev/pts/13
+
+:5]
+
+:4]
+[7:
+
+Sun Dec 29 11:50:03 2024 OK so Beevee's running
+again as plausibly as ever.. with a new
+front-and-center grey sensor.. so let's go for
+grip TRACK, as a genuine accept-no-substitutes new
+track. [8:
+
+Sun Dec 29 12:38:40 2024 So okay.. how do we want
+to compute the main TRACK signal? In the abstract
+first..
+
+BLG = if SFLG > max/2     # boolean 'left is grey'
+BCG = if SFCG > max/2     # boolean 'center is grey'
+BRG = if SFRG > max/2     # boolean 'right is grey'
+
+if BLG == BCG then turn right else
+if BRG == BCG then turn left
+
+umm let's start with proportional control here..
+
+signed err = SFCG - max/2;
+
+so if err == 0 make no drive changes
+
+[9:
+
+Sun Dec 29 12:58:43 2024 So, 'no drive changes'
+means we remember desired wheel speeds? Vs some
+kind of bang bang control? If we remember it we
+have to maintain it..
+
+that's not really err up there, though; need to
+compare to the outrigger greys.
+
+could we want the center to be the average of the
+outriggers? that seems kind of fun. with signed
+error coming off the difference..
+
+[10:
+
+Sun Dec 29 13:12:27 2024
+
+avggrey = (SFLG + SFRG)/2
+
+but,, avg is symmetric.. need to get a sign change
+in there somewhere, right? half the difference of
+the outriggers?
+
+err = avggrey-SFCG
+
+SFLG   SFRG   SFCG  avg   err
+255     0     0     127   127
+255     0     100   127    27   too right
+255     0     150   127   -23   too left
+0     255     0     127   127
+0     255     100   127    27
+0     255     150   127   -23
+
+lerr = SFLG-2*SFCG  # <0 turn right
+rerr = SFRG-2*SFCG  # <0 turn left
+err = lerr - rerr
+
+SFLG   SFRG   SFCG   lerr  rerr  err
+255     0     0      255     0   255       max left
+255     0     100     45  -200  -155       hard right
+255     0     150    -45  -300  -345
+0     255     0        0   255  -255       max right
+0     255     100
+0     255     150
+
+diff = SFLG - SFRG
+adiff = abs(diff)
+err = diff - 2*SFCG
+
+if both low stop and turn right
+if both high stop and turn left
+
+if adiff < C   # same color outriggers
+  if SFLG < C forward right fixed
+  else if SFLG > C forward left fixed
+else           # opposite outriggers
+  if SFLG < SFRG
+    SFLG <-> SFRG       
+    SFCG = 255-SFCG     
+  # now L >= R and big SFCG means more right
+  
+  lerr = SFLG - 2*SFCG
+  if lerr > C then forward left lerr
+  else if lerr < -C then forward right lerr
+
+
+
+:10]
+
+:9]
+
+:8]
+
+:7]
+[11:
+
+Mon Dec 30 00:39:08 2024 Well, so making little
+perl spikes to try stuff out.. it seems like the
+idea of checking which side the center value is
+closer to is helpful for deciding drive
+directions. So my ambitions are growing a little
+bit again..
+
+We also want indications of how good our tracking
+is, to - for example - consider changing speed. So
+our augmented outputs could be something like
+
+  (inputsValid, trackingError)
+
+where inputsValid means the outriggers are
+essentially opposite greys, and then the
+trackingError is which way and how far the center
+is from 50% grey, with trackingError < 0 meaning
+(say) too far left and > 0 meaning too far right.
+
+and we have a second mapping step from that to
+
+  (leftWheelSpeed, rightWheelSpeed)
+
+where an additional state variable:
+
+  (currentSpeed)
+
+is assumed, along with perhaps an external
+parameters
+
+  (minSpeed,maxSpeed)
+
+with something like
+
+  currentSpeed = a*maxSpeed + (1-a)*currentSpeed
+
+if inputsValid and trackingError < errThresh, or
+
+  currentSpeed = b*minSpeed + (1-b)*currentSpeed
+
+otherwise. (with a < b < 1, probably.)
+
+and then something like
+
+  (leftWheelSpeed,rightWheelSpeed) =
+    (currentSpeed - trackingError,
+     currentSpeed + trackingError)
+
+or vv.
+
+andwala.
+[12:
+
+Mon Dec 30 11:12:26 2024 So okay our current d.pl
+seems vaguely plausible enough to think about
+moving to ulam. But I'd maybe like a few steps
+
+TODO
+[18: Tue Dec 31 23:24:35 2024
+DONE :18] - Review GREG format and flow
+[74: Sat Jan 18 01:32:41 2025 TRAK.ulam,
+DONE :74] - Frame up TRACK.ulam analogously
+[19: Provisionally anyway
+DONE :19] - Decide where to put TRACK controller
+[20:
+DONE :20] - Get GRIP to switch to TRACK instead of HUNTR
+[34: DONE  :34] - Demo track controller reporting signals
+[35: DONE  :35] - Demo track sending random motor commands
+[75: DONE  :75] - Come make more to-do
+
+[13:
+
+Mon Dec 30 11:22:10 2024 OK so we have
+TrackGrip.ulam analogous to OrientGrip.ulam. It
+should be routing signals and stuff.[14:
+
+Mon Dec 30 11:24:55 2024 Are we thinking TRACK is
+another output on xbar.GREYS?
+
+:14]
+
+:13]
+:12]
+:11]
+[15:
+
+Mon Dec 30 20:31:52 2024 Okay, so we have one
+issue to deal with here.. We've got
+
+  constant Unsigned cGRIP_TRACK = 8u; //< handled by TrackGrip
+
+in GripInfoMap, but we've also got
+
+    local typedef XBarSpace2D GripSource; //< What grid we are built to live in..
+ .. quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
+
+in TAP.ulam, and a path for cBITS leading to
+
+    local typedef LocalSpaceRect2DT(6u,0u,3u) QSpace2D;
+                                          ^^
+
+so cBITS==3 so the maximum grip number is 7..[16:
+
+Tue Dec 31 08:58:42 2024 Buuuut we might have one
+bit to spare? --
+
+      /*__________________________________________________
+      | COMPONENTS of XBarSpace2D <125> (70 bits/1 unused): 
+      | 
+      | Pos	| Bits	| Name	| Type <classid>
+      | 0	| 24	| mTaps[4]	| Unsigned(6)
+      | 24	| 28	| mSigs[2]	| SlotSig <68>
+      | 52	| 2	| mSymmetry	| Unary(2)
+      | 54	| 15	| super	| LocalSpaceRect2DT(6u,0u,3u) <142>
+      | 69	| 0	| base	| DTU <66>
+      | 69	| 0	| base	| UrSelf <0>
+      | 69	| 0	| base	| Intender <138>
+      | 69	| 0	| base	| LocalSpaceRect2D <79>
+      | 69	| 1	| base	| QDebugUtils <67>
+      | 70	| 0	| base	| Fail <65>
+      |___________________________________________________
+      */ //gcnl:NodeBlockClass.cpp:2644
+
+..ah but that's only because we cut QDebugUtils
+back to a single-bit Bool.. urgh.
+
+:16]
+
+:15]
+[17:
+
+Tue Dec 31 23:23:53 2024 OK so almost next year.
+We need an actual implementation strategy for
+TRAK.ulam 
+[21:
+
+Tue Dec 31 23:25:08 2024 We're supposed to be
+reporting signals as a to-do. That should be easy,
+right, haha?
+
+Let's review the plan such as it is.
+
+What state will we keep?
+ - latest SL,SC,SR?
+ - So we're a ternary op?[22:
+
+Tue Dec 31 23:52:06 2024 I see
+
+    quark HOpTernary : HOpArgsT(3u) { }
+
+in TermHOp.ulam, but nobody's using it. [23:
+
+Wed Jan  1 00:08:11 2025 Well, now TRAK is using
+it.. or 'using' it anyway; not functionally..
+after tearing out a ton of copied-from-GREG's
+state to make room for it. Currently at:
+
+      /*__________________________________________________
+      | COMPONENTS of TRAK <60> (63 bits/8 unused): 
+      | 
+      | Pos	| Bits	| Name	| Type <classid>
+      | 0	| 3	| mState	| Unsigned(3)
+      | 3	| 8	| mEventCounter	| Unsigned(8)
+      | 11	| 0	| super	| HOpTernary <167>
+      | 11	| 0	| base	| Grip <123>
+      | 11	| 0	| base	| Fail <65>
+      | 11	| 0	| base	| UrSelf <0>
+      | 11	| 0	| base	| DTU <66>
+      | 11	| 0	| base	| GripStg <126>
+      | 11	| 1	| base	| QDebugUtils <67>
+      | 12	| 3	| base	| TAP <102>
+      | 15	| 6	| base	| GripStgT(6u) <134>
+      | 21	| 0	| base	| TermMotor <131>
+      | 21	| 0	| base	| TermHOp <168>
+      | 21	| 42	| base	| HOpArgsT(3) <172>
+      |___________________________________________________
+      */ //gcnl:NodeBlockClass.cpp:2644
+
+which seems fine for now considering we think we
+won't need mEventCounter (and maybe not mState?).
+
+So what do we need?
+ - Does HOpTernary provide signal occupancies? It
+   must, right?[24: Wed Jan  1 00:24:15 2025 Well,
+   SlotSig provides occupancy so yes.
+
+ - So at a minimum we can wait for full occupancy
+   and then do an update?
+
+ - Or as a middlemum we could do an update
+   whenever there's a new signal of any sort? Or a
+   changing signal (bleh), or whenever there's
+   room to ship a result?
+
+ - Or we decouple the two and update the signal
+   internally whenever we see a signal, and
+   broadcast our latest result whenever there's
+   room to ship. And add back in an event counter
+   or whatever to flush sufficiently stale stuff.
+
+[25:
+
+Wed Jan  1 00:54:46 2025 What if anything might
+TRAK.mState represent, beyond what we can deduce
+from signal occupancies? Well, it could represent
+a chosen 'higher level goal' like 'go til RED' or
+'stop at next intersection' or whatever.
+
+That seems plausible enough. So let's leave it in
+there for now, but only implement a 'go forever'
+[26:
+
+Wed Jan  1 01:13:11 2025 Don't really remember the
+TermHOp API so let's review..
+
+We've got API service Bool TermHOp.accept(..) that
+stashes signals in mHOperands, using API prereq
+Int TermHOp.sigToSlot(..) to decide where to put
+signals. [27:
+
+Wed Jan  1 01:51:39 2025 OK so we implement
+TRAK.sigToSlot(..).
+
+Now, we've also got to do something about
+execute(..), I assume.[28:
+
+Wed Jan  1 04:15:14 2025 Current code from GREG
+does:
+
+ 1: refresh gripnum (keep)
+ 2: bail unless isOrientGripNum (rewrite)
+ 3: dispatch to executeSTATE(..)
+
+[29:
+
+Wed Jan  1 12:40:44 2025 OK, 
+
+:29]
+
+:28]
+
+:27]
+
+:26]
+:25]
+:24]
+
+:23]
+
+:22]
+
+
+:21]
+:17]
+[30:
+
+Fri Jan 10 01:40:58 2025 OK let's catch up here..
+
+[36:
+
+Fri Jan 10 01:48:33 2025 OK claimed to-dos. Some
+more - 
+
+TODO
+[69: Sat Jan 18 01:31:42 2025
+DONE :69] - Brainstorm PD implementations
+[41: Sat Jan 11 03:05:45 2025 uh, made new instead,
+'DONE' :41] - Review existing ulam fixed point code
+[70: DONE  :70] - Settle on an outboard PD controller form for
+   the TRAK controller to deploy
+[71: DONE  :71] - Implement fixed point P controller to replace
+   existing behavior
+[72: DONE  :72] - Extend to PD controller
+[52: Tue Jan 14 10:31:09 2025 considered alone,
+DONE :52] - Demo Beevee following lines faster
+ - Brainstorm turning routines
+[87: Mon Jan 20 09:50:16 2025 
+DONE :87] - Brainstorm tile-counting routines
+ - Demo random low-odds turning at every
+   intersection
+ - Have Beevee make a 'GPS box'.
+ - HAVE FUN AND SAY SO
+[73: Sat Jan 18 01:32:21 2025
+DONE :73] - Come make more to-do
+
+[37:
+
+Fri Jan 10 01:52:21 2025 OK well that shudewit for
+a while..
+
+Let's find some fixed point code for
+  inspiration.[38:
+
+Fri Jan 10 02:40:40 2025 Wow having trouble
+finding prior fixed point code! find/grep still
+running with nothing so far.. but let's go ahead
+and start roughing up a new one from scratch. At
+the very least it might remind me more clearly
+where I've done this before..[39:
+
+Sat Jan 11 02:49:16 2025 OK, implemented a
+not-entirely-sucky FixedPoint.ulam over in
+../../FixedPoint , with a smattering of tests in
+an S.ulam. It's got operator overloads for + - * /
+and += etc and > < etc, and even has an apparently
+functional Self.printTo(ByteStreamWriter &) that
+prints a decimal point and a plausible number of
+fractional digits and everything..
+
+I think I should not spend too much more time
+shining it up but should instead just fucking push
+it and switch back to Beevee.[40:
+
+Sat Jan 11 03:05:23 2025 OK, made
+DaveAckley/FixedPoint and pushed to it.
+[42:
+
+Sat Jan 11 03:06:33 2025 So now perhaps we should
+think about a PD form and break into a new element
+to hold TRAK PD state..[43:
+
+Sat Jan 11 03:53:54 2025 Well, shined up
+FixedPoint a little bit instead. Sosumi.
+
+:43]
+
+:42]
+:40]
+
+:39]
+
+:38]
+
+:37]
+
+:36]
+
+:30]
+[44:
+
+Sat Jan 11 07:42:18 2025 So OK. Make an empty
+TRAKPD.ulam . Let's think a little.
+
+So, we're going to need
+
+ - notions of 'line position'
+   and 'error in line position'
+   [45: Sat Jan 11 08:11:43 2025 
+   = maybe range like 0..256 is enough?
+     when there's a valid signal, meaning like
+     L   C   R   SIG  ~SIG
+     0   0 255    0    255
+     0   1 255    1    254
+     0 127 255  127    128
+     0 255 255  255      0
+   255   0   0  255      0
+   255   1   0  254      1
+   255 127   0  128 ?  127
+   255 255   0    0    255
+
+   = and then could we say ~SIG is 'line
+     rightness'? 0 means line is way left, 255
+     means line is way right, 127 or 128 means
+     line is dead on balls accurate? I suppose we
+     could take 127.5 as our default goal since
+     we're using hot damn fixed points.
+   :45]
+ - notion of time; in particular, when to update
+   the PD state. I'm thinking maybe trigger on the
+   arrival of SFRG signals, since they're
+   (currently) the farthest from TRAK in the xbar.
+   While remembering prior signals from everybody,
+   so on those occasions where SFRG arrives early,
+   the other signals will be a bit out of date,
+   but not missing. Can have a watchdog too maybe.
+ - notion of 'motor speed' and 'desired motor
+   speed'. 
+ 
+[46:
+
+Sat Jan 11 08:16:18 2025 And maybe we could use
+like FixedPoint(10u,10u) for general work, giving
+like +-500 range and like 0.001 increments? We
+could use bigger for local var calculations if we
+wanted. We'll see.
+
+And we want what in persistent store?
+ - last error for D
+ - integral errors for I
+ - desired motor speed?
+
+And somehow we're going to need to come up with P,
+I, and D parameters. Maybe we could tune them
+'once' and just store small tweaks on the
+defaults? We can certainly just tune them 'once'
+to get started.
+
+[47:
+
+Sat Jan 11 08:36:00 2025 I was also hoping to use
+fixed point to store running errors caused by
+our seemingly-quite-coarse motor speeds, to use
+like in Brensenham's algorithm, so that if we want
+like 1.7 speed we'll do a 1 and then have .7 speed
+error 'left over'. so if we want 1.7 again the
+next time, we'll have 1.7+.7 = 2.4 'speed
+available', so we'll go speed 2 with .4 left, and
+so on..
+
+But maybe that comes out in the wash with feedback
+control? We just do perhaps round(desired) and get
+2 for 1.7, and that'll be too fast so eventually
+we'll want to do say 1.3 and round that to 1 and
+so forth.
+
+Have to see.
+[48:
+
+Sat Jan 11 08:59:22 2025 OK for starters we're
+going with
+
+    element TRAKPD {
+      typedef FixedPoint(10u,10u) FP500;
+      FP500 mLastError;
+      FP500 mIntegralErrors;
+
+      typedef FixedPoint(6u,8u) FP30;
+      FP30 mTargetSpeed;
+    }
+
+in all our ignorance, leaving 17 bits -
+
+      | COMPONENTS of TRAKPD <170> (54 bits/17 unused): 
+      | 
+      | Pos	| Bits	| Name	| Type <classid>
+      | 0	| 20	| mLastError	| FixedPoint(10,10) <120>
+      | 20	| 20	| mIntegralErrors	| FixedPoint(10,10) <120>
+      | 40	| 14	| mTargetSpeed	| FixedPoint(6,8) <119>
+      | 54	| 0	| super	| UrSelf <0>
+
+with no clue, for example, about how we'll cleanly
+map between differing FP sizes, since we can't
+declare template functions in the C++ style.
+
+But could we get a bit of code?
+[49:
+
+Sat Jan 11 10:01:46 2025 OK, we have a TRAKPD
+getting built by TRAK, and an empty
+TRAKPD.update(..)  method..[50:
+
+Sat Jan 11 10:03:19 2025 So we have a void*-ish
+kind of issue because the guts of TRAK behavior
+are handled by TermHOp, using calldowns back into
+TRAK.. which means we can't pass a local struct
+through to represent/identify the TRAKPD.
+
+Well so I guess the point is I'm not supposed to
+be finding/making the TRAKPD so soon. I should do
+it in TRAK.execute(..), where we're back in
+control? 
+
+:50]
+
+:49]
+:48]
+:47]
+:46]
+:44]
+[51:
+
+Mon Jan 13 23:28:25 2025 OK, so Beevee's going
+pretty damn fast at this point, and I still only
+have a 'P' controller, with no 'D' let alone
+'I'.[53:
+
+Tue Jan 14 10:37:48 2025 So I guess an
+increasingly urgent current question is when do we
+start using the foggen fixed point package, here.
+We're supposed to reimplement the existing 'P'
+controller using it.
+
+[54:
+
+Tue Jan 14 10:58:39 2025 Well, let's try it. Can
+we maybe make a little plan of attack?
+
+TODO
+[55: Tue Jan 14 11:05:02 2025 Yes it is
+DONE :55] - Have TRAK deploy a TRAKPD nearby (is it already
+   doing that?) 
+[56: Tue Jan 14 16:00:06 2025
+DONE :56] - Try to get .mLastError to do a fast backwards
+   averaging of the existing mapio tracking error.
+[57: While logging the fractional error!
+DONE :57] - See that running
+[58:
+
+Tue Jan 14 16:00:57 2025 So I think we should make
+a new mapio that produces a tracking error in like
+-128..127 or something, and everybody else is
+trying to zero that. And returns valid/invalid on
+top of that.
+[59:
+
+Wed Jan 15 02:50:39 2025 OK, so we're running a
+FixedPoint-based control loop now, and so far it
+looks like we're terrifically over-controlling
+things. Which is fine for starters - we want to
+get an explicit kP parameter in there to scale
+things (down initially).[60:
+
+Wed Jan 15 08:00:19 2025 OK, so where should we
+get our kP from? We want it to be something that
+can become runtime-configurable, down the road?
+
+[61:
+
+Wed Jan 15 08:08:24 2025 Let's ask TRAKPD for it,
+but have TRAKPD hard-code default values for now.
+
+So the robot research lab 'tuning a pid' page says
+
+     What I do is I calculate the highest possible
+     error I could get and find the coefficient
+     that converts that max error to a value equal
+     to my speed.
+
+So in our case our max error is 255 (it's apparent
+that they mean max(allerrors) rather than
+max(allerrors)-min(allerrors).) So if we're
+thinking 'my speed' is some slow target like 3?
+For starters? Then kP is like
+
+  3 = 255 * kP
+  kP = 3/255
+
+or maybe let's say our initial target speed is
+like 10. That seems a fair midpoint. That's kP ==
+0.039 or so. (Noting in passing the demo they're
+doing apparently never runs the motors backwards,
+so they're mapping into 0..maxspeed, not
+-maxspeed..maxspeed. So a possible factor of 2.)
+
+And we'll set kD (and kI, if we have it) to 0 for
+starters.
+[62:
+
+Wed Jan 15 10:41:50 2025 Hmm, it's looking like
+our FP500 fixed point, despite a 'full 14 bits' of
+fraction, isn't really enough to represent our kP
+scaling. I think we need to do a little
+'preconditioning' on the raw error - like dividing
+it by 16 or 10 or something..[63:
+
+Wed Jan 15 15:21:49 2025 OK, well an 'all FP500'
+control loop is now handling Beevee's tracking and
+doing okayish. We still have kD set to zero,
+though. And before I change that I want to get
+'stochastic rounding' working first, so that, for
+example 1.75 produces 2 three-quarters of the time
+and 1 one-quarter of the time. Want to see if I
+can see a difference just with that.[64:
+
+Wed Jan 15 17:01:12 2025 OK it looks like
+my hacked-up 'stochastic rounding' (which is a
+real wikipedia grade thing, it turns out) may be
+working plausibly, at least for non-negative
+inputs..
+
+I think it's time to consider a non-zero kD.[65:
+
+Wed Jan 15 17:10:49 2025 Buut actually it's time
+to cook dinner.
+[66:
+
+Wed Jan 15 17:19:43 2025 Have a little more time
+here actually actually. Robot Research Lab
+suggests like kD value 10 to 20 times the kP.
+
+Let's try 10 for starters..[67:
+
+Fri Jan 17 09:20:48 2025 OK, have done lots of
+twiddling and running, and now think we want to
+rework the tracking error to consider the front
+outer grey sensors as well as the center grey - to
+put some consideration for maintaining max/min or
+min/max relationships between the outer sensors.
+
+Have to get that to integrate with the values
+flipping as we cross tiles. Suspect we may need a
+little visit from Mr. State? To know if inputs
+were valid last time, and if so, which phase we
+were in?
+
+
+:67]
+
+:66]
+
+:65]
+
+:64]
+
+:63]
+
+:62]
+:61]
+
+:60]
+
+:59]
+
+:58]
+
+:54]
+
+:53]
+
+:51]
+[68:
+
+Sat Jan 18 01:22:27 2025 OK enough playing around
+with our 'PD controller'. Time for more specific
+
+TODO
+[76: Sat Jan 18 01:33:09 2025
+DONE :76] - Claim prior to-dos
+[83: Mon Jan 20 09:49:11 2025
+DONE :83] - Brainstorm/develop 'tile clock' signal format
+[84: CLOK does it
+DONE :84] - TRAK and/or TRAKPD generates tile clock
+[85: DONE  :85] - Maybe lay a new xbar to handle it?
+[86: Mon Jan 20 09:49:44 2025 GTCC does it
+DONE :86] - At least make a stub somewhere that counts
+   tile clock ticks 
+ 
+[77:
+
+Sat Jan 18 01:40:03 2025 OK, 'tile clock'.
+
+Basic states:
+           SFLG/SFRG
+ Invalid0:    0/0
+ Left:      255/0
+ Right:       0/255
+ Invalid1:  255/255
+
+perhaps we ignore intermediate values, for
+purposes of tile clocks? So TRAK records the
+current phase and only switches it on 'clean' L/R
+states? Maybe.
+
+I thought I wanted to detect invalid states as
+clock edges, but of course we can detect edges
+just from L/R.
+
+Let's try making a 'clean tile clock' in TRAK and
+see how it goes.[78:
+
+Sat Jan 18 01:56:26 2025 Do we want the clock in
+TRAK at all? Should we put it somewhere else in
+xbar.GREYS? We could develop a 'rear tile clock'
+just as well, but SRRG and SRLG aren't delivered
+to TRAK.[79:
+
+Sat Jan 18 02:21:05 2025 WTF, let's make CLOK[80:
+
+Sun Jan 19 08:01:03 2025 Well, have a start at
+CLOK and have been watching it go for a while
+here. Thinking it's time for it to do a little
+more data reducing and then start shipping the
+result somewhere.
+
+And wanted to ship it to a 'tile counter' of some
+kind, but wasn't sure if I really wanted to make a
+new xbar in BeeveeBIM.dtoml to put the tile
+counter inside of.
+
+Was kind of wishing I could just declare a single
+atom of something and have BIM processing arrange
+to get it to pop up there.
+
+Want to take a quick look see if something like
+that might be easy..[81:
+
+Sun Jan 19 08:54:32 2025 Well of course not so
+easy. Letting BIM processing rest for now; making
+a 1x1 xbar intended for tile counting and stuff.
+
+Now waiting for one more render to state before
+rebuilding Beevee's brain again..
+
+:81]
+
+:80].
+
+:79]
+
+:78]
+
+:77]
+:68]
+[82:
+
+Mon Jan 20 09:48:54 2025 OK where are we? Can we
+claim some to-dos?
+[88:
+
+Mon Jan 20 09:50:30 2025 We could! Fun! And I said
+so!
+
+So it's time to brainstorm reinventing ORIENT to
+be edge-based instead of the stochastic
+dead-reckoning that never worked well enough to
+count on.
+
+[89:
+
+Tue Jan 21 10:55:21 2025 OK, well, didn't get to
+much implementation on the ORIENT redo, but it's
+getting to be time to move the flag here.
+
+:89]
+
+:88]
+:82]
