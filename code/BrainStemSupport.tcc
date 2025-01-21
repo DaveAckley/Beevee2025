@@ -183,6 +183,7 @@ inline void BrainStemSupport::requestSnapshot() {
     return;
   }
 
+
   int idx = getTermIndex("CADENCE");
   unsigned cadence = 5u;
   if (idx >= 0) {
@@ -196,9 +197,25 @@ inline void BrainStemSupport::requestSnapshot() {
   const size_t LEN = 500u;
 
   char buf[LEN];
-  int pos = snprintf(buf,LEN,"%s/",dirp);
+  int pos;
+
+  pos = snprintf(buf,LEN,"%s/",dirp);
+  if (pos >= 0 && pos < (int) LEN) { // first check/make daily dir
+    strftime(&buf[pos],LEN-pos,"%Y%m%d/",&ltime);
+    DIR* dir = opendir(buf);
+    if (dir) closedir(dir);       // daily directory exists
+    else {                        // some problem.. let's try to make it
+      if (mkdir(buf,0777)) {      // some problem making it?
+        // log somewhere somehow?
+        return;
+      }
+    }
+    // daily dir exists
+  }
+
+  pos = snprintf(buf,LEN,"%s/",dirp);
   if (pos >= 0 && pos < (int) LEN) {
-    strftime(&buf[pos],LEN-pos,"%Y%m%d%H%M%S.png",&ltime);
+    strftime(&buf[pos],LEN-pos,"%Y%m%d/%Y%m%d%H%M%S.png",&ltime); 
     MFM::GlobalHooks & hooks = MFM::GlobalHooks::getSingleton();
     hooks.runHook("RequestSnapshot",(void*) buf);
   }
