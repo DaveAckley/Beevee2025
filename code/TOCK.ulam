@@ -86,8 +86,12 @@ element TOCK : TermSensor + Once {
         
         SlotSig & oss = a.getSlotSig(true); // check outgoing
         if (!oss.isOccupied()) {
+          /*
           TermTargetLibrary ttl;
-          TapIdx tapidx = ttl.getTapIdx(self);
+          TapIdx tapidx = ttl.getTapIdx(self);*/
+          BeeveeBIM bim;
+          TapIdx tapidx = bim.getTapIdx(self);
+
           ASCII val = 32u; // XXX getSig();
           if (val > 32u) val = 32u;
           oss.setOccupied(val,tapidx);

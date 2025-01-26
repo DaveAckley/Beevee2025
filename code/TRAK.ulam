@@ -67,8 +67,19 @@ element TRAK : HOpTernary + Grip + Fail {
     return 3;                   // or don't want
   }
 
+  /*
   typedef Unsigned(5u) MyEventCounter;
   MyEventCounter mEventCounter;
+  */
+
+  typedef Unsigned(6u) MyTurnCounter;
+  MyTurnCounter mTurnCounter;
+  typedef Unsigned(2u) TurnState;
+  constant TurnState cTURN_STATE_IDLE = 0u; //< not turning
+  constant TurnState cTURN_STATE_LEFT = 1u; //< turning left for count
+  constant TurnState cTURN_STATE_RIGHT = 2u; //< turning right for count
+  constant TurnState cTURN_STATE_WAIT = 3u; //< turning inhibited for count
+  TurnState mTurnState = cTURN_STATE_IDLE;
 
   typedef Int(7u) MySpeed;
   constant MySpeed cTRACKING_SPEED = 50;
@@ -318,9 +329,7 @@ element TRAK : HOpTernary + Grip + Fail {
    if (vl == 255 &&             // desperate times: if it
        vc == 255 &&             // looks like we might be 
        vr == 255 &&             // on red (which reads as 255)
-       random.oneIn(8) &&       // slow the count
-       mEventCounter++ == mEventCounter.maxof) {
-     mEventCounter = 0u;        // try again if it comes back to us..
+       random.oneIn(20u)) {
      tryChangeGripNumber(GripInfoMap.cGRIP_NORED);
      return false;
    }
@@ -355,38 +364,74 @@ element TRAK : HOpTernary + Grip + Fail {
     
    FP500 adj = kP*rawerr + kD*(rawerr - lasterr); // adj in motor speed space
 
+   Int curMinTargetSpeed = pd.mTargetMinSpeed.randomRound();
+   Int curMaxTargetSpeed = max(curMinTargetSpeed,pd.mTargetMaxSpeed.randomRound());
+   //   if (curTargetSpeed > targetSpeed) ++targetSpeed;
+   //   else if (curTargetSpeed < targetSpeed) --targetSpeed;
+   
    FP500 curspeed(mSpeed);
+   //   FP500 curtarget(targetSpeed);
 
-   ByteStreamLogger log;
-   log.print("IV:"); log.print(inputsValid); log.print(" ");
-   log.print("kP:"); kP.printTo(log); log.print(" ");
-   log.print("kD:"); kD.printTo(log); log.print(" ");
-   log.print("CS:"); curspeed.printTo(log); log.print(" ");
-   log.print("RE:"); rawerr.printTo(log); log.print(" ");
-   log.print("LE:"); lasterr.printTo(log); log.print(" ");
-   log.print("AJ:"); adj.printTo(log); log.print(" ");
-   log.print("\n");
+   if (true) {
+     ByteStreamLogger log;
+     log.print("IV:"); log.print(inputsValid); log.print(" ");
+     //log.print("kP:"); kP.printTo(log); log.print(" ");
+     //log.print("kD:"); kD.printTo(log); log.print(" ");
+     log.print("CS:"); curspeed.printTo(log); log.print(" ");
+     //   log.print("TS:"); curtarget.printTo(log); log.print(" ");
+     log.print("RE:"); rawerr.printTo(log); log.print(" ");
+     log.print("LE:"); lasterr.printTo(log); log.print(" ");
+     log.print("AJ:"); adj.printTo(log); log.print(" ");
+     log.print("\n");
+   }
 
    FP500 target[2];
-   Bool smallErr = inputsValid && (abserr < FP500.instanceof(20));
+   Bool smallErr = inputsValid && (abserr < FP500.instanceof(12));
 
-   if (inputsValid) {
-     if (mSpeed < cTRACKING_SPEED && smallErr && random.oneIn(30u)) ++mSpeed;
+   Bool goright = false;
+   if (mTurnState == cTURN_STATE_LEFT || (goright = (mTurnState == cTURN_STATE_RIGHT))) {
+     if (--mTurnCounter == mTurnCounter.minof) {
+       mTurnState = cTURN_STATE_WAIT;
+       mTurnCounter = mTurnCounter.maxof;
+     } else {
+       adj = goright ? -8 : +8;
+     }
+     curspeed = 4;
      target[0] = curspeed + adj;
      target[1] = curspeed - adj;
-     mEventCounter = 0u;
    } else {
-     if (random.oneIn(15u)) { // maybe get distracted when not tracking
-       tryChangeGripNumber(random.oneIn(2u) ?
-                           GripInfoMap.GripInfoMap.cGRIP_BV2BY :
-                           GripInfoMap.GripInfoMap.cGRIP_NORED);
-       return false;
+     Bool doRandom = true;
+     if (mTurnState == cTURN_STATE_WAIT) {
+       doRandom = false;
+       if (random.oneIn(3u) &&  // slow the count..
+           --mTurnCounter == mTurnCounter.minof) 
+         mTurnState = cTURN_STATE_IDLE;
+     }
+     if (inputsValid) {
+       //       if (mSpeed < cTRACKING_SPEED && smallErr && random.oneIn(30u)) ++mSpeed;
+       if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(10u)) ++mSpeed;
+       target[0] = curspeed + adj;
+       target[1] = curspeed - adj;
      } else {
-       if (!smallErr && random.oneIn(2u))
-         mSpeed  = (MySpeed) max(cALIGNING_SPEED,mSpeed-1u);
-       FP500 amt(cALIGNING_SPEED,2);
-       target[0] = curspeed+amt; //XXX ??
-       target[1] = curspeed-amt;
+       // XXX DO NOT GET DISTRACTED FOR NOW..
+       if (false && doRandom && random.oneIn(15u)) { // maybe get distracted when not tracking
+         Int choice = random.between(-1,1);
+         if (choice == 0) 
+           tryChangeGripNumber(random.oneIn(2u) ?
+                               GripInfoMap.GripInfoMap.cGRIP_BV2BY :
+                               GripInfoMap.GripInfoMap.cGRIP_NORED);
+         else {
+           mTurnCounter = mTurnCounter.maxof;
+           mTurnState = (choice > 0) ? cTURN_STATE_LEFT : cTURN_STATE_RIGHT;
+         }
+         return false;
+       } else {
+         if (!smallErr && random.oneIn(2u))
+           mSpeed  = (MySpeed) max(curMinTargetSpeed,mSpeed-1u);
+         FP500 amt(curMinTargetSpeed,2); // half min?
+         target[0] = curspeed+amt;
+         target[1] = curspeed-amt;
+       }
      }
    }
    ASCII lsb = intToSignedAscii(target[0].randomRound());
@@ -401,6 +446,8 @@ element TRAK : HOpTernary + Grip + Fail {
    }
    
    driveBothMotors(lsb, rsb);
+
+   //mSpeed = (MySpeed) curtarget.randomRound(); // XXX
 
    return false;
  }
@@ -439,5 +486,4 @@ element TRAK : HOpTernary + Grip + Fail {
   }
 
 }
-
 

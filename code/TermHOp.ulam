@@ -56,7 +56,7 @@ quark TermHOp : TermMotor {
                   SN empsn = emppick.getIdxSN();
                   FloodFindTAPIdx fix;
                   fix.mMaxRadius = 20u;
-                  TermTargetLibrary ttl;
+                  /*TermTargetLibrary ttl;*/
                   fix.mLocal = myTapIdx;
                   fix.mRemote = axondest;
                   mD&&pR("TOPHSH17")&&pR(fix);
@@ -188,7 +188,8 @@ quark HOpPLL10 : HOpNullary + Fail {
   Bool mCurrentState;    // true: light, false: dark
 
   //// HOpPLL10 API
-  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) ;
+  //virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) ;
+  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) ;
 
   //// TermHOp API
   @Override
@@ -204,9 +205,10 @@ quark HOpPLL10 : HOpNullary + Fail {
     mD&&pR("S2SPLL1010")&&pR(self);
     if (!isEnabled(gripnum)) return 1; // toss it if not enabled in grip
 
-    TermTargetLibrary ttl;
+    /*TermTargetLibrary ttl;*/
+    BeeveeBIM bim;
     TapIdx idx = sig.mSource;
-    TapIdx needed = (TapIdx) getSourceTAPIdx(ttl);
+    TapIdx needed = (TapIdx) getSourceTAPIdx(bim);
     mD&&pR("S2SPLL1011")&&pR(idx)&&pR(needed);
 
     if (idx == needed) {
@@ -255,8 +257,8 @@ quark HOpPLL10 : HOpNullary + Fail {
 element HFLG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
-    return ttl.getTapIdxFromClassId(SFLG.classidof);
+  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+    return bim.getTapIdxFromClassId(SFLG.classidof);
   }
 }
 
@@ -281,9 +283,14 @@ element HFCG : HOpPLL10 {
 element HFRG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
+    /*virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
     return ttl.getTapIdxFromClassId(SFRG.classidof);
+    }*/
+  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+    return bim.getTapIdxFromClassId(SFRG.classidof);
   }
+
+  
 }
 
 /** Rear Right cycle tracker
@@ -293,9 +300,14 @@ element HFRG : HOpPLL10 {
 element HRRG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
+    /*
   virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
     return ttl.getTapIdxFromClassId(SRRG.classidof);
+    }*/
+  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+    return bim.getTapIdxFromClassId(SRRG.classidof);
   }
+
 }
 
 /** Rear Left cycle tracker
@@ -305,9 +317,14 @@ element HRRG : HOpPLL10 {
 element HRLG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
+    /*
   virtual Unsigned getSourceTAPIdx(TermTargetLibrary & ttl) {
     return ttl.getTapIdxFromClassId(SRLG.classidof);
+    }*/
+  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+    return bim.getTapIdxFromClassId(SRLG.classidof);
   }
+
 }
 
 /** Input Front Left cycle tracker

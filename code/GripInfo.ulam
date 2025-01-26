@@ -67,8 +67,8 @@ quark GripInfo + DTU + QDebugUtils + Fail {
   // Do grey processing in all grips?
   constant SenseDests cSD_SFLG = { HFLG.classidof, CLOK.classidof, cNULLID };
   constant SenseDests cSD_SFRG = { HFRG.classidof, CLOK.classidof, cNULLID };
-  constant SenseDests cSD_SRLG = { HRLG.classidof, cNULLID };
-  constant SenseDests cSD_SRRG = { HRRG.classidof, cNULLID };
+  constant SenseDests cSD_SRLG = { HRLG.classidof, CLOK.classidof, cNULLID };
+  constant SenseDests cSD_SRRG = { HRRG.classidof, CLOK.classidof, cNULLID };
 
   constant SenseDests cSD_IFLG = { HPDF.classidof, HFQA.classidof, cNULLID };
   constant SenseDests cSD_IFRG = { HPDF.classidof, HFQA.classidof, cNULLID };

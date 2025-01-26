@@ -1,4 +1,5 @@
 # -*- mode: conf-toml; -*-
+# Wed Jan 22 14:01:02 2025 move CTLGREY and GTCC
 # Sun Jan 19 07:49:20 2025 move CLOK ahead of shipping its values
 # Fri Jan  3 13:59:41 2025 re-laying out to shorten TRAK->motor paths
 # Sat Nov  2 00:22:20 2024 spread out the xbs hoping to make serloop tile numbering clearer
@@ -27,7 +28,7 @@
   outdir=N
   pos=[-18,-1]
   inputs=[SFLG, SFCG, SFRG, SRRG, SRLG]
-  outputs=[CLOK, HFLG, HFRG, HRRG, HRLG, TRAK]
+  outputs=[HFLG, HFRG, HRRG, HRLG, CLOK, TRAK]
   axons=[[HFLG,IFLG],
          [HFRG,IFRG],
          [HRRG,IRRG],
@@ -41,7 +42,8 @@
   outdir=E
 #  pos=[-10,-2]
 #  pos=[-14,-2]
-   pos=[-13,-11]
+#   pos=[-13,-11]
+   pos=[-8,-11]
 #  inputs=[IFLG, IFCG, IFRG, IRRG, IRLG]
   inputs=[IFLG, IFRG, IRRG, IRLG]
   outputs=[HFQA, HPDF, HPDR]
@@ -49,8 +51,8 @@
          [HPDR, MRRF]]
   
 [xbar.TILES]
-  indir=E
-  outdir=S
-  pos=[-22,1]
+  indir=S
+  outdir=W
+  pos=[-13,-10]
   inputs=[GTCC]
   outputs=[OCLK]

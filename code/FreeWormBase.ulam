@@ -42,15 +42,23 @@ quark FreeWormBase + DTU {
   }
 
   Void renderBond(SN sn, Unsigned pct, ARGB col) {
+    renderBond(0u, sn, pct, pct, col);
+  }
+
+  Void renderBond(SN srcsn, SN dstsn, Unsigned xpct, Unsigned ypct, ARGB col) {
     Drawable drawable;
     if (!drawable.canDraw()) return;
-    if (sn <= 0u || sn >= 41u) return;
+    if (srcsn >= 41u) return;
+    if (dstsn >= 41u) return;
     MDist md; // No ew when rendering!  Can't use ew.getCoordRaw()!
-    C2D origin;
-    C2D dest = md.getSiteCoord(sn);
-    Int spct = (Int) (1024u*pct/100u);
-    C2D scaled = dest*origin.make(spct,spct);
-    drawable.drawMaskedLineUnits(origin,scaled,col,col,0xffffffff, 100u, 256u);
+    C2D src = md.getSiteCoord(srcsn);
+    C2D dst = md.getSiteCoord(dstsn);
+    Int sxpct = (Int) (1024u*xpct/100u);
+    Int sypct = (Int) (1024u*ypct/100u);
+    C2D scale((C2D.Coord) sxpct,(C2D.Coord) sypct);
+    C2D sscaled = src*scale;
+    C2D dscaled = dst*scale;
+    drawable.drawMaskedLineUnits(sscaled,dscaled,col,col,0xffffffff, 100u, 256u);
   }
 
   Void behave() {

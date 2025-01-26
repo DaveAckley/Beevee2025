@@ -311,9 +311,10 @@ element FloodFindTAPIdx : FloodFind {
 
   @Override
   virtual Bool isGoal(Atom & a) {
-    TermTargetLibrary ttl;
+    BeeveeBIM bim;
+    /*TermTargetLibrary ttl;*/
     if (a as TAP) {
-      TapIdx ax = ttl.getTapIdx(a);
+      TapIdx ax = bim.getTapIdx(a);
       if (mRemote == ax) return true;
     } else if (a as AxonMid) {
       TapIdx abx = a.getAxonTap(cAXON_HEAD_IDX);
@@ -370,10 +371,11 @@ element FloodFindTAPIdx : FloodFind {
 element AxSpike10 + DTU {
   Void behave() {
     FloodFindTAPIdx fix;
-    TermTargetLibrary ttl;
-    //    fix.mLocal = (TapIdx) ttl.getTapIdxFromClassId(HDGF.classidof);
-    fix.mLocal = (TapIdx) ttl.getTapIdxFromClassId(HFRG.classidof);
-    fix.mRemote = (TapIdx) ttl.getTapIdxFromClassId(MLRF.classidof);
+    /*TermTargetLibrary ttl;*/
+    BeeveeBIM bim;
+    //    fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HDGF.classidof);
+    fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HFRG.classidof);
+    fix.mRemote = (TapIdx) bim.getTapIdxFromClassId(MLRF.classidof);
     EventWindow ew;
     ew[0] = fix.atomof;
   }

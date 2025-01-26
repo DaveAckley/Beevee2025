@@ -38,6 +38,7 @@ transient XBInfo + DTU + Fail + QDebugUtils {
   }
 }
 
+/*
 transient ByteArrayT(Unsigned cCOLS, Unsigned cROWS) + Fail {
   typedef Unsigned(8) Byte;
   C2D getSize() { C2D ret(cCOLS,cROWS); return ret; }
@@ -50,7 +51,6 @@ transient ByteArrayT(Unsigned cCOLS, Unsigned cROWS) + Fail {
   String mRows[cROWS];
 }
 
-/*
 load "BVBrain.inc";
   
 ////// BEGIN GENERATED 

@@ -94,6 +94,7 @@ quark FixedPoint(Unary cINT_BITS, Unary cFRAC_BITS) { //< Signed? fixed point ha
     printTo(log);
     return self;
   }
+
   Self & printTo(ByteStreamWriter & bs) {
 
     Int i = getInt();
@@ -136,5 +137,4 @@ quark FixedPoint(Unary cINT_BITS, Unary cFRAC_BITS) { //< Signed? fixed point ha
   Self abs() { Self ret(self); ret.absSelf(); return ret; }
   Self max(Self other) { return (self < other) ? other : self; }
   Self min(Self other) { return (self > other) ? other : self; }
-
 }

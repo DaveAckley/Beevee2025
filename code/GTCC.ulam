@@ -8,12 +8,13 @@ element GTCC : HOpUnary + Grip + Fail {
   MyGripVal mLastGrip = MyGripVal.maxof;
 
   typedef XTimer(3u,5u,1u) ChangeTimer; //< for debouncing edges
-  ChangeTimer mEdgeTimer;
+  ChangeTimer mEdgeTimer[2]; // [0] front, [1] back
   ChangeTimer mRegripTimer;
 
-  typedef CLOK.ClokState ClokState;
-  ClokState mNewClock = CLOK.cCLOK_NONE;
-  ClokState mLastClock = CLOK.cCLOK_NONE;
+  typedef GreyClok.ClokState ClokState;
+  constant ClokState cCLOK_NONE = GreyClok.cCLOK_NONE;
+  ClokState mNewCloks[2] = {cCLOK_NONE, cCLOK_NONE}; // [0] front, [1] rear
+  ClokState mLastCloks[2] = {cCLOK_NONE, cCLOK_NONE};
 
   typedef Unsigned(6u) TileCount;
   TileCount mTilesInGrip;
@@ -29,11 +30,13 @@ element GTCC : HOpUnary + Grip + Fail {
       mTilesInGrip = 0u;
     }
 
-    /// RUN EDGE TIMER
-    if (mNewClock == mLastClock) mEdgeTimer.reset();
-    else if (mNewClock != CLOK.cCLOK_NONE && mEdgeTimer.countAlarm()) {
-      if (mLastClock != CLOK.cCLOK_NONE) ++mTilesInGrip;
-      mLastClock = mNewClock;
+    /// RUN EDGE TIMERS
+    for (Unsigned i = 0u; i < 2u; ++i) {
+      if (mNewCloks[i] == mLastCloks[i]) mEdgeTimer[i].reset();
+      else if (mNewCloks[i] != GreyClok.cCLOK_NONE && mEdgeTimer[i].countAlarm()) {
+        if (i == 0u && mLastCloks[i] != GreyClok.cCLOK_NONE) ++mTilesInGrip;
+        mLastCloks[i] = mNewCloks[i];
+      }
     }
 
     /// AND DO NORMAL BUSINESS
@@ -62,7 +65,11 @@ element GTCC : HOpUnary + Grip + Fail {
     mD&&pR("GTCCX1010")&&pR(self);
 
     /// PICK UP CLOCK SIG
-    mNewClock = (ClokState) sig.getValueUnsigned();
+    Unsigned val = sig.getValueUnsigned();
+    for (Unsigned i = 0u; i < 2u; ++i) {
+      mNewCloks[i] = (ClokState) (val%4u);
+      val = val/4u;
+    }
 
     return false; // NOT REACHED
  }

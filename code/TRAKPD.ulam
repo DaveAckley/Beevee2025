@@ -24,8 +24,10 @@ element TRAKPD {
     return mLastError;
   }
 
-  typedef FixedPoint(7u,7u) FP30;
-  FP30 mTargetSpeed;
+  typedef FixedPoint(7u,2u) FP30;
+  //FP30 mTargetSpeed;
+  FP30 mTargetMaxSpeed;
+  FP30 mTargetMinSpeed;
 
   typedef FP30 MotorSpeeds[2];
 
@@ -34,3 +36,28 @@ element TRAKPD {
     speeds[1].setFraction(-5,3);
   }
 }
+
+/**
+   \color #000
+   \symbol Ks
+*/
+element PDSET + DTU {
+  Void behave() {
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as TRAKPD) {
+        Random random;
+        TRAKPD.FP30 minspeed(random.between(-4,30),2);
+        TRAKPD.FP30 spread(random.between(0,30),3);
+        TRAKPD.FP30 maxspeed(minspeed+spread);
+        a.mTargetMinSpeed = minspeed;
+        a.mTargetMaxSpeed = maxspeed;
+      }
+    }
+    ew[0] = Empty.instanceof;
+  }
+}
+
+

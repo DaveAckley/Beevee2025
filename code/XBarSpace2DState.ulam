@@ -107,13 +107,15 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
 
       /// ALSO SET ORIGINATING mTaps
       if (false) { // OLD WAY
-        TermTargetLibrary ttl(self);
+        /*
+       TermTargetLibrary ttl(self);
         TapIdx tapidx = ttl.getTapIdx(tap);
         Bool isSense = (tap is TermSensor);
         if (tap.mSenseVert == isSense) 
           xb.mTaps[cW] = xb.mTaps[cE] = tapidx; // swapped sensors and normal motors
         else
           xb.mTaps[cN] = xb.mTaps[cS] = tapidx; // normal sensors and swapped motors
+        */
       } else { // NEW WAY
         C2D absc = xb.getPos2D();
         mD&&pR("NEWXBSBNEW10")&&pR(absc);

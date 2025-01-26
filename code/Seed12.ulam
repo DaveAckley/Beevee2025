@@ -5,7 +5,6 @@ use Once;
     \color 0x22e
  */
 element Seed12 + DTU {
-  typedef TermTargetLibrary.TargetCount TargetCount;
   TargetCount mTargetCount;
   typedef Unsigned(7) DeployStep;
   DeployStep mDeployStep;
@@ -30,12 +29,15 @@ element Seed12 + DTU {
     if (mDeployStep++ < mDeployStep.maxof) // delay before starting deliveries
       return;
 
-    TermTargetLibrary ttl;
-    if (mTargetCount >= ttl.getTargetCount()) {
+    /*TermTargetLibrary ttl;
+      if (mTargetCount >= ttl.getTargetCount()) {*/
+    BeeveeBIM bim;
+    if (true /*mTargetCount >= bim.getTAPCount()*/) {
       /// DECAY DECAY DECAY
       ew[0] = Empty.instanceof;
       return;
     }
+    /*
     DeliverTerm dt;
     dt.mTermTargetIdx = mTargetCount;
 
@@ -49,5 +51,6 @@ element Seed12 + DTU {
       //XXX DONT RELEASE ANY DTS      ew[empsn] = dt.atomof;
       ++mTargetCount;
     }
+    */
   }
 }

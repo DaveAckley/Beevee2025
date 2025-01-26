@@ -1,0 +1,55 @@
+quark GreyClok : DTU {
+  //// UrSelf API
+  @Override virtual ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (mClokState == cCLOK_TICK) return cu.color(0xff3311dd);
+    if (mClokState == cCLOK_TOCK) return cu.color(0xff33dd11);
+    return super.getColor(selector);
+  } 
+  
+  //// GreyClok SERVICES
+  typedef Unsigned(2) SigState;
+  constant SigState cCLOK_SIG0 = 0u; //< last sample sig is 0
+  constant SigState cCLOK_SIGL = 1u; //< last sample sig is low but not 0
+  constant SigState cCLOK_SIGH = 2u; //< last sample sig is high but not 255
+  constant SigState cCLOK_SIG1 = 3u; //< last sample sig is 255
+
+  SigState mSigVals[2];         // [0] left, [1] right (both front)
+
+  typedef Unary(2) ClokState;
+  constant ClokState cCLOK_TICK = 0u; //< left high, right low
+  constant ClokState cCLOK_TOCK = 1u; //< left low, right high
+  constant ClokState cCLOK_NONE = 2u; //< unsettled state
+
+  ClokState mClokState = cCLOK_NONE;
+
+  SigState sigValToSigState(ASCII sigval) {
+    if (sigval == 0u)   return cCLOK_SIG0;
+    if (sigval == 255u) return cCLOK_SIG1;
+    if (sigval <= 127)  return cCLOK_SIGL;
+    /*(sigval > 127)*/  return cCLOK_SIGH;
+  }
+
+  Int updateClokSig(Unsigned idx, ASCII sigval) {
+    SigState newstate = sigValToSigState(sigval);
+    if (newstate != mSigVals[idx]) {
+      mSigVals[idx] = newstate;
+    }
+    return 0;
+  }
+
+  Bool doClokUpdate() {
+    ClokState newstate;
+    if (mSigVals[0] == cCLOK_SIG1 && mSigVals[1] == cCLOK_SIG0)
+      newstate = cCLOK_TICK;
+    else if (mSigVals[0] == cCLOK_SIG0 && mSigVals[1] == cCLOK_SIG1)
+      newstate = cCLOK_TOCK;
+    else
+      newstate = cCLOK_NONE;
+    if (newstate != mClokState) {
+      mClokState = newstate;
+      return true;
+    }
+    return false;
+  }
+}

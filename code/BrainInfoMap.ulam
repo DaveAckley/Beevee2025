@@ -1,3 +1,27 @@
+quark TermTarget + DTU {
+  String mTermName;
+  C2D mLocation;
+  XBSSy mXBSSy;
+
+  Atom makeTermTarget() {
+    DebugUtils du;
+    //    du.print("TETAR10");
+    //    du.print(mTermName);
+    Int etype = getClassIdOfElementNamed(mTermName);
+    if (etype < 0) {
+      du.print("makeTermTarget: NO ETYPE FOR:");
+      du.print(mTermName);
+      return Empty.instanceof;
+    }
+    //    du.print("TETAR11");
+    //    du.print(etype);
+    AtomUtils au;
+    Atom a = au.new(etype);
+    //    du.print(a);
+    return a;
+  }
+}
+
 transient BrainInfoMap + DTU + QDebugUtils + Fail {
   constant Unsigned cMAX_RECAST_SIZE = 4096u;
   typedef BitStorageT(cMAX_RECAST_SIZE) XBInfoBuffer;

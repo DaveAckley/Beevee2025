@@ -5,28 +5,29 @@
 element CLOK : HOpNullary + Fail {
 
   //// CLOK State
-  typedef Unsigned(2) SigState;
-  constant SigState cCLOK_SIG0 = 0u; //< last sample sig is 0
-  constant SigState cCLOK_SIGL = 1u; //< last sample sig is low but not 0
-  constant SigState cCLOK_SIGH = 2u; //< last sample sig is high but not 255
-  constant SigState cCLOK_SIG1 = 3u; //< last sample sig is 255
-
-  SigState mSigVals[2];         // [0] left, [1] right (both front)
-
-  typedef Unary(2) ClokState;
-  constant ClokState cCLOK_TICK = 0u; //< left high, right low
-  constant ClokState cCLOK_TOCK = 1u; //< left low, right high
-  constant ClokState cCLOK_NONE = 2u; //< unsettled state
-
-  ClokState mClokState = cCLOK_NONE;
+  GreyClok mCLOKs[2];          //< [0] front, [1] rear
 
   //// UrSelf API
-  @Override virtual ARGB getColor(Unsigned selector) {
-    ColorUtils cu;
-    if (mClokState == cCLOK_TICK) return cu.color(0xff3311dd);
-    if (mClokState == cCLOK_TOCK) return cu.color(0xff33dd11);
-    return super.getColor(selector);
-  } 
+
+  @Override Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+    super.renderGraphics();
+
+    MDist md; // No ew when rendering!  Can't use ew.getCoordRaw()!
+    FWTD tmp;
+    // Try to draw two sets of bonds above and below each other ho ho
+    for (Int clocks = 0; clocks < 2; ++clocks) {
+      C2D base((C2D.Coord) 0,(C2D.Coord) (2*clocks-1));    // (0,-1), (0,1)
+      GreyClok & gc = mCLOKs[clocks];
+      Int tiktok = gc.mClokState == GreyClok.cCLOK_TICK ? 0 : 1;
+      C2D ofst((C2D.Coord) (2*tiktok-1), (C2D.Coord) 0);    // (-1,0), (1,0)
+      SN srcsn = md.getSiteNumber(base);
+      SN dstsn = md.getSiteNumber(base+ofst);
+      ARGB col = gc.getColor(1u);
+      tmp.renderBond(srcsn, dstsn, 200u, 50u, col); 
+    }
+  }
 
   //// TermHOp API
   @Override
@@ -44,47 +45,19 @@ element CLOK : HOpNullary + Fail {
     BeeveeBIM bim;
     TapIdx idx = sig.mSource;
     if (idx == bim.getTapIdxFromClassId(SFLG.classidof)) // front left grey
-      return updateClokSig(0,sig.mValue);             
-    if (idx == bim.getTapIdxFromClassId(SFRG.classidof)) { // front right grey
-      return updateClokSig(1,sig.mValue);             
-    }
+      return mCLOKs[0].updateClokSig(0,sig.mValue);             
+    if (idx == bim.getTapIdxFromClassId(SFRG.classidof)) // front right grey
+      return mCLOKs[0].updateClokSig(1,sig.mValue);             
+
+    if (idx == bim.getTapIdxFromClassId(SRLG.classidof)) // rear left grey
+      return mCLOKs[1].updateClokSig(0,sig.mValue);             
+    if (idx == bim.getTapIdxFromClassId(SRRG.classidof)) // rear right grey
+      return mCLOKs[1].updateClokSig(1,sig.mValue);             
+
     return 0;                   // or just toss it
   }
 
   //// CLOK SERVICES
-  SigState sigValToSigState(ASCII sigval) {
-    if (sigval == 0u)   return cCLOK_SIG0;
-    if (sigval == 255u) return cCLOK_SIG1;
-    if (sigval <= 127)  return cCLOK_SIGL;
-    /*(sigval > 127)*/  return cCLOK_SIGH;
-  }
-
-  Int updateClokSig(Unsigned idx, ASCII sigval) {
-    SigState newstate = sigValToSigState(sigval);
-    if (newstate != mSigVals[idx]) {
-      mSigVals[idx] = newstate;
-      //      mDoUpdate = true;
-    }
-    return 0;
-  }
-
-  //  Bool mDoUpdate;
-
-  //// UrSelf API
-  @Override Void renderGraphics() {
-    Drawable drawable;
-    if (!drawable.canDraw()) return;
-    super.renderGraphics();
-
-    SN sn;
-    if (mClokState == cCLOK_TICK) sn = 1u;
-    else if (mClokState == cCLOK_TOCK) sn = 4u;
-    else return;                             // else nothing special
-
-    ARGB col = getColor(1u);
-    FWTD tmp;
-    tmp.renderBond(sn, 200u, col); // double SN spacing?
-  }
 
   constant Unsigned cGRIPBITS = XBarSpace2D.cGRIPBITS;
   typedef Unsigned(cGRIPBITS) GripStg;
@@ -116,21 +89,18 @@ element CLOK : HOpNullary + Fail {
       return false;
 
     /// DO CLOK UPDATE
-    ClokState newstate;
-    if (mSigVals[0] == cCLOK_SIG1 && mSigVals[1] == cCLOK_SIG0)
-      newstate = cCLOK_TICK;
-    else if (mSigVals[0] == cCLOK_SIG0 && mSigVals[1] == cCLOK_SIG1)
-      newstate = cCLOK_TOCK;
-    else
-      newstate = cCLOK_NONE;
-
-    Bool change = newstate != mClokState;
-    Random random;
-    if (change) mClokState = newstate;
-    if (change || random.oneIn(2u)) {
-      trySendSigViaTAP((ASCII) mClokState, GTCC.classidof);
+    Bool change = false;
+    for (Unsigned i = 0u; i < mCLOKs.lengthof; ++i) {
+      change = change || mCLOKs[i].doClokUpdate();
     }
-    //    mDoUpdate = false;
+
+    Random random;
+    if (change || random.oneIn(4u)) {
+      Unsigned sig = 0u;
+      sig += mCLOKs[0].mClokState*1u;
+      sig += mCLOKs[1].mClokState*4u;
+      trySendSigViaTAP((ASCII) sig, GTCC.classidof);
+    }
     return false; // NOT REACHED
   }
 

@@ -1,7 +1,6 @@
 transient Router + DTU + QDebugUtils {
   EventWindow ew;
 
-  typedef TermTargetLibrary.TargetCount TapIdx;
   constant TapIdx cTAPIDX_NONE = TapIdx.maxof;
 
   Self(QDebugUtils & du) { takeDebug(du); }
@@ -19,9 +18,14 @@ transient Router + DTU + QDebugUtils {
     
     GripInfo & gi = gim.getGripInfo(giid);
 
-    TermTargetLibrary ttl;
+    /*TermTargetLibrary ttl;
     ClassId outid = ttl.getClassIdFromTapIdx(out); // sensor
-    ClassId inid = ttl.getClassIdFromTapIdx(in);   // motor
+    ClassId inid = ttl.getClassIdFromTapIdx(in);   // motor*/
+
+    BeeveeBIM bim;
+    ClassId outid = bim.getTAPClassIdFromTapIdx(out); // sensor
+    ClassId inid = bim.getTAPClassIdFromTapIdx(in);   // motor
+
 
     mD&&pR("RTTRMSG11")&&pR(gi)&&pR(outid)&&pR(inid);
 
