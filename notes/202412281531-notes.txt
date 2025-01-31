@@ -1,4 +1,4 @@
-{90}  -*-  mode: text; fill-column: 50;  -*-
+{138}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -175,10 +175,10 @@ if adiff < C   # same color outriggers
   else if SFLG > C forward left fixed
 else           # opposite outriggers
   if SFLG < SFRG
-    SFLG <-> SFRG       
-    SFCG = 255-SFCG     
+    SFLG <-> SFRG
+    SFCG = 255-SFCG
   # now L >= R and big SFCG means more right
-  
+
   lerr = SFLG - 2*SFCG
   if lerr > C then forward left lerr
   else if lerr < -C then forward right lerr
@@ -301,8 +301,8 @@ Tue Dec 31 08:58:42 2024 Buuuut we might have one
 bit to spare? --
 
       /*__________________________________________________
-      | COMPONENTS of XBarSpace2D <125> (70 bits/1 unused): 
-      | 
+      | COMPONENTS of XBarSpace2D <125> (70 bits/1 unused):
+      |
       | Pos	| Bits	| Name	| Type <classid>
       | 0	| 24	| mTaps[4]	| Unsigned(6)
       | 24	| 28	| mSigs[2]	| SlotSig <68>
@@ -327,7 +327,7 @@ back to a single-bit Bool.. urgh.
 
 Tue Dec 31 23:23:53 2024 OK so almost next year.
 We need an actual implementation strategy for
-TRAK.ulam 
+TRAK.ulam
 [21:
 
 Tue Dec 31 23:25:08 2024 We're supposed to be
@@ -352,8 +352,8 @@ after tearing out a ton of copied-from-GREG's
 state to make room for it. Currently at:
 
       /*__________________________________________________
-      | COMPONENTS of TRAK <60> (63 bits/8 unused): 
-      | 
+      | COMPONENTS of TRAK <60> (63 bits/8 unused):
+      |
       | Pos	| Bits	| Name	| Type <classid>
       | 0	| 3	| mState	| Unsigned(3)
       | 3	| 8	| mEventCounter	| Unsigned(8)
@@ -429,7 +429,7 @@ does:
 
 [29:
 
-Wed Jan  1 12:40:44 2025 OK, 
+Wed Jan  1 12:40:44 2025 OK,
 
 :29]
 
@@ -455,7 +455,7 @@ Fri Jan 10 01:40:58 2025 OK let's catch up here..
 [36:
 
 Fri Jan 10 01:48:33 2025 OK claimed to-dos. Some
-more - 
+more -
 
 TODO
 [69: Sat Jan 18 01:31:42 2025
@@ -470,7 +470,7 @@ DONE :69] - Brainstorm PD implementations
 [52: Tue Jan 14 10:31:09 2025 considered alone,
 DONE :52] - Demo Beevee following lines faster
  - Brainstorm turning routines
-[87: Mon Jan 20 09:50:16 2025 
+[87: Mon Jan 20 09:50:16 2025
 DONE :87] - Brainstorm tile-counting routines
  - Demo random low-odds turning at every
    intersection
@@ -541,7 +541,7 @@ So, we're going to need
 
  - notions of 'line position'
    and 'error in line position'
-   [45: Sat Jan 11 08:11:43 2025 
+   [45: Sat Jan 11 08:11:43 2025
    = maybe range like 0..256 is enough?
      when there's a valid signal, meaning like
      L   C   R   SIG  ~SIG
@@ -570,8 +570,8 @@ So, we're going to need
    the other signals will be a bit out of date,
    but not missing. Can have a watchdog too maybe.
  - notion of 'motor speed' and 'desired motor
-   speed'. 
- 
+   speed'.
+
 [46:
 
 Sat Jan 11 08:16:18 2025 And maybe we could use
@@ -626,8 +626,8 @@ going with
 
 in all our ignorance, leaving 17 bits -
 
-      | COMPONENTS of TRAKPD <170> (54 bits/17 unused): 
-      | 
+      | COMPONENTS of TRAKPD <170> (54 bits/17 unused):
+      |
       | Pos	| Bits	| Name	| Type <classid>
       | 0	| 20	| mLastError	| FixedPoint(10,10) <120>
       | 20	| 20	| mIntegralErrors	| FixedPoint(10,10) <120>
@@ -654,7 +654,7 @@ through to represent/identify the TRAKPD.
 Well so I guess the point is I'm not supposed to
 be finding/making the TRAKPD so soon. I should do
 it in TRAK.execute(..), where we're back in
-control? 
+control?
 
 :50]
 
@@ -684,7 +684,7 @@ we maybe make a little plan of attack?
 TODO
 [55: Tue Jan 14 11:05:02 2025 Yes it is
 DONE :55] - Have TRAK deploy a TRAKPD nearby (is it already
-   doing that?) 
+   doing that?)
 [56: Tue Jan 14 16:00:06 2025
 DONE :56] - Try to get .mLastError to do a fast backwards
    averaging of the existing mapio tracking error.
@@ -829,8 +829,8 @@ DONE :84] - TRAK and/or TRAKPD generates tile clock
 [85: DONE  :85] - Maybe lay a new xbar to handle it?
 [86: Mon Jan 20 09:49:44 2025 GTCC does it
 DONE :86] - At least make a stub somewhere that counts
-   tile clock ticks 
- 
+   tile clock ticks
+
 [77:
 
 Sat Jan 18 01:40:03 2025 OK, 'tile clock'.
@@ -917,7 +917,579 @@ Tue Jan 21 10:55:21 2025 OK, well, didn't get to
 much implementation on the ORIENT redo, but it's
 getting to be time to move the flag here.
 
+[90:
+
+Wed Jan 22 13:30:56 2025 OK, flag moved and what
+not, and now I really really want well-behaved and
+reasonably reliable turns.
+
+To Achieve That I Want
+TODO
+
+[95: Thu Jan 23 08:56:53 2025
+DONE :95] - CLOK compute and repot back wheel clock status
+   also.
+
+[103: Sat Jan 25 10:56:16 2025
+DONE :103] - Brainstorm/design ways for TRAK to accept (max)
+   speed controls from elsewhere. (For example,
+   TRAKPD has mTargetSpeed which is currently not
+   being used.. (Also mIntegralErrors which is
+   also not used. (Also 11b available)))
+
+ -
+
+:90]
+
 :89]
 
 :88]
 :82]
+[91:
+
+Wed Jan 22 13:58:44 2025 What if we move
+xbar.GTLGREY a little further east, and moved GTCC
+up into that same tile, with a connection from
+CLOK and to TRAK?[92:
+
+Wed Jan 22 15:38:48 2025 OK, hacking away in
+CLOK.ulam etc but need to break to cook dinner.
+Currently not buildable so lots of reminders where
+we are..[93:
+
+Wed Jan 22 15:44:24 2025 Well maybe have a little
+more time here..
+
+:93]
+
+:92]
+
+:91]
+[94:
+
+Thu Jan 23 08:46:16 2025 OK, so it looks like GTCC
+is plausibly tracking the rear grey clok status
+as well as the front grey clok.
+[96:
+
+Thu Jan 23 08:57:02 2025 Well that let us check
+off one whole to-do.. So how shall we have TRAK
+accept control inputs?
+
+I would think we'd want to send stuff to TRAKPD,
+have TRAKPD buffer it locally, and have TRAK
+consult TRAKPD ad lib.
+
+Issues:
+ - Speed control: max, (min?,) ramp?
+ - Turn control
+ - Sequencing
+
+Wheel speed sequencing seems to cover almost
+everything.. But it's also about configuring
+feedback loops rather than strict top-down (or
+inside-out) control.
+
+[97:
+
+Thu Jan 23 09:03:14 2025 If we 'just' wanted to be
+able to set TRAKPD.mTargetSpeed, and have TRAK try
+to work to respect that, how might we do that?
+(Also, what might we test that with as we do.)
+
+[98:
+
+Thu Jan 23 09:06:24 2025 So at TRAK.ulam:402 we
+could intervene to check pd.mTargetSpeed, for
+starters. That's immediate. How about deceleration
+though? [99:
+
+Thu Jan 23 11:59:54 2025 OK so with a huge
+ill-understood hammer we now have TRAK.mSpeed
+following TRAKPD.mTargetSpeed, and so now we have
+Beevee absolutely stopped dead since there's
+nobody to set mTargetSpeed to anything.[100:
+
+Fri Jan 24 12:18:22 2025 Well, we also tried
+Beevee at mTargetSpeed = -1, and it was partially
+plausible.. it kept the front center on the line
+as it backed up slowly, but the rear got further
+and further off the line, until the front pulled
+off the line, and then it seemed to be turning in
+the wrong direction attempting to re-find the
+line.. but it wasn't completely clear.
+
+Anyway, speeds in like [0..15] or so seem
+reasonably stable for holding the line, while at
+perhaps 18 or so it seems like it can't hold the
+line very long.. and anything above perhaps 6 or 8
+struggles to reaquire the line once off it.
+
+[101:
+
+Fri Jan 24 12:24:03 2025 But we need to switch to
+max/min speed rather than a single target. And
+while I'm tearing things up, I also want:
+
+ - maybe change FP30 to like FixedPoint(7u,3u)
+   instead of the current FixedPoint(7u,7u).
+   Absolutely do not need seven bits of fraction
+   for speeds.
+
+[102:
+
+Sat Jan 25 10:52:50 2025 OK, so
+TRAKPD.mTarget(Max|Min)Speed seems to be working
+pretty okay.
+
+We have to have to get some idea how we're going
+to do
+
+ - distance-based speed control, and
+ - turn control
+ - who does it,
+ - where, and
+ - how are the controls distributed
+
+[104:
+
+Sat Jan 25 10:57:02 2025 OK, so more
+
+TODO
+
+ - Review/develop ideas for :102: above
+ - Define some kind of 'command struct', able to
+   represent things like 'straight 3 tiles', 'turn
+   right 90', 'turn left 180'.
+ - Make or mod a unit to execute a single given
+   command struct, and maintain state representing
+   in-progress / success / failure
+ - Make a spike element to sit near the executor
+   and give it a random command whenever it's not
+   'in-progress'
+ - Be amused by all its failures to work
+ - See it start kinda working and laugh at that too.
+ - Claim to-dos and
+ - Make some more to-dos.
+
+:104]
+
+:102]
+
+:101]
+
+:100]
+
+:99]
+
+:98]
+
+:97]
+
+:96]
+:94]
+[105:
+
+Sat Jan 25 11:10:35 2025 OK who does this? GTCC
+has clock edges and tile count, so it or something
+near it would make sense.
+
+Who is going to sequence a turn?
+
+I can't not be thinking about some FreeWormBase
+thing to hold command sequences..
+[106:
+
+Sat Jan 25 11:39:44 2025 WTF let's daydream about
+an instruction set for a few minutes.
+
+command
+setmax
+setmin
+setdist
+
+well let's think in terms of registers first.
+
+max speed target
+min speed target
+remaining action count
+current action
+  (action: fwd, right, left, ??)
+
+
+then have read and write registers..
+
+[107:
+
+Sat Jan 25 12:33:04 2025 I'm thinking the
+'obvious' approach is to fit an instruction into a
+SlotSig and transport them via Axons. That's 8b a
+pop, right?
+
+INSN: OP ARGS
+OP 2b
+  rd 00 + REG VAL
+  wr 01 + REG VAL
+  do 10 + DO-OP
+  xo 11 + XOP
+REG 2b
+  min 00 min speed target
+  max 01 max speed target
+  cnt 10 remaining action count
+  act 11 act/status
+DO-OP
+  noop
+
+[108:
+
+Sat Jan 25 12:45:34 2025 Or maybe
+
+OP 1b
+ RD + reg + val
+ WR + reg + val
+
+REG 2b
+  MIN 00 min speed target
+  MAX 01 max speed target
+  CNT 10 remaining action count
+  ACT 11 act/status
+
+VAL 5b
+
+with writing to ACT being the way to
+initiate/change actions.
+
+ACT reg
+ noop
+ drive
+ turnR
+ turnL
+ grip
+
+[109:
+
+Sat Jan 25 12:59:51 2025 I guess one question is
+when do we retire insns? Are we going to make this
+all synchronous? So after writing ACT, we don't do
+any more insns until remaining action count
+becomes zoer? That seems less fun.
+
+Vs a test-action-count op, I guess
+
+Expand REG to 3b?
+
+Could CNT/ACT be on a little stack? Then we could
+have jump fwd/back ops that could use CNT as
+distance to jump, and then return.. to what.. do
+we even need a stack for that?
+
+not sure if axon/slotsig semantics supports
+skipping backwards in any natural fashion..
+[110:
+
+Sun Jan 26 00:01:34 2025 Oright come on here. Fish
+or cut bait.
+
+Are we thinking TRAKPD will hold these
+'registers'? And GTCC will supply the instruction
+stream? Is that even plausible?[111:
+
+Sun Jan 26 00:04:38 2025 TRAKPD currently has 7b
+available, or 30b if we ditch the mIntegralErrors
+that we're not using. With 30b, we could give it -
+
+ - a Bits(8) instruction register
+ - an Unsigned(7) action count
+ - maybe a Bits(8) 'act/status' reg?
+
+and still have 7b to go.. Not completely clear
+what act/status is or whether that's completely
+disjoint from an instruction register.
+[112:
+
+Sun Jan 26 00:26:04 2025 So if TRAKPD is the
+'tracked motion processor', how do we get
+instructions to it? What are the requirements to
+grow an axon to something, for example? Does it
+have to be a TAP with a TapIdx? It does
+right?[113:
+
+Sun Jan 26 00:30:16 2025 Well, maybe it could have
+.. hmm wait.. what is the relationship between
+BeeveeBIM.cTAPClassIds[] and
+TermTargetLibrary.cTARGET_IDS ? Are they both in
+use?
+[114:
+
+Sun Jan 26 00:35:41 2025 I'm going to sleep but I
+think we need to take the time to officially tear
+out TermTarget.ulam fix up any lingering uses. I
+think it is meant to be strictly dominated by
+BeeveeBIM.dtoml/.ulam
+[115:
+
+Sun Jan 26 08:22:37 2025 Well, there's lots of
+live hits still on TermTargetLibrary, mainly of
+the form
+
+    TermTargetLibrary ttl;
+ .. ClassId srcid = ttl.getClassIdFromTapIdx(iss.mSource);
+
+Do we know exactly what we're supposed to replace
+that with? Can we? [116:
+
+Sun Jan 26 08:25:28 2025 I guess it's
+BeeveeBIM.getTAPClassIdFromTapIdx(iss.mSource)?
+(Which does drive home it's got to be a TAP..)
+[117:
+
+Sun Jan 26 09:20:37 2025 Also I guess we want to
+ditch TermTarget and DeliverTerm.. I guess
+TermTarget is replaced by XBInfo?[118:
+
+Sun Jan 26 11:35:10 2025 So it appears we never
+gave XBInfo the ability to return an absolute
+position for a tap inside an xbar? But
+TermTargetLibrary could do that via its
+cDESTS_(X|Y) constant arrays.
+
+:118]
+
+:117]
+:116]
+
+:115]
+
+:114]
+:113]
+
+:112]
+:111]
+
+:110]
+:109]
+:108]
+
+:107]
+
+:106]
+
+:105]
+[119:
+
+Mon Jan 27 03:11:34 2025 So, TRAKPD is a like a
+methylation on TRAK, right? So we could route
+insns to TRAK (which is a TAP etc), and it could
+forward to TRAKPD as helpful, right?
+[120:
+
+Mon Jan 27 10:30:32 2025 OK so we made a 'quark
+SeqCore' and put it in TRAKPD. Could we make say
+GTCC try to send a signal to TRAK, that is meant
+for TRAKPD? We'd like to try that just to find out
+whether or how close we are to being able to send
+signals in both directions on an axon..
+
+Let's have GTCC try to send a NOP or something at
+random intervals..
+[121:
+
+Mon Jan 27 11:34:27 2025 Well, let's say it'll
+just read the current speed, maybe? That's noopy
+enough for a test, right?
+
+[122:
+
+Mon Jan 27 11:38:07 2025 But hmm, I was imagining
+read instructions were going to be self-modifying
+code, storing the read value in the immediate
+field.. but that makes no sense unless we send the
+modified/retired insn back to GTCC.. but that
+would be taking the same path [123:
+
+Mon Jan 27 12:14:31 2025 So no, it's CLOK sending
+to GTCC. If we had a path from GTCC to TRAK (to
+TRAKPD), there'd be nothing currently traveling
+the other direction.
+
+Shall we perhaps let's try to make such a path?
+BeeveeBIM.dtoml, away!
+[124:
+
+Mon Jan 27 12:46:57 2025 OK looks like we have two
+floodfinds - started far apart - blocking each
+other from succeeding. I think it's time to
+energize the 'cFS_DIE' FloodState a little harder.
+
+How about, if two unrelated floods encounter each
+other, whichever one has the shorter path dies?
+
+Let's give it a shot.[125:
+
+Mon Jan 27 14:03:09 2025 OK, FloodFind API has a
+new isCompatible(FloodFind &) to decide if another
+FF can be tolerated in our sitatuion. Having
+rich-get-richer works well, even if I don't like
+it. But at least it reminds us that
+rich-get-richer isn't so bad as long as the rich
+are guaranteed to die and leave no inheritance -
+but at the moment FloodFind is not gteed to die,
+is it?
+
+:125]
+
+:124]
+
+:123]
+
+:122]
+
+:121]
+
+:120]
+:119]
+[126:
+
+Tue Jan 28 09:37:11 2025 OK the t2sday update
+countdown has started but I want one more bit of
+progress. I want a controlled turn.
+
+GTCC currently has 20b open. Let's just spike a
+little state machine in there to do a left (say)
+turn.. Hack it, fix it, see it, love it, repeat
+til time runs out.
+[127:
+
+Tue Jan 28 10:29:23 2025 OK how do we tell from a
+GTCC that an edge has just occured?[128:
+
+Tue Jan 28 10:35:27 2025 So, GTCC knows an edge
+occurs when it increments its own mTilesInGrip.
+Which we could ditch in favor of calling an edge
+method on the controller spike.. or we could
+assemble a little state/event vector that we'd
+pass to the controller along with the GTCC..
+
+Now, I'd think if we go purely on the edge timers
+we'd have no way to get Beevee to stop with his
+rear greys directly on a line.. but so what, at
+the level we're at?
+[129:
+
+Tue Jan 28 11:08:04 2025 OK so here we are again:
+Is this state machine going to be (mostly)
+action-triggered or (mostly) time-triggered?
+
+[130:
+
+Tue Jan 28 11:27:02 2025 Well let's say
+action-triggered, with time as a 'backstop
+action', and see how snarled up we get.
+
+:130]
+
+:129]
+:128]
+
+:127]
+:126]
+[131:
+
+Tue Jan 28 15:32:00 2025 OK so I don't see how my
+'ooh so risc' read/write register ISA really makes
+any sense in context. At least because single byte
+insns are just too small.
+
+So instead we're going to make it more like
+
+    typedef Unsigned(4u) OpCode;
+    typedef Unsigned(4u) OpVal;
+
+and make various special cases for what we want to
+get the job done.
+
+ Speed codes:
+  0x0  -8   0x4   0   0x8   4   0xc  15
+  0x1  -4   0x5   1   0x9   6   0xd  20
+  0x2  -2   0x6   2   0xa   8   0xe  25
+  0x3  -1   0x7   3   0xb  10   0xf  30
+
+or maybe
+
+  0x0  -4   0x4   0   0x8   4   0xc  20
+  0x1  -3   0x5   1   0x9   5   0xd  25
+  0x2  -2   0x6   2   0xa  10   0xe  30
+  0x3  -1   0x7   3   0xb  15   0xf  --
+
+with 0xf meaning 'no change'
+
+ Op codes:
+  0x0 setmax    0x4           0x8           0xc
+  0x1 setmin    0x5           0x9           0xd
+  0x2 setleft   0x6           0xa           0xe
+  0x3 setright  0x7           0xb           0xf
+
+with some kind of way of having TRAKPD remember
+whether it's in 'max/min' mode (bottom-up) or
+'left/right' mode (top-down).
+
+Then we send (randomly chosen) max/mins in cGOST,
+and left/rights in cTURN? Or can we take another
+bit and toggle what we send?[132:
+
+Tue Jan 28 16:06:47 2025 OK at the moment we're
+trying to send a Bool to represent a clock edge,
+but (as uuuuuuuusual) I think we need to send
+a tristate so callee can see transitions to
+invalid and valid clock states. At least, we want
+to see transition-to-valid to know when we've
+reached the next line during a turn..
+
+And we already have that - we should be sending
+GreyClok.ClokState values. Let's tear it up now
+rather than later.[133:
+
+Tue Jan 28 16:12:01 2025 Making DTU.ClokState.
+[134:
+
+Tue Jan 28 16:44:44 2025 OK, getting closer to
+issuing potentially meaningful insns. Need to
+represent that speed code crap somewhere and
+stuff. 
+
+:134]
+:133]
+
+:132]
+
+:131]
+[135:
+
+Wed Jan 29 00:46:41 2025 So, current issue is we
+want to deliver 'speedo' opcodes to TRAKPD while
+we're in a virtual method. So even though we've
+done the work to develop a TRAKPD & local variable
+farther up the stack, we can't see it from inside
+this callback. 
+
+So that's aggravating. Common enough, of course..
+and aggravating.
+
+And we've only got 1b left in TRAK if we were even
+willing to think about passing the signal out that
+way.. which we're absolutely not.[136:
+
+Wed Jan 29 00:54:08 2025 Could we just break down
+and make TRAKPD a TAP, rather than a wart attached
+to TRAK? That's one story about why we're having
+this problem now.[137:
+
+Wed Jan 29 11:32:52 2025 Well, TRAKPD isa TAP now,
+and we're getting pretty close, I think, to seeing
+some turn control actually happen. We shall see.
+
+:137]
+
+:136]
+
+:135]
