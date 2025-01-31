@@ -29,28 +29,11 @@ element Seed12 + DTU {
     if (mDeployStep++ < mDeployStep.maxof) // delay before starting deliveries
       return;
 
-    /*TermTargetLibrary ttl;
-      if (mTargetCount >= ttl.getTargetCount()) {*/
     BeeveeBIM bim;
-    if (true /*mTargetCount >= bim.getTAPCount()*/) {
+    if (true) {
       /// DECAY DECAY DECAY
       ew[0] = Empty.instanceof;
       return;
     }
-    /*
-    DeliverTerm dt;
-    dt.mTermTargetIdx = mTargetCount;
-
-    MinXPick emppick;
-    for (SN sn = 1u; sn <= 8u; ++sn) {
-      if (ew.isAccessible(sn) && ew[sn] is Empty)
-        emppick.update(sn);
-    }
-    if (emppick.hasPick()) {
-      SN empsn = emppick.getIdxSN();
-      //XXX DONT RELEASE ANY DTS      ew[empsn] = dt.atomof;
-      ++mTargetCount;
-    }
-    */
   }
 }

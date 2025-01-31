@@ -312,7 +312,6 @@ element FloodFindTAPIdx : FloodFind {
   @Override
   virtual Bool isGoal(Atom & a) {
     BeeveeBIM bim;
-    /*TermTargetLibrary ttl;*/
     if (a as TAP) {
       TapIdx ax = bim.getTapIdx(a);
       if (mRemote == ax) return true;
@@ -371,7 +370,6 @@ element FloodFindTAPIdx : FloodFind {
 element AxSpike10 + DTU {
   Void behave() {
     FloodFindTAPIdx fix;
-    /*TermTargetLibrary ttl;*/
     BeeveeBIM bim;
     //    fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HDGF.classidof);
     fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HFRG.classidof);

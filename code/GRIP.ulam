@@ -73,7 +73,6 @@ element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
     SlotSig & iss = xb.getSlotSig(false); // get inbound
     mD&&pR("GRBV16")&&pR(iss);
 
-    /*TermTargetLibrary ttl;*/
     BeeveeBIM bim;
     if (iss.isOccupied()) {
       C2D c = ew.getCoord(sn);

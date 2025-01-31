@@ -18,14 +18,9 @@ transient Router + DTU + QDebugUtils {
     
     GripInfo & gi = gim.getGripInfo(giid);
 
-    /*TermTargetLibrary ttl;
-    ClassId outid = ttl.getClassIdFromTapIdx(out); // sensor
-    ClassId inid = ttl.getClassIdFromTapIdx(in);   // motor*/
-
     BeeveeBIM bim;
     ClassId outid = bim.getTAPClassIdFromTapIdx(out); // sensor
     ClassId inid = bim.getTAPClassIdFromTapIdx(in);   // motor
-
 
     mD&&pR("RTTRMSG11")&&pR(gi)&&pR(outid)&&pR(inid);
 

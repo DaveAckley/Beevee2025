@@ -52,8 +52,6 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   SN findMatchingAxonEnd() { //< SN of axon matching our tapidx or SN.maxof if none
     mD&&pR("FNMTAXE10");
     SN ret = SN.maxof;
-    /*    TermTargetLibrary ttl;
-          TapIdx tapidx = ttl.getTapIdx(self);*/
     BeeveeBIM bim;
     TapIdx tapidx = bim.getTapIdx(self);
 
@@ -87,8 +85,6 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   SN findMatchingAxonEndWith(TapIdx otheridx) { //< SN of axon matching our tapidx and otheridx or SN.maxof if none
     mD&&pR("FNMTAXEF10");
     SN ret = SN.maxof;
-    /*TermTargetLibrary ttl;
-      TapIdx tapidx = ttl.getTapIdx(self);*/
     BeeveeBIM bim;
     TapIdx tapidx = bim.getTapIdx(self);
 
@@ -270,8 +266,6 @@ quark TermSensor : TAP + QDebugUtils {
 
   Void behave() {
     mD&&pR("TMSNBV10");
-    /*TermTargetLibrary ttl;
-      TapIdx tapidx = ttl.getTapIdx(self);*/
     BeeveeBIM bim;
     TapIdx tapidx = bim.getTapIdx(self);
 
@@ -351,8 +345,6 @@ quark TermMotor : TAP + QDebugUtils {
     BeeveeBIM bim;
     Unsigned tapidx = bim.getTapIdx(self);
     String name = bim.getTAPNameFromTapIdx(tapidx);
-    //    TermTargetLibrary ttl;
-    //    Unsigned tapidx = ttl.getTapIdx(self);
     if (!(Bool) name) return;
     if (!mBS.open()) return;
 

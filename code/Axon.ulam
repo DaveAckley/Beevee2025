@@ -90,9 +90,6 @@ quark Axon : FreeWormBase + Fail + DTU + QDebugUtils {
     SN ret = SN.maxof;
     tookbranch = false;
     
-    /*TermTargetLibrary ttl;
-      ClassId cid = ttl.getClassIdFromTapIdx(tapidx);*/
-
     BeeveeBIM bim;
     ClassId cid = bim.getTAPClassIdFromTapIdx(tapidx);
 
@@ -353,7 +350,6 @@ element AxonHead : AxonEnd + FreeWormNoUp + FreeWormStgDown + QDebugUtils {
     mD&&pR("SFFLTR10")&&pR(self);
 
     EventWindow ew;
-    /*TermTargetLibrary ttl;*/
     for (SN sn = 1u; sn < 41u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
@@ -478,11 +474,6 @@ element SpikeAxonBuilder10 + DTU {
     TapIdx hanchor = (TapIdx) bim.getTapIdxFromClassId(MLRF.classidof); // DEMO SPIKE
     //    TapIdx tanchor = (TapIdx) bim.getTapIdxFromClassId(HDGF.classidof);
     TapIdx tanchor = (TapIdx) bim.getTapIdxFromClassId(HFRG.classidof);
-
-    /*TermTargetLibrary ttl;
-    TapIdx hanchor = (TapIdx) ttl.getTapIdxFromClassId(MLRF.classidof); // DEMO SPIKE
-    //    TapIdx tanchor = (TapIdx) ttl.getTapIdxFromClassId(HDGF.classidof);
-    TapIdx tanchor = (TapIdx) ttl.getTapIdxFromClassId(HFRG.classidof);*/
 
     AxonHead ah;
     AxonTail at;
