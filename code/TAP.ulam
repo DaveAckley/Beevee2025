@@ -60,7 +60,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     mD&&pR("FNMTAXE11")&&pR(tapidx);
     MinXPick snpick;
     EventWindow ew;
-    for (SN sn = 0u; sn <= 12u; ++sn) {
+    for (SN sn = 0u; sn <= 24u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
       if (a as AxonEnd) {
@@ -94,7 +94,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     mD&&pR("FNMTAXEf11")&&pR(tapidx)&&pR(otheridx);
     MinXPick snpick;
     EventWindow ew;
-    for (SN sn = 0u; sn <= 12u; ++sn) {
+    for (SN sn = 0u; sn <= 24u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
       if (a as AxonEnd) {

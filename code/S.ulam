@@ -3,7 +3,7 @@
     \copyright 2025 LCF
     \license GPL-3
     \symbol S
-    \version 248
+    \version 249
  */
 element S + DTU {
   EventWindow ew;

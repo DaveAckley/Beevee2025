@@ -1,4 +1,4 @@
-quark GreyClok : DTU {
+quark GreyClok + DTU {
   //// UrSelf API
   @Override virtual ARGB getColor(Unsigned selector) {
     ColorUtils cu;
@@ -15,11 +15,6 @@ quark GreyClok : DTU {
   constant SigState cCLOK_SIG1 = 3u; //< last sample sig is 255
 
   SigState mSigVals[2];         // [0] left, [1] right (both front)
-
-  typedef Unary(2) ClokState;
-  constant ClokState cCLOK_TICK = 0u; //< left high, right low
-  constant ClokState cCLOK_TOCK = 1u; //< left low, right high
-  constant ClokState cCLOK_NONE = 2u; //< unsettled state
 
   ClokState mClokState = cCLOK_NONE;
 

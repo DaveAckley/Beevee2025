@@ -1,8 +1,157 @@
+transient SpikeLeftCmd + DTU {
+  Bool mSpeedNotWheel;
+  Int(16) mSpeed1, mSpeed2;
+}
+quark SpikeLeft + DTU + Fail + QDebugUtils {
+  typedef Unsigned(3u) State;
+  constant State cSTRT = 0u;    //< reset whatever and choose N
+  constant State cGOST = 1u;    //< accelerate and go straight N tiles
+  constant State cSLOW = 2u;    //< decelerate as turn approaches
+  constant State cSTP1 = 3u;    //< stop with rear greys on the line
+  constant State cTURN = 4u;    //< turn left 'in place'
+  constant State cSTP2 = 5u;    //< stop with front greys straddling line
+  constant State cDONE = 6u;    //< accelerate out of turn
+  constant State cIDLE = 7u;    //< don't turn (not currently used)
+  State mState = cSTRT;
+  Bool mAwaitTock = false;      //< what we're looking for during turn
+
+  constant SpikeLeftCmd cSTATE_CMDS[] = {
+    { .mSpeedNotWheel = true,        //< 0 cSTART
+      .mSpeed1 = 0, .mSpeed2 = 2 },
+    { .mSpeedNotWheel = true,        //< 1 cGOST
+      .mSpeed1 = 8, .mSpeed2 = 25 },
+    { .mSpeedNotWheel = true,        //< 2 cSLOW
+      .mSpeed1 = 4, .mSpeed2 = 8 },
+    { .mSpeedNotWheel = true,        //< 3 cSTP1
+      .mSpeed1 = 2, .mSpeed2 = 3 },
+    { .mSpeedNotWheel = false,       //< 4 cTURN
+      .mSpeed1 = -2, .mSpeed2 = 2 },
+    { .mSpeedNotWheel = true,        //< 5 cSTP2
+      .mSpeed1 = 1, .mSpeed2 = 3 },
+    { .mSpeedNotWheel = true,        //< 6 cDONE
+      .mSpeed1 = 3, .mSpeed2 = 10 },
+    { .mSpeedNotWheel = false,       //< 7 cIDLE
+      .mSpeed1 = 0, .mSpeed2 = 0 },
+  };
+    
+  typedef Unary(2u) Status;
+  constant Status cSTATUS_GOOD = 0u; //< things going okay
+  constant Status cSTATUS_WAIT = 1u; //< blocked but things could pick up again
+  constant Status cSTATUS_FAIL = 2u; //< attempt to turn has failed; do something else
+
+  //// SpikeLeft SERVICES
+  ASCII makeSig() {
+    SpikeLeftCmd cmd = cSTATE_CMDS[mState];
+    SpeedO spo;
+    SpeedO.SpeedOp op = cmd.mSpeedNotWheel ?
+      (mSecondSignal ? SpeedO.cSO_SET_MAX : SpeedO.cSO_SET_MIN) : // want a speed
+      (mSecondSignal ? SpeedO.cSO_SET_RIGHT : SpeedO.cSO_SET_LEFT); // want a wheel
+    SpeedO.SpeedCode sc =
+      spo.getNoLarger( mSecondSignal ? cmd.mSpeed2 : cmd.mSpeed1 );
+    ASCII a = spo.packSpeedO(op,sc);
+    return a;
+  }
+  Void recordSigSent() {
+    mSecondSignal = !mSecondSignal;
+  }
+
+  Status clockEdge(Bool frontNotBack, ClokState newstate) {
+    if (mState == cGOST) {
+      if (frontNotBack && newstate != cCLOK_NONE) {
+        if (--mTilesRemaining == 0u) return newState(cSLOW,cSTATUS_GOOD);
+      }
+      // don't care about unsettled or back clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSLOW) {
+      if (frontNotBack && newstate != cCLOK_NONE) {
+        mAwaitTock = (newstate == cCLOK_TICK);
+        return newState(cSTP1,cSTATUS_GOOD);
+      }
+      // don't care about back clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSTP1) {
+      if (!frontNotBack && newstate != cCLOK_NONE) {
+        return newState(cTURN,cSTATUS_GOOD);
+      }
+      // don't care about front clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cTURN) {
+      ClokState want = mAwaitTock ? cCLOK_TOCK : cCLOK_TICK;
+      if (frontNotBack && newstate == want) // wait for desired clock
+        return newState(cSTP2,cSTATUS_GOOD);
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSTP2) {
+      if (frontNotBack && newstate != cCLOK_NONE) // wait for valid clock
+        return newState(cDONE,cSTATUS_GOOD);
+      return cSTATUS_GOOD;
+    }
+    if (mState == cDONE) {
+      if (frontNotBack && newstate != cCLOK_NONE) // go slow til next front edge
+        //        return newState(cIDLE,cSTATUS_GOOD);
+        return newState(cSTRT,cSTATUS_GOOD); // SPIKE Let's Go AgAIN. 
+      return cSTATUS_GOOD;
+    }
+    fail(__FILE__,__LINE__);    // why don't you write me
+    return cSTATUS_FAIL;
+  }
+
+  //// SpikeLeft INTERNALS
+
+  typedef Unsigned(5u) Count;
+  Count mTilesRemaining;
+
+  Bool mSecondSignal; //< false: send first sig of pair, true: send second
+
+  Status newState(State newstate, Status status) {
+    mState = newstate;
+    return status;
+  }
+
+  Void reset(GTCC & gtcc) {
+    newState(cSTRT,cSTATUS_GOOD);
+  }
+
+  Status update(GTCC & gtcc) {
+    takeDebug(gtcc);
+    mD&&pR("SKLU10")&&pR(mState);
+    which (mState) {
+    case cSTRT: { return updateSTRT(gtcc); }
+      //case cGOST: { return updateGOST(gtcc); }
+
+      //otherwise: { fail(__FILE__,__LINE__); }
+    }
+    // FALL THROUGH
+    return cSTATUS_FAIL;
+  }
+
+  Status updateSTRT(GTCC & gtcc) {
+    //// WAIT FOR VALID CLOCK, THEN ->
+    Random random;
+    //    mTilesRemaining = (Count) random.between(4u,6u);
+    mTilesRemaining = (Count) 12;
+    return newState(cGOST,cSTATUS_GOOD);
+  }
+
+  Status updateGOST(GTCC & gtcc) {
+    fail(__FILE__,__LINE__);
+    Random random;
+    mTilesRemaining = (Count) random.between(4u,6u);
+    return newState(cGOST,cSTATUS_GOOD);
+  }
+}
+
 /** single Grip Tile Clock Counter. Count tile edges while in current grip.
     \symbol GT
     \color #c3e
  */
 element GTCC : HOpUnary + Grip + Fail {
+
+  //SpikeLeft mStateMachine;
+  Corral mStateMachine;
 
   typedef Unsigned(XBarSpace2D.cGRIPBITS) MyGripVal;
   MyGripVal mLastGrip = MyGripVal.maxof;
@@ -11,13 +160,11 @@ element GTCC : HOpUnary + Grip + Fail {
   ChangeTimer mEdgeTimer[2]; // [0] front, [1] back
   ChangeTimer mRegripTimer;
 
-  typedef GreyClok.ClokState ClokState;
   constant ClokState cCLOK_NONE = GreyClok.cCLOK_NONE;
   ClokState mNewCloks[2] = {cCLOK_NONE, cCLOK_NONE}; // [0] front, [1] rear
   ClokState mLastCloks[2] = {cCLOK_NONE, cCLOK_NONE};
 
   typedef Unsigned(6u) TileCount;
-  TileCount mTilesInGrip;
   
   Void behave() {
 
@@ -27,18 +174,29 @@ element GTCC : HOpUnary + Grip + Fail {
     else if (mRegripTimer.countAlarm()) {
       mLastGrip = (MyGripVal) gripnum;
       mD&&pR("GTCCX12")&&pR(self);
-      mTilesInGrip = 0u;
+      mStateMachine.reset(self);
     }
 
     /// RUN EDGE TIMERS
     for (Unsigned i = 0u; i < 2u; ++i) {
       if (mNewCloks[i] == mLastCloks[i]) mEdgeTimer[i].reset();
       else if (mNewCloks[i] != GreyClok.cCLOK_NONE && mEdgeTimer[i].countAlarm()) {
-        if (i == 0u && mLastCloks[i] != GreyClok.cCLOK_NONE) ++mTilesInGrip;
+        if (mLastCloks[i] != GreyClok.cCLOK_NONE)
+          mStateMachine.clockEdge(i==0u, mNewCloks[i]);
         mLastCloks[i] = mNewCloks[i];
       }
     }
 
+    /// LET MACHINE THINK 
+    mStateMachine.update(self);
+
+    /// SEND A SIGNAL IF WE CAN
+    {
+      ASCII sig = mStateMachine.makeSig();
+      if (trySendSigViaTAP(sig,TRAKPD.classidof))
+        mStateMachine.recordSigSent();
+    }
+    
     /// AND DO NORMAL BUSINESS
     super.behave();
   }
@@ -64,11 +222,23 @@ element GTCC : HOpUnary + Grip + Fail {
     if (!sig.isOccupied()) return false;
     mD&&pR("GTCCX1010")&&pR(self);
 
-    /// PICK UP CLOCK SIG
-    Unsigned val = sig.getValueUnsigned();
-    for (Unsigned i = 0u; i < 2u; ++i) {
-      mNewCloks[i] = (ClokState) (val%4u);
-      val = val/4u;
+    BeeveeBIM bim;
+    TapIdx sigsrc = sig.mSource;
+
+    if (sigsrc == bim.getTapIdxFromClassId(CLOK.classidof)) {
+      /// PICK UP CLOCK SIG
+      Unsigned val = sig.getValueUnsigned();
+      for (Unsigned i = 0u; i < 2u; ++i) {
+        mNewCloks[i] = (ClokState) (val%4u);
+        val = val/4u;
+      }
+      return false;
+    }
+
+    { Bool oldmd = mD;
+      mD = true;
+      mD&&pR("GTCCX11")&&pR(self)&&pR(sig);
+      mD = oldmd;
     }
 
     return false; // NOT REACHED

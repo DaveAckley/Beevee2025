@@ -60,22 +60,6 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
     return true;            // Needed and made a TAP
   }
 
-  /*
-  Bool makeTAPOLD(XBarSpace2D & xb) {
-    TermTargetLibrary ttl(self);
-    C2D c = xb.getPos2D(); // our pos
-    mD&&pR("XBSBNEW16")&&pR(c);
-    Unsigned tapidx = ttl.getTapIdxAt(c);
-    if (tapidx != Unsigned.maxof) { // we should
-      C2D tapc(0,1);
-      Atom a = ttl.makeTAPInstance(tapidx); // with initted mSenseVert
-      ew[tapc] = a;
-      mD&&pR("XBSBNEW17")&&pR(tapc)&&pR(ew[tapc]);
-      return true;            // Needed and made a TAP
-    }
-    return false;             // Didn't need or already had a TAP
-    }*/
-
   @Override
   virtual Bool stabilize(Intender & in) {
     /// CALL SUPER, BAIL IF DONE
@@ -106,17 +90,7 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
       xb.mSymmetry = (tap.mSenseVert ? cXSV : cXSH);
 
       /// ALSO SET ORIGINATING mTaps
-      if (false) { // OLD WAY
-        /*
-       TermTargetLibrary ttl(self);
-        TapIdx tapidx = ttl.getTapIdx(tap);
-        Bool isSense = (tap is TermSensor);
-        if (tap.mSenseVert == isSense) 
-          xb.mTaps[cW] = xb.mTaps[cE] = tapidx; // swapped sensors and normal motors
-        else
-          xb.mTaps[cN] = xb.mTaps[cS] = tapidx; // normal sensors and swapped motors
-        */
-      } else { // NEW WAY
+      {
         C2D absc = xb.getPos2D();
         mD&&pR("NEWXBSBNEW10")&&pR(absc);
         BeeveeBIM bim;

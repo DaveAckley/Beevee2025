@@ -9,6 +9,8 @@ quark FloodFind + DTU + Fail + QDebugUtils {
   SN mParentSN = 0u;            //< 0u == root
 
   //// FloodFind API
+  virtual Bool isCompatible(FloodFind & ff) ; //< can I get along with that ff?
+
   virtual Bool isGoal(Atom & a) {
     return false;
   }
@@ -80,8 +82,16 @@ quark FloodFind + DTU + Fail + QDebugUtils {
         mFloodState = cFS_FOUND;
         return true;
       }
-      if (a is FloodFind) ++ngbs;
-      else if (a is Empty)
+      if (a as FloodFind) {
+        ++ngbs;
+        if (!isCompatible(a) && a.mFloodState != cFS_DIE) {
+          if (mMyRadius >= a.mMyRadius) // if I'm at least as far as them
+            a.mFloodState = cFS_DIE;    // they die (or we both die)
+          else
+            mFloodState = cFS_DIE;      // otherwise I die (or we both do)
+          return true;
+        }
+      } else if (a is Empty)
         emppick.update(sn);
     }
     Random random;
@@ -113,6 +123,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
 
   Bool dieTrue() {
     EventWindow ew;
+    mD&&pR("FFdT10");
 
     ew[0] = Empty.instanceof;
     return true;
@@ -163,6 +174,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
   }
 
   Bool doTrace() {
+    mD&&pR("FFdTr");
     setKidsTo(cFS_PRUNE,cFS_TRACE);
     setParentTo(cFS_FOUND);
     mFloodState = cFS_TRACE;
@@ -184,6 +196,10 @@ quark FloodFind + DTU + Fail + QDebugUtils {
       consumeRoot();
       return true;
     }
+    case cFS_DIE: {
+      setKidsTo(cFS_DIE);
+      return dieTrue();
+    }
     otherwise: { fail(__FILE__,__LINE__); }
     }
     DebugUtils du;
@@ -192,17 +208,28 @@ quark FloodFind + DTU + Fail + QDebugUtils {
   }
 
   Bool updateState() {
+    mD&&pR("FFuSt10");
     EventWindow ew;
     if (mParentSN == 0u) return updateRootState(); // we are root
+
+    //// ENSURE RICH DIE TOO, EVENTUALLY
+    {
+      Random random;
+      if (mMyRadius >= mMaxRadius && // if I'm at max size ever to be
+          random.oneIn(50000u))      // take last ditch death shot
+        return doDie();
+    }
+
     if (!ew.isAccessible(mParentSN)) return dieTrue();
     FloodState m = mFloodState; // my state
     FloodState p = cFS_NONE;    // assume no parent
 
+    mD&&pR("FFuSt11");
     Atom & a = ew[mParentSN];
     if (a as Self) {
       p = a.mFloodState;
       if (a.mMyRadius+1u != mMyRadius) return dieTrue(); // ?
-    } else if (a is Empty) return dieTrue(); // ?
+    } else if (!(a is Axon)) return dieTrue(); // die if bogus parent
 
     which(m) {
       case cFS_FLOOD: {
@@ -286,6 +313,13 @@ element FloodFindClassId : FloodFind {
     ClassId aid = cu.getClassId(a);
     return cu.isBase(aid,mClassId);
   }
+
+  @Override
+  virtual Bool isCompatible(FloodFind & ff) {
+    if (ff as Self) return mClassId == ff.mClassId;
+    return false;
+  }
+
 }
 
 /** demo find
@@ -297,6 +331,12 @@ element FloodFindTAP : FloodFind {
   virtual Bool isGoal(Atom & a) {
     return a is TAP;
   }
+
+  @Override
+  virtual Bool isCompatible(FloodFind & ff) {
+    return ff is Self;          // for demo, us is us?
+  }
+  
 }
 
 /** find axon dest and init
@@ -319,6 +359,15 @@ element FloodFindTAPIdx : FloodFind {
       TapIdx abx = a.getAxonTap(cAXON_HEAD_IDX);
       if (mBranchOK && mRemote == abx) return true;
     }
+    return false;
+  }
+
+  @Override
+  virtual Bool isCompatible(FloodFind & ff) {
+    if (ff as Self)
+      return
+        ff.mRemote == mRemote &&
+        ff.mLocal == mLocal;
     return false;
   }
 

@@ -1,13 +1,189 @@
-element TRAKPD {
+union ImmVal5 {
+  typedef Unary(5u) IVUna;
+  IVUna asUnary;
+
+  typedef Unsigned(5u) IVUns;
+  IVUns asUnsigned;
+
+  typedef Int(5u) IVInt;
+  IVInt asInt;
+
+  typedef Bits(5u) IVBits;
+  IVBits asBits;
+
+  typedef Bool(5u) IVBool;
+  IVBool asBool;
+}
+
+union ImmVal4 {
+  typedef Unsigned(4u) IVUns;
+  IVUns asImmUns;
+
+  typedef Int(4u) IVInt;
+  IVInt asImmInt;
+
+  typedef Bits(4u) IVBits;
+  IVBits asImmBits;
+
+  typedef Bool(3u) IVBool;
+  IVBool asImmBool;
+}
+
+union RegInsU {
+  ASCII asASCII;                // as Unsigned(8)
+  RegIns asInsn;                // as instruction
+}
+
+quark RegIns {
+  typedef Unsigned(1u) WriteNotRead;
+  WriteNotRead mRegInsOp;
+
+  typedef Unsigned(2u) RegNum;
+  RegNum mRegNum;
+  constant RegNum cRN_SMIN = 0u; //< rw: speed min register
+  constant RegNum cRN_SMAX = 1u; //< rw: speed max register
+  constant RegNum cRN_SCUR = 2u; //< rw: speed current register
+  constant RegNum cRN_SPAC = 3u; //< rw: special/action register
+
+  ImmVal5 mUVal;                 //< union unsigned/int/bits/bool
+}
+
+quark RegInsOLD {
+  typedef Unsigned(1u) WriteNotRead;
+  WriteNotRead mRegInsOp;
+
+  typedef Unsigned(3u) RegNum;
+  RegNum mRegNum;
+  constant RegNum cRN_ZERO = 0u; //< rd all 0s; wr special0
+  constant RegNum cRN_ONES = 1u; //< rd all 1s; wr special1
+  constant RegNum cRN_SMIN = 2u; //< rw: speed min register
+  constant RegNum cRN_SMAX = 3u; //< rw: speed max register
+  constant RegNum cRN_ACNT = 4u; //< rw: action count register
+  constant RegNum cRN_STAC = 5u; //< rw: status/action register
+  constant RegNum cRN_RSV1 = 6u; //< rw: fail reserved1
+  constant RegNum cRN_RSV2 = 7u; //< rw: fail reserved2
+
+  ImmVal4 mUVal;                 //< union unsigned/int/bits/bool
+}
+
+quark SeqCore + DTU + Fail {
+  typedef RegInsU SeqCoreInsn;
+  SeqCoreInsn mIR;
+
+  typedef Unsigned(7u) ActionCount;
+  ActionCount mAR;
+
+  typedef Bits(8) ActStatus;
+  ActStatus mSR;
+}
+
+element TRAKPD : HOpUnary + Fail {
+ 
+  //// HOpArgsT API
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    BeeveeBIM bim;
+    TapIdx idx = sig.mSource;
+
+    if (idx == bim.getTapIdxFromClassId(GTCC.classidof)) { // insns bound for TRAKPD
+      mD&&pR("TRAKPDS2D/insn");
+      mD&&pR(sig);
+      return 0;                 // want it
+    }
+    return 1;                   // don't want it
+  }
+
+  //// TermHOp API
+  virtual Bool execute(SlotSig & result) {
+    /// REFRESH GRIPNUM
+    SN sn = 2u;
+    if (!ew.isAccessible(sn)) return false;
+    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
+    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+   
+    mD&&pR("TRKX11")&&pR(xb);
+
+    if (!xb.hasSymmetry()) return false; // too soon?
+
+    Unsigned gripnum = getGripNumber(); // our current grip
+    if (gripnum != xb.getGripNumber()) {
+      gripnum = xb.getGripNumber();
+      setGripNumber(gripnum);
+      mD&&pR("TRKX12")&&pR(self);
+    }
+
+    GripInfoMap gim(self);
+    if (gripnum != gim.cGRIP_TRACK)
+      return false;
+
+    SlotSig & sig = getSlotSig(0u);
+    if (!sig.isOccupied())
+      return false; // ??
+    ASCII val = sig.getValueUnsigned();
+    sig.reset();
+
+    executeSig(val);
+    return false;   // true from execute() means ship result.. 
+  }
+
+  //// TRAKPD SERVICES
+  Bool isWheelMode() {
+    return mWheelSpeedControl;
+  }
+
+  Bool executeSig(ASCII val) {
+    SpeedO spo;
+    SpeedO.SpeedOp op;
+    SpeedO.SpeedCode code;
+    spo.unpackSpeedO(val, op, code);
+    return executeOp(op,code);
+  }
+
+  Bool executeOp(SpeedO.SpeedOp op, SpeedO.SpeedCode code) {
+    SpeedO spo;
+    Int speed = spo.getSpeedFromCode(code);
+    which (op) {
+    case SpeedO.cSO_SET_MIN: 
+    case SpeedO.cSO_SET_MAX:
+      {
+        mWheelSpeedControl = false;
+        if (op == SpeedO.cSO_SET_MIN)
+          mTargetMinSpeed = speed;
+        else
+          mTargetMaxSpeed = speed;
+        break;
+      }
+    case SpeedO.cSO_SET_LEFT: 
+    case SpeedO.cSO_SET_RIGHT:
+      {
+        mWheelSpeedControl = true;
+        if (op == SpeedO.cSO_SET_LEFT)
+          mTargetMinSpeed = speed; // ? Use min for left in wheel mode??
+        else
+          mTargetMaxSpeed = speed; // ? And max for right?????
+        break;
+      }
+    }
+    return true;
+  }
+  
+  Bool mWheelSpeedControl = false;
+
   typedef FixedPoint(9u,14u) FP500;
   FP500 mLastError;
-  FP500 mIntegralErrors;
+
+  typedef FixedPoint(7u,2u) FP30;
+  FP30 mTargetMaxSpeed;
+  FP30 mTargetMinSpeed;
+
+  typedef FP30 MotorSpeeds[2];
+  
+  // SeqCore mPU;
 
   FP500 getKP(FP500 maxspeed, FP500 maxerror) {
     return maxspeed/maxerror;   //< DEFAULT VALUE
   }
   FP500 getKI(FP500 maxspeed, FP500 maxerror) {
-    return FP500.instanceof(0);   //< DEFAULT VALUE
+    return FP500.instanceof(0);   //< DEFAULT AND ONLY VALUE WE'RE USING
   }
   FP500 getKD(FP500 maxspeed, FP500 maxerror) {
     return getKP(maxspeed,maxerror)*FP500.instanceof(4);   //< DEFAULT VALUE: kD = 4*kP
@@ -23,13 +199,6 @@ element TRAKPD {
     mLastError = mLastError*fracO + thisError*fracN;
     return mLastError;
   }
-
-  typedef FixedPoint(7u,2u) FP30;
-  //FP30 mTargetSpeed;
-  FP30 mTargetMaxSpeed;
-  FP30 mTargetMinSpeed;
-
-  typedef FP30 MotorSpeeds[2];
 
   Void update(FP500 linePos, MotorSpeeds speeds) {
     speeds[0].setFraction(3,5);

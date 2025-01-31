@@ -1,0 +1,67 @@
+quark SpeedO + DTU + Fail {
+
+  typedef Unsigned(4u) SpeedCode;
+  constant Int cSPEED_CODES[SpeedCode.maxof+1u] = {
+    -8, // 0x0
+    -4, // 0x1
+    -2, // 0x2
+    -1, // 0x3
+
+     0, // 0x4
+     1, // 0x5
+     2, // 0x6
+     3, // 0x7
+
+     4, // 0x8
+     8, // 0x9
+    16, // 0xa
+    20, // 0xb
+
+    25, // 0xc
+    30, // 0xd
+    35, // 0xe
+    Int.maxof, // 0xf (Illegal, reserved)
+  };
+
+  Int getSpeedFromCode(SpeedCode sc) {
+    if (sc >= 0xf) fail(__FILE__,__LINE__,"Illegal speed code");
+    return cSPEED_CODES[sc];
+  }
+
+  constant SpeedCode cNO_LARGER[] = {
+ //            -8,  -7,  -6,  -5,  -4,  -3,  -2,  -1,
+              0x0, 0x0, 0x0, 0x0, 0x1, 0x1, 0x2, 0x3,
+ //   0,   1,   2,   3,   4,   5,   6,   7,   8,   9,
+    0x4, 0x5, 0x6, 0x7, 0x8, 0x8, 0x8, 0x8, 0x9, 0x9,
+ //  10,  11,  12,  13,  14,  15,  16,  17,  18,  19,
+    0x9, 0x9, 0x9, 0x9, 0x9, 0x9, 0xa, 0xa, 0xa, 0xa,
+ //  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
+    0xb, 0xb, 0xb, 0xb, 0xb, 0xc, 0xc, 0xc, 0xc, 0xc,
+ //  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,
+    0xd, 0xd, 0xd, 0xd, 0xd, 0xe, 0xe, 0xe, 0xe,  0xe,
+  };
+  SpeedCode getNoLarger(Int speed) {
+    if (speed < cSPEED_CODES[0x0]) return 0x0;
+    if (speed > cSPEED_CODES[0xe]) return 0xe;
+    return cNO_LARGER[speed-cSPEED_CODES[0x0]];
+  }
+
+  typedef Unsigned(4u) SpeedOp;
+  constant SpeedOp cSO_SET_MAX =    0u;
+  constant SpeedOp cSO_SET_MIN =    1u;
+  constant SpeedOp cSO_SET_LEFT =   2u;
+  constant SpeedOp cSO_SET_RIGHT =  3u;
+  // XXX REST UNDEFINED!
+
+  ASCII packSpeedO(SpeedOp op, SpeedCode sc) {
+    Bits ret = (op<<4u)|sc;
+    return (ASCII) ret;
+  }
+
+  Bool unpackSpeedO(ASCII a, SpeedOp &op, SpeedCode &sc) {
+    op = (SpeedOp) ((a>>4u)&0xf);
+    sc = (SpeedCode) (a&0xf);
+    return true;
+  }
+
+}

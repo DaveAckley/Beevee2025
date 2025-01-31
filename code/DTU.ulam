@@ -3,6 +3,12 @@
  */
 quark DTU {
 
+  //// GreyClok and friends ClokState
+  typedef Unary(2) ClokState;
+  constant ClokState cCLOK_TICK = 0u; //< left high, right low
+  constant ClokState cCLOK_TOCK = 1u; //< left low, right high
+  constant ClokState cCLOK_NONE = 2u; //< unsettled state
+
   //// Axon end marking
   typedef Unsigned(1) AxonIdx;
   constant AxonIdx cAXON_HEAD_IDX = 0u;

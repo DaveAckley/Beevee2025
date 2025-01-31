@@ -1,0 +1,134 @@
+quark Corral + DTU + Fail + QDebugUtils {
+  typedef Unsigned(3u) State;
+  constant State cINIT = 0u;    //< reset main program
+  constant State cSTRT = 1u;    //< reset whatever and choose N
+  constant State cGOST = 2u;    //< accelerate and go straight N tiles
+  constant State cSLOW = 3u;    //< decelerate as turn approaches
+  constant State cSTP1 = 4u;    //< stop with rear greys on the line
+  constant State cTURN = 5u;    //< turn left 'in place'
+  constant State cSTP2 = 6u;    //< stop with front greys straddling line
+  constant State cDONE = 7u;    //< accelerate out of turn
+  State mState = cINIT;
+  Bool mAwaitTock = false;      //< what we're looking for during turn
+
+  constant SpikeLeftCmd cSTATE_CMDS[] = {
+    { .mSpeedNotWheel = true,        //< 0 cINIT
+      .mSpeed1 = 1, .mSpeed2 = 1 },
+    { .mSpeedNotWheel = true,        //< 1 cSTART
+      .mSpeed1 = 0, .mSpeed2 = 2 },
+    { .mSpeedNotWheel = true,        //< 2 cGOST
+      .mSpeed1 = 8, .mSpeed2 = 25 },
+    { .mSpeedNotWheel = true,        //< 3 cSLOW
+      .mSpeed1 = 4, .mSpeed2 = 8 },
+    { .mSpeedNotWheel = true,        //< 4 cSTP1
+      .mSpeed1 = 2, .mSpeed2 = 3 },
+    { .mSpeedNotWheel = false,       //< 5 cTURN
+      .mSpeed1 = -2, .mSpeed2 = 2 },
+    { .mSpeedNotWheel = true,        //< 6 cSTP2
+      .mSpeed1 = 1, .mSpeed2 = 3 },
+    { .mSpeedNotWheel = true,        //< 7 cDONE
+      .mSpeed1 = 3, .mSpeed2 = 10 },
+  };
+    
+  typedef Unary(2u) Status;
+  constant Status cSTATUS_GOOD = 0u; //< things going okay
+  constant Status cSTATUS_WAIT = 1u; //< blocked but things could pick up again
+  constant Status cSTATUS_FAIL = 2u; //< attempt to turn has failed; do something else
+
+  //// Corral SERVICES
+  Void gripChange() { newState(cINIT,cSTATUS_GOOD); }
+
+  ASCII makeSig() {
+    SpikeLeftCmd cmd = cSTATE_CMDS[mState];
+    SpeedO spo;
+    SpeedO.SpeedOp op = cmd.mSpeedNotWheel ?
+      (mSecondSignal ? SpeedO.cSO_SET_MAX : SpeedO.cSO_SET_MIN) : // want a speed
+      (mSecondSignal ? SpeedO.cSO_SET_RIGHT : SpeedO.cSO_SET_LEFT); // want a wheel
+    SpeedO.SpeedCode sc =
+      spo.getNoLarger( mSecondSignal ? cmd.mSpeed2 : cmd.mSpeed1 );
+    ASCII a = spo.packSpeedO(op,sc);
+    return a;
+  }
+  Void recordSigSent() {
+    mSecondSignal = !mSecondSignal;
+  }
+
+  Status clockEdge(Bool frontNotBack, ClokState newstate) {
+    if (mState == cGOST) {
+      if (frontNotBack && newstate != cCLOK_NONE) {
+        if (--mTilesRemaining == 0u) return newState(cSLOW,cSTATUS_GOOD);
+      }
+      // don't care about unsettled or back clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSLOW) {
+      if (frontNotBack && newstate != cCLOK_NONE) {
+        mAwaitTock = (newstate == cCLOK_TICK);
+        return newState(cSTP1,cSTATUS_GOOD);
+      }
+      // don't care about back clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSTP1) {
+      if (!frontNotBack && newstate != cCLOK_NONE) {
+        return newState(cTURN,cSTATUS_GOOD);
+      }
+      // don't care about front clocks now
+      return cSTATUS_GOOD;
+    }
+    if (mState == cTURN) {
+      ClokState want = mAwaitTock ? cCLOK_TOCK : cCLOK_TICK;
+      if (frontNotBack && newstate == want) // wait for desired clock
+        return newState(cSTP2,cSTATUS_GOOD);
+      return cSTATUS_GOOD;
+    }
+    if (mState == cSTP2) {
+      if (frontNotBack && newstate != cCLOK_NONE) // wait for valid clock
+        return newState(cDONE,cSTATUS_GOOD);
+      return cSTATUS_GOOD;
+    }
+    if (mState == cDONE) {
+      if (frontNotBack && newstate != cCLOK_NONE) // go slow til next front edge
+        return newState(cSTRT,cSTATUS_GOOD); // SPIKE Let's Go AgAIN. 
+      return cSTATUS_GOOD;
+    }
+    fail(__FILE__,__LINE__);    // why don't you write me
+    return cSTATUS_FAIL;
+  }
+
+  //// SpikeLeft INTERNALS
+
+  typedef Unsigned(6u) Count;
+  Count mTilesRemaining;
+  Count mEdgeSize;
+
+  Bool mSecondSignal; //< false: send first sig of pair, true: send second
+
+  Status newState(State newstate, Status status) {
+    mState = newstate;
+    return status;
+  }
+
+  Void reset(GTCC & gtcc) {
+    newState(cINIT,cSTATUS_GOOD);
+  }
+
+  Status update(GTCC & gtcc) {
+    takeDebug(gtcc);
+    mD&&pR("SKLU10")&&pR(mState);
+    which (mState) {
+    case cINIT: {
+      mEdgeSize = 46u;
+      return newState(cSTRT,cSTATUS_GOOD);
+    }
+    case cSTRT: {
+      if (mEdgeSize > 4u) mEdgeSize -= 2u;
+
+      mTilesRemaining = mEdgeSize;
+      return newState(cGOST,cSTATUS_GOOD);
+    }
+    }
+    // FALL THROUGH
+    return cSTATUS_FAIL;
+  }
+}

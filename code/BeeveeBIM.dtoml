@@ -28,7 +28,7 @@
   outdir=N
   pos=[-18,-1]
   inputs=[SFLG, SFCG, SFRG, SRRG, SRLG]
-  outputs=[HFLG, HFRG, HRRG, HRLG, CLOK, TRAK]
+  outputs=[HFLG, HFRG, HRRG, HRLG, CLOK, TRAKPD, TRAK]
   axons=[[HFLG,IFLG],
          [HFRG,IFRG],
          [HRRG,IRRG],
@@ -56,3 +56,4 @@
   pos=[-13,-10]
   inputs=[GTCC]
   outputs=[OCLK]
+  axons=[[GTCC,TRAK]]
