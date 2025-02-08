@@ -3,7 +3,7 @@
     \color #1133dd
  */
 element TRAK : HOpTernary + Grip + Fail {
-  typedef TRAKPD.FP500 FP500;
+  typedef TRAKPD.FPErr FPErr;
   typedef Unsigned(2u) MyState;
   MyState mState = 0u;
   constant MyState cSTATE_TRACK = 0u;  //< continue forward til events
@@ -358,58 +358,73 @@ XXX NO PD..i get it
     }
 
     constant Int cMAX_ERR = 2*32; // let's say full +- range, not abs(err)..
-    constant Int cMAX_CAL_SPEED = 3;  // max for calibration purposes
-    FP500 maxerror(cMAX_ERR);
-    FP500 maxcalspeed(cMAX_CAL_SPEED);
+    //Sat Feb  1 12:13:56 2025     constant Int cMAX_CAL_SPEED = 3;  // max for calibration purposes
+    constant Int cMAX_CAL_SPEED = 4;  // bigger for harder corrections
+    FPErr maxerror(cMAX_ERR);
+    FPErr maxcalspeed(cMAX_CAL_SPEED);
 
-    FP500 minfp500 = maxerror.getMin(); // used as a flag only
+    FPErr minfp500 = maxerror.getMin(); // used as a flag only
 
-    FP500 kP = pd.getKP(maxcalspeed,maxerror);
-    FP500 kD = pd.getKD(maxcalspeed,maxerror);
+    FPErr kP = pd.getKP(maxcalspeed,maxerror);
+    FPErr kI = pd.getKI(maxcalspeed,maxerror);
+    FPErr kD = pd.getKD(maxcalspeed,maxerror);
 
     Int trackingError = 0;
     Bool inputsValid = mapio(vl,vc,vr,trackingError);
-    FP500 rawerr(trackingError);     // -32..32
-    FP500 abserr(rawerr.abs());      // abserr in sensor error space
+    FPErr rawerr(trackingError);     // -32..32
+    FPErr abserr(rawerr.abs());      // abserr in sensor error space
 
-    FP500 lasterr = pd.getLastError();
+    FPErr lasterr = pd.getLastError();
+    FPErr integralerr = pd.getIntegralError();
 
     if (inputsValid) {
       if (lasterr == minfp500) {     // if 'previously invalid' flag
         lasterr = rawerr;          // just use current error now
         pd.setLastError(rawerr);   // and remember that for next time
-      } else
+        //pd.setIntegralError(FPErr.instanceof(0)); // and leave the integral alone
+      } else {
         pd.updateError(rawerr,100u); // update last error for next time when running valid
+        FPErr scalederr(rawerr);
+        scalederr /= FPErr.instanceof(10);      // make error integration range -3.2 -> 3.2
+        integralerr = integralerr + scalederr;
+        FPErr maxIntErr(32), minIntErr(-32);
+        if (integralerr > maxIntErr) integralerr = maxIntErr;
+        else if (integralerr < minIntErr) integralerr = minIntErr;
+
+        pd.setIntegralError(integralerr);
+      }
     } else {
       pd.setLastError(minfp500);   // flag invalid inputs for next time
       lasterr = rawerr;          // and use current error for now
     }
     
-    FP500 adj = kP*rawerr + kD*(rawerr - lasterr); // adj in motor speed space
+    FPErr adj = kP*rawerr - kI*integralerr + kD*(rawerr - lasterr); // adj in motor speed space
 
     Int curMinTargetSpeed = pd.mTargetMinSpeed.randomRound();
     Int curMaxTargetSpeed = max(curMinTargetSpeed,pd.mTargetMaxSpeed.randomRound());
     //   if (curTargetSpeed > targetSpeed) ++targetSpeed;
     //   else if (curTargetSpeed < targetSpeed) --targetSpeed;
    
-    FP500 curspeed(mSpeed);
-    //   FP500 curtarget(targetSpeed);
+    FPErr curspeed(mSpeed);
+    //   FPErr curtarget(targetSpeed);
 
     if (true) {
       ByteStreamLogger log;
       log.print("IV:"); log.print(inputsValid); log.print(" ");
-      //log.print("kP:"); kP.printTo(log); log.print(" ");
+      log.print("kP:"); kP.printTo(log); log.print(" ");
+      log.print("kI:"); kI.printTo(log); log.print(" ");
       //log.print("kD:"); kD.printTo(log); log.print(" ");
       log.print("CS:"); curspeed.printTo(log); log.print(" ");
       //   log.print("TS:"); curtarget.printTo(log); log.print(" ");
       log.print("RE:"); rawerr.printTo(log); log.print(" ");
+      log.print("IE:"); integralerr.printTo(log); log.print(" ");
       log.print("LE:"); lasterr.printTo(log); log.print(" ");
       log.print("AJ:"); adj.printTo(log); log.print(" ");
       log.print("\n");
     }
 
-    FP500 target[2];
-    Bool smallErr = inputsValid && (abserr < FP500.instanceof(12));
+    FPErr target[2];
+    Bool smallErr = inputsValid && (abserr < FPErr.instanceof(12));
 
     Bool goright = false;
     if (mTurnState == cTURN_STATE_LEFT || (goright = (mTurnState == cTURN_STATE_RIGHT))) {
@@ -437,7 +452,7 @@ XXX NO PD..i get it
 
       if (inputsValid) {
         //       if (mSpeed < cTRACKING_SPEED && smallErr && random.oneIn(30u)) ++mSpeed;
-        if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(10u)) ++mSpeed;
+        if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(5u)) ++mSpeed;
         target[0] = curspeed + adj;
         target[1] = curspeed - adj;
       } else {
@@ -456,7 +471,7 @@ XXX NO PD..i get it
         } else {
           if (!smallErr && random.oneIn(2u))
             mSpeed  = (MySpeed) max(curMinTargetSpeed,mSpeed-1u);
-          FP500 amt(curMinTargetSpeed,2); // half min?
+          FPErr amt(curMinTargetSpeed,2); // half min?
           target[0] = curspeed+amt;
           target[1] = curspeed-amt;
         }

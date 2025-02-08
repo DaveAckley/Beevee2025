@@ -17,15 +17,15 @@ quark Corral + DTU + Fail + QDebugUtils {
     { .mSpeedNotWheel = true,        //< 1 cSTART
       .mSpeed1 = 0, .mSpeed2 = 2 },
     { .mSpeedNotWheel = true,        //< 2 cGOST
-      .mSpeed1 = 8, .mSpeed2 = 25 },
+      .mSpeed1 = 10, .mSpeed2 = 30 },
     { .mSpeedNotWheel = true,        //< 3 cSLOW
       .mSpeed1 = 4, .mSpeed2 = 8 },
     { .mSpeedNotWheel = true,        //< 4 cSTP1
-      .mSpeed1 = 2, .mSpeed2 = 3 },
+      .mSpeed1 = 3, .mSpeed2 = 4 },
     { .mSpeedNotWheel = false,       //< 5 cTURN
       .mSpeed1 = -2, .mSpeed2 = 2 },
     { .mSpeedNotWheel = true,        //< 6 cSTP2
-      .mSpeed1 = 1, .mSpeed2 = 3 },
+      .mSpeed1 = 2, .mSpeed2 = 3 },
     { .mSpeedNotWheel = true,        //< 7 cDONE
       .mSpeed1 = 3, .mSpeed2 = 10 },
   };
@@ -118,11 +118,11 @@ quark Corral + DTU + Fail + QDebugUtils {
     mD&&pR("SKLU10")&&pR(mState);
     which (mState) {
     case cINIT: {
-      mEdgeSize = 46u;
+      mEdgeSize = 42u;
       return newState(cSTRT,cSTATUS_GOOD);
     }
     case cSTRT: {
-      if (mEdgeSize > 4u) mEdgeSize -= 2u;
+      if (mEdgeSize > 5u) mEdgeSize -= 3u;
 
       mTilesRemaining = mEdgeSize;
       return newState(cGOST,cSTATUS_GOOD);

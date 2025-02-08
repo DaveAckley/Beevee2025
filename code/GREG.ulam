@@ -438,7 +438,7 @@ element TriggerBoxStep + DTU {
 
     Unsigned curgrip = grip.getGripNumber();
 
-    //XXXXXX
+    //XXXXXX  DO ENSURE ONLY TRACK AND NORED THESE DAYS
     {
       if (curgrip != GripInfoMap.cGRIP_TRACK &&
           curgrip != GripInfoMap.cGRIP_NORED) {
@@ -448,6 +448,7 @@ element TriggerBoxStep + DTU {
     }
     //XXXXXX
     
+    if (false) { // DON'T BOX STEP THESE DAYS
     which (mMyState) {
       case cAWAIT_RED: {
         if (curgrip == GripInfoMap.cGRIP_NORED) {
@@ -489,6 +490,7 @@ element TriggerBoxStep + DTU {
           }
         } else mWait = 0u;
       }
+    }
     }
   }
 }

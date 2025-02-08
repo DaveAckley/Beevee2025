@@ -39,7 +39,7 @@ element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
   }
 
   Void behave() {
-    {
+    if (true) {
       EventWindow ew;
       Random random;
       if (ew[1] is Empty && random.oneIn(100u))
@@ -100,9 +100,9 @@ element GRIP : TermMotor + Grip { // TermMotor first so super isa TAP
     }
 
     ///// GRIP WATCHDOG TIMER (and bail on grips not controlled by us)
-    if (gim.isOrientGripNum(gripnum) ||
+    if (gim.isOrientGripNum(gripnum) ||   
         gripnum == GripInfoMap.cGRIP_TRACK) {
-      if (mGripWatchDog.countAlarm()) {
+      if (mGripWatchDog.countAlarm() && gripnum != GripInfoMap.cGRIP_TRACK) { // NO FORCED SWITCH FOR TRACK!?
         tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
         mD&&pR("GRBV011")&&pR(self);
       } else if (mGripWatchDog.current() > 3u) { // ugh anti-auto-race delay
