@@ -1,4 +1,4 @@
-{138}  -*-  mode: text; fill-column: 50;  -*-
+{440}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -1057,19 +1057,23 @@ Sat Jan 25 10:57:02 2025 OK, so more
 
 TODO
 
- - Review/develop ideas for :102: above
- - Define some kind of 'command struct', able to
+[281: Sat Mar  1 11:05:34 2025 (re-reviewing now..)
+DONE :281] - Review/develop ideas for :102: above
+[282: Well, did SpeedO, which is more primitive, but
+DONE :282] - Define some kind of 'command struct', able to
    represent things like 'straight 3 tiles', 'turn
    right 90', 'turn left 180'.
- - Make or mod a unit to execute a single given
+[283: TRAKPD.executeOp kind of does this..
+DONE :283] - Make or mod a unit to execute a single given
    command struct, and maintain state representing
    in-progress / success / failure
- - Make a spike element to sit near the executor
+[284: Well, Corral is currently built into GTCC
+DONE :284] - Make a spike element to sit near the executor
    and give it a random command whenever it's not
    'in-progress'
- - Be amused by all its failures to work
- - See it start kinda working and laugh at that too.
- - Claim to-dos and
+[285: DONE  :285] - Be amused by all its failures to work
+[286: DONE  :286] - See it start kinda working and laugh at that too.
+[287: DONE  :287] - Claim to-dos and
  - Make some more to-dos.
 
 :104]
@@ -1455,7 +1459,7 @@ Tue Jan 28 16:12:01 2025 Making DTU.ClokState.
 Tue Jan 28 16:44:44 2025 OK, getting closer to
 issuing potentially meaningful insns. Need to
 represent that speed code crap somewhere and
-stuff. 
+stuff.
 
 :134]
 :133]
@@ -1470,7 +1474,7 @@ want to deliver 'speedo' opcodes to TRAKPD while
 we're in a virtual method. So even though we've
 done the work to develop a TRAKPD & local variable
 farther up the stack, we can't see it from inside
-this callback. 
+this callback.
 
 So that's aggravating. Common enough, of course..
 and aggravating.
@@ -1493,3 +1497,4531 @@ some turn control actually happen. We shall see.
 :136]
 
 :135]
+[138:
+
+Sat Feb  8 03:24:29 2025 There's a jump; week and
+a half. [140: Sat Feb  8 03:53:38 2025 And yes, we
+saw actual turn control happen, in spades. :140]
+
+I want
+[139:
+
+Sat Feb  8 03:46:55 2025
+
+what about HC4?
+pain in the ass
+
+advertise in and out separately
+
+ xbar nodes have room for eight tapids?
+
+
+ - redo xbar to support taps on all four sides.
+
+ - redo xspace2drectfrobetc for more direct
+   representation of orientation. Or maybe we'll
+   just be ditching orientation, with all four
+   sides counting both as potential inputs and
+   outputs?
+
+ - call multi-dispatch methods at xbar
+   intersections.
+
+ - eye + eyestalk fusion for world vectors
+   = programmable eyestalk error function
+     to track color blobs
+
+ - programmable error measure, at least wrt colors
+   from all five gray sensors
+
+   -> xbar for programmable error measure?
+
+:139]
+
+[141:
+
+Sat Feb  8 04:42:01 2025
+
+ - What about a redone xbar that creates it's own
+   free-floating bounded 2D space, rather than
+   necessarily nesting in a bigger std space.
+   = one could always add an interface to such an
+     embedding space if one fancied
+   = but this would mean that coordinates could be
+     much more compact.. do we even need
+     coordinates? that's not just another index?
+     - but it measures distance; tap ids do not.
+
+[142:
+
+Sat Feb  8 04:49:01 2025 Gah - different xbar
+strides? If we've pulling then apart, why not?
+
+:142]
+
+:141]
+ - Re-done error measure to
+   depend not just on front center grey,
+   but also like 75-100% of each front corner
+   grey at the edges of the domain. so if
+   inputs considered valid, it might be like
+
+   X-75%L    C%    X-100%R
+     75
+
+   0-8..  16-48  ..56-64
+
+  -31..-24 -16..16 ..24-31
+
+
+so we ought to be able to
+compute the 'actual' error
+taking beevee's chassis size
+and camera configurations
+as given
+
+<80%L || <80%R, INPUTS INVALID
+<100%L &% <100%R, INPUTS INVALID
+
+80%-100%L 0%C 100%R
+   0-10 WAY TOO LEFT
+
+100%L 0%-100%C 100%R
+   25-75 somewhat centered
+
+100%L 0%C 80%-100%R
+   90-100 WAY TOO RIGHT
+[145:
+
+Sat Feb  8 12:48:35 2025 Let's review where the
+raw error is developed and see what we might want
+to do to it..[146:
+
+Sat Feb  8 13:31:21 2025 TRAK.mapio(vl,vc,vr,..)
+gets the three grey sensors and compares them in
+various ways.[147:
+
+Sat Feb  8 23:35:55 2025 Now, we could think about
+ways to delegate that call to a 'methyl group', so
+we could override that default tracking error
+computation. Which could be fun, if we could think
+of other such measures. Now, perhaps the
+'sensible' thing would be to make it a tracking
+error state machine, and give it enough
+information and control flow to update its state
+as well as compute the current tracking error.
+
+[148:
+
+Sat Feb  8 23:52:06 2025 So, Corral is our current
+example of a motion control state machine. [149:
+
+Sun Feb  9 00:14:09 2025 It lives in GTCC. Now,
+another thing I'd like to think about is having
+multiple motion control state machines running in
+parallel - like even an xbar full of them - even
+if we only let one of them drive the motors at a
+time. We'd really like to be able to switch
+controllers at the drop of a hat.
+
+Like: See F+R edge + green to confirm 'heading
+east'. Do that whether or not you currently
+officially care about absolute direction.
+
+But then we're back at the uberxbar that surrounds
+everything with everybody.. [150:
+
+Sun Feb  9 00:37:10 2025 So let's focus a little
+bit. We can feed the greys to lots of places;
+that's what xbar.GREYS is for. But right now we
+have the signals going to CLOK, which digests them
+down to a single signal -
+
+      sig += mCLOKs[0].mClokState*1u;
+      sig += mCLOKs[1].mClokState*4u;
+      trySendSigViaTAP((ASCII) sig, GTCC.classidof);
+
+heading for GTCC.
+
+And I do wonder about more complex routing
+patterns among TAPs. I'd like to put GTCC right
+next to CLOK, or on a matching xbar side, and be
+able to ship crap back and forth through the same
+xbar.
+
+[151:
+
+Sun Feb  9 02:12:59 2025 I'm thinking we should
+give some bit of serious focus on generalizing
+xbar, here.
+
+TODO
+[155:Mon Feb 10 00:14:42 2025
+DONE :155] - Review current xbar implementation
+[156: Pretty damn packed  :156]   = What is bit budget like
+[157: DONE  :157]   = Is it worth considering standalone?
+[158: DONE 'XBlock'  :158] - Spike a standalone xbar. Call it.. ybar,
+   xblock, IDK
+
+[152:
+
+Sun Feb  9 02:25:14 2025 Does an XBlock even need
+coordinates?? Well how does it grow? OK.[153:
+
+Sun Feb 9 23:58:43 2025 OK so we have a minimal
+minimal XBlock. It grows and heals, and can be
+killed cleanly by an adjacent atom of KillXBlock.
+It has independent x and y sizes and strides, and
+XBlockStgT (another CRTP go) determines its needed
+bit sizes by itself.
+
+Our demo element displays all of that, in 7b -
+
+  /*__________________________________________________
+  | COMPONENTS of SpikeXBlock10 <210> (7 bits/64 unused):
+  |
+  | Pos	| Bits	| Name	| Type <classid>
+  | 0	| 5	| super	| XBlockStgT(5u,4u,2,3) <209>
+  | 5	| 0	| base	| UrSelf <0>
+  | 5	| 0	| base	| DTU <68>
+  | 5	| 0	| base	| Intender <149>
+  | 5	| 1	| base	| QDebugUtils <69>
+  | 6	| 1	| base	| XBlock <207>
+  | 7	| 0	| base	| XBlockStg <208>
+  | 7	| 0	| base	| Fail <67>
+
+[154:
+
+Mon Feb 10 00:12:16 2025 So, what perhaps next?
+
+TODO
+[159: Mon Feb 10 00:15:25 2025
+DONE :159] - claim prior to-dos
+ - review existing XBar and SlotSig mechanisms
+ - consider at least 3 different ways to route signals
+   = way 1:[163: Tue Feb 11 04:39:38 2025 As atoms
+                 next to xblock atoms :163]
+   = way 2:[164: Via existing SlotSig tech  :164]
+   = way 3:[179: Sat Feb 15 01:21:31 2025 With
+                 xblock tap<->side+pos mappings
+                 hardcoded in XBlockInfo constants
+                 somehow, so no TAPIdx storage is
+                 requied in XBlock instances at
+                 all.. ?  :179]
+[238: Tue Feb 25 00:56:55 2025 Well, did TOCK..
+DONE :238] - choose some minimal minimal thing to try
+[239: DONE  :239] - spike it
+ - get it running
+ - enjoy that
+ - return here
+
+:154]
+
+:153]
+
+:152]
+
+:151]
+
+:150]
+
+:149]
+
+:148]
+
+:147]
+
+
+:146]
+
+:145]
+:138]
+[143:
+
+Sat Feb  8 04:50:51 2025 Four signals for four
+diredctions? Or still just two signals for two
+axes?[144:
+
+Sat Feb  8 05:01:23 2025 Or just one signal with a
+direction? Or two signals each with a direction?
+
+:144]
+
+what about a subspace designator? that provides bits
+about the current space, without providing any
+coordinates or other specifics. A type code for
+regions of space. How do such regions maintain and
+manage themselves and trade with their neighbors?
+
+subspace designators floating around a couple per
+ew, with default physics if not found.
+
+:143]
+[160:
+
+Mon Feb 10 00:15:43 2025 So, SlotSig is currently
+14b a pop, using 6b for 63 possible 'sources'
+(which amount to TapIdx's, I think).
+
+  /*__________________________________________________
+  | COMPONENTS of SlotSig <70> (14 bits/50 unused):
+  |
+  | Pos	| Bits	| Name	| Type <classid>
+  | 0	| 8	| mValue	| Unsigned(8)
+  | 8	| 6	| mSource	| Unsigned(6)
+  | 14	| 0	| super	| UrSelf <0>
+  | 14	| 0	| base	| DTU <68>
+  |___________________________________________________
+
+[161:
+
+Mon Feb 10 00:47:11 2025 Well, stalling here a
+little. What my brain wants to think about is
+whether we could have an XBlockInfo kind of thing
+that would map between XBlock coordinates and
+the TAP classids that are (supposed to be)
+involved.
+
+Then we don't have to tie up any bits at all, for
+the 'genetically hardwired' portion of the
+switching.
+
+But then why not just map TAP classids to (x,y)
+coords and propagate to them via grid space or
+whatever? The xbar routing was supposed to provide
+some freaking value for
+
+(1) Runtime variable routing, and
+(2) Systematic fan-out and fan-in mechanisms
+
+and.. right? We daydreamed about 'doing
+computation in the fabric' but never really did
+much with it..
+
+[162:
+
+Mon Feb 10 00:53:26 2025 (How are we going to
+propagate gripnums in the XBlock? Do we have to
+reach the (0,0) corner to do so? Could we defer to
+'the outside'? Like, we believe
+
+(1) any gripnum supplier that is not xblock, or
+(2) any xblock that is strictly closer to an edge
+    than we are?)
+
+:162]
+
+:161]
+
+:160]
+[165:
+
+Tue Feb 11 04:40:44 2025 What if we ditched the
+overall grid? Then how do we distribute grip
+changes? Could do an ephemeral broadcast spray
+when the grip changes? But then how do we send
+signals back in requesting grip changes? How do we
+find the 'center'?
+
+What if we made an axon tree rooted at the
+(logical) center? Then broadcast grip changes out
+that tree, and accept grip change requests
+inbound back to the root?
+[166:
+
+Tue Feb 11 06:20:48 2025 Now, we don't have
+broadcast down an axon tree implemented, do we?
+
+:166]
+
+:165]
+[167:
+
+Tue Feb 11 12:13:13 2025 OK so I'm struggling with
+how to incorporate XBlocks into an XBarSpace2D
+backdrop. It's not like I have to do that, but how
+do with place XBlocks and distribute grip
+information without it?
+
+I keep thinking of swaplines for movable xblocks
+and letting the xblocks just grow apart until they
+all fit..
+[168:
+
+Wed Feb 12 00:35:08 2025 So, at the moment we're
+just letting XBlock and XBarSpace coexist, with
+the former stepping on the latter where needed and
+the latter interpenetrating the former where
+possible.. We have the XBlocks picking up Grip
+changes from the surrounding XBarSpace.
+[169:
+
+Wed Feb 12 11:58:30 2025 So maybe I could just
+push on with XBlock development, aiming at
+deploying TAPs around (up to) all four edges, and
+settling on some kind of routing scheme to try.
+
+[170:
+
+Thu Feb 13 08:22:12 2025 Well, adding four
+SlotSigs to SpikeXBlock10 burns up all but 3b,
+with nothing to show for taps..[171:
+
+Thu Feb 13 08:36:12 2025 Let's go back to four
+taps and two slotsigs for a try.
+[172:
+
+Thu Feb 13 08:46:57 2025 Four taps and two
+slotsigs leaves 6b. Could push TapIdx up to
+Unsigned(7) and still have 2b..[173:
+
+Thu Feb 13 08:48:30 2025 But I am thinking: What
+about having per-XBlock tapidx->classid mappings?
+Then Unsigned(6) would suffice for a 16x16 xblock
+or a 24x8 xblock (always including one value for
+TAPIDX_NONE..)
+
+We'd need to identify what XBlock we're in, which
+we could do with subclasses or data member bits..
+I guess we could also have a bigger 'absolute tap
+idx' for mapping between xblocks.. For like axons
+to use.
+[174:
+
+Thu Feb 13 09:10:21 2025 Is it worth looking into
+makeBeeveeSources.py to see how much a redo might
+hurt? [175:
+
+Thu Feb 13 09:17:56 2025 OK we've gene-duplicated
+into scripts/makeBeeveeXBlockSources.py and
+code/BeeveeXBlockBIM.dtoml, making
+code/BeeveeXBlockBIM.ulam . Let's see what we can
+bash on..[176:
+
+Thu Feb 13 09:20:27 2025 So I imagine we'll need a
+replacement or extension for XBInfo.. Let's see
+which, we think..[177:
+
+Thu Feb 13 09:22:47 2025 Well, I was leaning
+toward subclassing XBInfo, but now I see the whole
+BrainInfoMap API is based on absolute grid coords:
+
+      //// BrainInfoMap API
+ ..   virtual Unsigned getContainingXBIndex(C2D absc) ;
+
+so we'll have to hack on that (right?) no matter
+what? We were thinking of going with 'internal'
+identifiers in the XBlock somehow. At least, I
+absolutely don't want to recommit to absolute
+coords this early in this process![178:
+
+Thu Feb 13 12:55:47 2025 Going to have to break
+out some smaller development steps here..
+
+
+:178]
+
+:177]
+
+:176]
+
+:175]
+
+:174]
+:173]
+
+:172]
+:171]
+
+:170]
+
+:169]
+
+:168]
+:167]
+[180:
+
+Sat Feb 15 01:54:01 2025 OK so could we rough out
+an XBlock_HOTBOX that would pack in a lot of what
+we currently have spread all over the place? Just
+to see how it might look with 'four way street'
+routing?
+
+Suppose it's on a 2x2 stride. We ought to be able
+to have maybe 15? columns in a single T2 tile. By
+maybe 7? rows?
+
+    SRFR,SRFY,SLFR,SLFY,SLRY,SLLY,SRRY,SRLY,SRRR,SLLR,SFLG,SFCG,SFRG,SRRG,SRLG
+GRIP
+MLRF
+MRRF
+MREY
+MLEY
+GTCC
+    TRAKPD,TRAK,OCLK,GREG
+
+and a position is maybe side+index? Unsigned(2u)+Unsigned(4u)?
+                                    N,S,E,W
+                                    0..15
+
+suppose we just start hacking on the .dtoml to
+make a representation for this.. then see where
+that might lead us?
+
+but nap first I think.
+
+:180]
+[181:
+
+Sat Feb 15 09:38:44 2025 OK hacking in
+BeeveeXBlockBIM and makeBeeveeXBlockSources.py.
+
+Now looking at mergeBrainTAPs, since that is the
+current blowup. [182:
+
+Sat Feb 15 09:41:28 2025 Based on the existing
+stuff, mergeBrainTAPs is making a hash of { sensor
+-> taps.., motor -> taps.., hidden -> taps.. }
+
+..but why? Do we really need the distinction? It
+kind of looks like it lists BeeveeBIM.cTAPClassIds
+(and cTAPNames) in sensor,motor,hidden order, but
+again, does that matter?[183:
+
+Sat Feb 15 09:48:35 2025 I don't think it matters.
+Let's try just alphabetizing all the taps together
+in one list (and that'll get most of the s/m/h
+distinctions anyway..)
+[184:
+
+Sun Feb 16 07:58:42 2025 OK we're continuing
+tearing out the input/output distinction in
+makeBeeveeXBlockSources.py, even though we don't
+exactly know where or how that may come back to
+bite us.
+
+And now we need some kind of constant array /
+indexing scheme to find the taps based on XBlock
+coordinates. Eventually we'll want to be able to
+find the (up to) four taps representing the
+endpoints of any given coord within the xblock.
+
+The 'obvious thing' seems to be four arrays like
+
+  constant ClassId cTAPS_W[] = {{ ..
+  constant ClassId cTAPS_N[] = {{ ..
+  constant ClassId cTAPS_S[] = {{ ..
+  constant ClassId cTAPS_E[] = {{ ..
+
+and then code to decide between them..
+
+Or a single
+  constant ClassId cALL_TAPS[] = {{ ..
+
+where we linearize in groups, and then
+have like
+  constant Unsigned cSIDE_IDXS[4] = { // start indices in cALL_TAPS
+    0u, 8u, 16u, 20u  // W, N, S, E
+  };
+
+or whatever. And I guess also
+
+  constant Unsigned cSIDE_LENS[4] = { // #TAPS per side
+    8u, 8u, 4u, 8u  // W, N, S, E
+  };
+
+or whatever, although I think I'd prefer to have a
+dummy tap that we can slug into missing spots as
+needed. 0u for dummy tap classid?
+
+Something, maybe. Then cSIDE_LEN(GTH)S goes away
+since all sides will be full for indexing
+purposes. Then maybe it's like
+
+Classid getSideTAP(AxialDir side, Unsigned idx) {
+  if ((side == cN || side == cS) && idx >= cXBLOCK_WIDTH)
+    return 0u;
+  if ((side == cE || side == cW) && idx >= cXBLOCK_HEIGHT)
+    return 0u;
+  return cALL_TAPS[cSIDE_IDXS[side]+idx];
+}
+
+and maybe
+
+typedef ClassId DirTaps[4]; //[0] W, [1] N, [2] S, [3] E
+
+DirTaps getTAPs(C2D relc) {
+  DirTaps ret;
+  for (Unsigned d = cW; d <= cE; ++d) {
+    AxialDir ad = (AxialDir) d;
+    ret[d] = getSideTAP(ad, getSideIdx(ad,relc));
+  }
+}
+
+Unsigned getSideIdx(AxialDir ad, C2D relc) {
+  if (ad == cN || ad == cS)
+    return (Unsigned) relc.getX();
+  /* if (ad == cE || ad == cW) */
+  return (Unsigned) relc.getY();
+}
+
+[185:
+
+Sun Feb 16 08:48:20 2025 Well, so that seems
+plausible enough. Shall we go for it?
+[186:
+
+Sun Feb 16 12:21:39 2025 OK well we got rid of the
+obvious problems and now
+makeBeeveeXBlockSources.py is completing without
+python errors. We need more (re)design at the
+BrainInfoMap level to really push forward..
+
+But maybe nap.
+
+:186]
+:185]
+
+:184]
+:183]
+
+:182]
+
+:181]
+[187:
+
+Mon Feb 17 09:10:30 2025 OK, started trying to
+build BeeveeBIMXBlock.ulam and friends, and having
+plennnnnty to work on now..
+
+XBarSpace2DState.ulam:50: trying to autopopulate
+  TAPs. General issue, xbarspace shouldn't be
+  making taps anymore; at most xbarspace should
+  seed xblocks, and xblocks will make their own
+  taps.[188:
+
+Mon Feb 17 09:36:01 2025 For now let's say we're
+going to try to populate XBarSpace, and try to use
+it to seed XBlocks. So how do we do that?
+
+  BeeveeBIMXBlock bibl;
+  Unsigned xbidx = bibl.getXBlockIndexAtOrigin(myHc3Pos);
+  if (xbidx != Unsigned.maxof) {
+    XBInfoBuffer buf;
+    XBInfo & xbinf = bibl.getXBInfo(xbidx, buf);
+    self.initXBlockIfNeeded(xbinf);
+  }
+
+  Bool initXBlockIfNeeded(XBInfo & xb) {
+    sn = find (default or specified) offset to xb origin
+    if (!ew.isAccessible(sn)) return true; // some kinda problem
+    Atom & a = ew[sn];
+    ClassId xbid = xb.getXBInfoXBlockClass();
+    if a stuff isn't xbid stuff stuff ..
+    return stuff;
+  }
+
+:188]
+
+:187]
+[189:
+
+Mon Feb 17 15:06:06 2025 OK, we're at a part in
+TermHOp.ulam where we're trying to find out what
+xblock (nee xbar) we're associated with, and we
+previously used bim.getContainingXBIndex(C2D) to
+do that but we killed that. How do we want to do
+that now?[190:
+
+Mon Feb 17 16:06:41 2025 Well, a TAP should be
+sitting next to an XBlock atom, now, at least in
+general, yes? And we could try to arrange that
+that XBlock is the GripSource& gs.
+
+Now, have we concluded that we're going to use
+subtypes of XBlock to distinguish different
+XBlocks? Or are we thinking some little index
+data member stashed inside? Could have both if we
+wanted. [191:
+
+Mon Feb 17 16:10:26 2025 We're saying XBlock
+inherits from GripStgT(cGRIPBITS), so that's in
+storage and we can certainly be a GripSource.[192:
+
+Mon Feb 17 16:12:35 2025 And we have separate
+XBInfo subclasses for each XBlock.. And each such
+subclass is assigned an index by BeeveeBIMXBlock.
+
+So we could certainly use the
+BeeveeBIMXBlock.cXBClassIds numbers as XBlock type
+identifiers. Say the XBlock API has
+
+ virtual Unsigned getXBlockIndex() ;
+
+and.. I guess we have some subtype XBlockStg or
+something that has
+
+  typedef Unsigned(BeeveeBIMXBlock.cTYPE_BITS) XBlockIndex;
+  XBlockIndex mXBlockIndex;
+  @Override Unsigned getXBlockIndex() { return mXBlockIndex; }
+
+and so on.. Then we have to get the 'seed' XBlockStgs
+properly initted when we build them.
+
+[193:
+
+Mon Feb 17 16:37:49 2025 It does kind of seem like
+we could really have XBlock subclasses, rather
+than XBInfo subclasses.. and stick the XBInfo
+generated stuff inside constants in the XBlock
+subclasses. Maybe.[194:
+
+Mon Feb 17 16:41:29 2025 And fold the XBInfo API
+into the XBlock API.. But then we would have to
+generate an XBlock instance to run any of those
+methods.. [195:
+
+Tue Feb 18 03:48:12 2025 Unless we already had one
+lying around the ew, as we expect we often might..
+
+:195]
+
+:194]
+
+:193]
+
+:192]
+
+:191]
+
+
+:190]
+
+:189]
+[196:
+
+Wed Feb 19 02:41:43 2025 Well, it's taken two
+frikken weeks but the code just built again.. It's
+going to blow up all over the place when we try to
+run it, but still..[197:
+
+Wed Feb 19 10:18:50 2025 OK, so the (still
+existing) XBarState2D's and now deploying the
+XBlock origin atoms in specifiable locations, so
+that's some visible progress finally. The XBlocks
+aren't growing yet so that's an obvious place to
+look next.[198:
+
+Wed Feb 19 10:21:33 2025 Ah I suspect we need a
+non-empty default Intention class?[199:
+
+Wed Feb 19 10:49:41 2025 OK have to get (more)
+serious about distinguishing 'external HC3 coords'
+from 'internal XBlock coords'. The name
+'getPos()', for example, has got to go.[200:
+
+Wed Feb 19 11:20:40 2025 OK, so the XBlocks are
+building themselves out plausibly now. Next stop
+is TAPs.
+
+But first, Angels 1, 2, and 3: Immediate Lunch.
+
+:200]
+
+:199]
+
+:198]
+
+:197]
+
+:196]
+[201:
+
+Wed Feb 19 12:14:57 2025 I guess we're also getting
+pretty close to needing decisions about signals
+and routing in the land of xblocks.
+
+Do we have any kind of inside track on that?
+
+Right now we have plenty of space:
+
+  | COMPONENTS of XBlock_HOTBOX <62> (11 bits/60 unused):
+
+and no signal storage at all. If we went with
+plain as-is SlotSig's, currently at 14b a pop, we
+could have four and still have a few bits left..
+
+SlotSig is based on 'source routing', at least as
+I'm using the phrase.. It contains a source
+tapidx, but no destination tapidx, and the routing
+is supposed to be done in the xblock, by sending a
+copy of the slotsig in every direction that ends
+with a TAP that says it wants to receive it.
+
+If we added like Bool mSent[4] for 4b, we could
+have the signal wait until it's been routed in
+every direction that it wants to go, and then it
+could move on itself.
+
+But what is 'moving on' at this point? We seem to
+be thinking that TAP destinations must either be
+straight ahead or at right angles, so there can be
+no (singly-routed) loopbacks for other U-shaped
+or zig-zag shaped paths.
+
+I guess the idea is you keep going forward in the
+channel you are in, until you reach the end? And
+at each step you consider the other three channels
+to see if they are going somewhere you want? Are
+we going to need a TTL or split-count or something
+to break loops?
+
+And part of the point is: You may find yourself in
+a channel where you don't actually want to go to
+the TAP at the end of your channel. But you go
+that way anyway, because that's what being in a
+channel means.
+
+Such a situation could not be created by
+splitting, since you don't want that channel, but
+it can and may typically be created by the source
+TAP originating the signal.
+
+[202:
+
+Wed Feb 19 12:32:25 2025 Well, this seems kind of
+vaguely plausible..[203:
+
+Wed Feb 19 13:00:40 2025 Well so we're at
+
+      | COMPONENTS of XBlock_HOTBOX <62> (67 bits/4 unused):
+      |
+      | Pos	| Bits	| Name	| Type <classid>
+      | 0	| 5	| super	| XBlockStgT(6u,4u,2,3) <111>
+      | 5	| 56	| base	| SlotSigs(4) <106>
+      | 61	| 0	| base	| UrSelf <0>
+      | 61	| 0	| base	| DTU <70>
+      | 61	| 0	| base	| Grip <99>
+      | 61	| 0	| base	| GripStg <122>
+      | 61	| 0	| base	| Intender <158>
+      | 61	| 4	| base	| GripStgT(4u) <154>
+      | 65	| 1	| base	| QDebugUtils <71>
+      | 66	| 0	| base	| XBInfo <195>
+      | 66	| 1	| base	| XBlock <11>
+      | 67	| 0	| base	| XBlockStg <218>
+      | 67	| 0	| base	| Fail <69>
+
+for the moment. SlotSig uses 6b for tapidx but we
+could go down to 5b in this case given the number
+of taps that HOTBOX actually mentions.. Which
+would save us 4b.. but we still don't have any
+state for non-atomic routing declared (let alone
+implemented).
+
+Could we get away with atomic routing somehow? If
+all channels wanting a copy are empty, we do it
+all in one go, otherwise we wait? What if we could
+just set a flag saying no inward routing, for each
+channel. So (in principle) we could say which ones
+we wanted, and let them drain until all were
+available, and then go atomically. Shirley no
+deadlock risk there oh no no.[204:
+
+Wed Feb 19 13:08:40 2025 Or what if you could only
+dupe onto one other channel at a time, and it's on
+the xblock designers to make that be sufficient
+for what they want? To stagger multiple recipients
+of the same signal across different crossings
+somehow. If there's more than one destination we
+can pick randomly among whatever's available?[205:
+
+Wed Feb 19 14:50:13 2025 OK, let's see if we can
+route something here..
+
+ - atomic action: dupe (or not) and move forward
+   (or die) in one. direction determined by
+   channel, WNSE.
+
+ - taps push signals into adjacent xblock, setting
+   their initial direction
+
+ - taps drain (or delete) signals from the
+   adjacent xblock channel facing them.
+
+[206:
+
+Wed Feb 19 15:31:30 2025 But first we have to
+deploy TAPs.
+[207:
+
+Wed Feb 19 17:00:29 2025 OK time to break for the
+evening. Current state: We're deploying TAPs, but
+only those taps mentioned in the spine file
+(currently PyBulletTime/cfg/sm227.dtoml) survive,
+because they're the only ones that get into
+BeeveeBIMXBlock.cTAPClassIds[], which is what
+getTAPIdxFromClassId relies on.
+
+Need more think on that.[208:
+
+Thu Feb 20 00:04:46 2025 So, this issue is about
+TapIdx numbering. We were fantasizing that we
+could have per-XBlock tapidx numbering, so tapidxs
+would only need to be big enough to represent the
+TAPs that are used by that xblock.
+
+But unless we're going to use classids for
+inter-xblock axon transport, we're going to need a
+'global' tapidx mechanism as well.
+
+So I think we should bite the bullet and get
+BeeveeBIMXBlock.cTAPClassIds to include all the
+TAPs mentioned in BeeveeBIMXBlock.dtoml, as well
+as all the TAPs from sm227.dtomal..
+
+We could still, if we want, down the road, try for
+smaller 'xblock internal tapidxs'. But for now,
+back to hacking in makeBeeveeXBlockSources.py
+[209:
+
+Thu Feb 20 00:47:23 2025 OK making some progress.
+Now we need to update the old assumption that
+tap's associated xblock is always at their SN 2.
+[210:
+
+Thu Feb 20 02:56:57 2025 OK so time for another
+nap, but it looks like a solid chunk of progress:
+
+ - All TAPs appear to be deployed appropriately
+ - An inter-xblock axon grows successfully from
+   GTCC to TRAKPD
+ - Signals move along that axon.
+
+Clear next stop is (re)doing intra-xblock routing.
+After sleep.[211:
+
+Thu Feb 20 10:10:43 2025 So okay. Taking TOCK as a
+fairly minimal example, I'm thinking for starters
+we need some 'intermediate intelligence' to handle
+finding our XBlock/GripSource from a TAP.
+
+So from the TAP point of view, it seems we have a
+chicken and egg problem for finding the XBlock,
+since the SN of the XBlock will now depend on
+which side of the XBlock this particular TAP is
+deployed.. which we'd need to know the XBlock in
+order to tell.
+
+So okay, let's search for the XBlock. Are we
+currently confident that SN 1..4 are the only
+possible choices?[212:
+
+Thu Feb 20 11:05:59 2025 Yes I think we are, since
+XBlock.checkForTAPs(..) uses AxialDirs.
+
+:212]
+
+:211]
+
+:210]
+:209]
+:208]
+
+:207]
+:206]
+
+:205]
+
+:204]
+
+:203]
+
+:202]
+
+:201]
+[213:
+
+Thu Feb 20 15:52:50 2025 Holy crap, with some help
+from e I think AtomUtils.new(..) now initializes
+the constructed atoms properly!
+
+Get a little more experience here then let's think
+about pushing that mofo!
+
+:213]
+[214:
+
+Thu Feb 20 16:06:58 2025 Anyway, about time for
+the evening, but it's looking like intra-xblock
+routing is the next obvious step..[215:
+
+Thu Feb 20 22:54:54 2025 So, working through
+'RouterXBlock.ulam' and wondering about how we
+want to specify per-grip routing information in
+our modern xblock world.
+
+I'm not sure how much per-grip routing changes
+we're really using, but having our actual
+'SenseDests' choices sitting in GripInfo.ulam, as
+they are now, seems pretty bad.
+
+Could it be possible we want a third .dtoml file
+for grip information? Or maybe just stick it in
+BeeveeBIMXBlock.dtoml somewhere?
+
+Could BeeveeBIMXBlock.dtoml maybe have the default
+connectivity, non-per-grip? And some grip.dtoml
+would specify per-grip modifications?[216:
+
+Fri Feb 21 15:58:45 2025 OK, we made a random
+'Grips10.dtoml' file, and we're now loading it in
+makeBeeveeXBlockSources.py, but we're not doing
+anything with the information loaded.
+
+Can we come up with some specific question for
+that info to answer, to drive figuring out how to
+generate code from it?[217:
+
+Fri Feb 21 16:00:12 2025 We want to tell an xblock
+what destinations, if any, a signal the xblock
+contains want to be routed to.
+
+So (without looking how we're doing it now, doh)
+it could be like
+
+  Bool XBlock.isDestFor(TapIdx src, TapIdx dest)
+
+? Return true if signals from src should be sent
+to dest?
+
+OK, how are we doing it now?[218:
+
+Fri Feb 21 16:03:59 2025 Currently, it's in
+XBarSpace2DState.act(..), and it's like
+
+    Router r(self);
+    mD&&pR("XBSpAC11")&&pR(r);
+    if (r.trySwitch(xb,self)) return true;
+    mD&&pR("XBSpAC12");
+    if (r.tryPropagation(xb, self)) return true;
+
+[219:
+
+Fri Feb 21 16:27:47 2025 We could just start
+hacking in RouterXBlock.ulam and see how much
+trouble we get into.. Gonna be dinner prep before
+we know it, though.
+
+:219]
+:218]
+
+:217]
+
+:216]
+
+:215]
+
+:214]
+[220:
+
+Sat Feb 22 15:06:54 2025 OK, flag moved. Have only
+a day or two to get this new crap working damn it!
+[221:
+
+Sun Feb 23 01:25:25 2025 OK, so hacking in
+RouterXBlock.trySwitch(..), I think we've arrived
+at needing the information that Grips10.dtoml is
+supposed to provide:
+
+ - In xblock FOO, does a signal from tapidx source
+   BAR get switched (i.e., copied) to head toward
+   tapidx dest HOP? (Given we're in grip GAH.)
+
+[222:
+
+Sun Feb 23 01:48:41 2025 Which I'm inclined to
+implement in that fashion - even though it
+involves O(n**2) calls overall - because n==4.
+
+So how might makeBeeveeXBlockSources.py do that
+for us?[223:
+
+Sun Feb 23 01:52:07 2025
+
+(1) Treat 'grip._' as special; merge it into all
+    other grips in generated code
+
+(2) Generate routing tables for each (grip,xblock)
+    combination.
+
+(3) Generate something like
+      Bool XBlock.switchSig(TapIdx src, TapIdx dest, GripNum num)
+    using those tables
+[224:
+
+Sun Feb 23 02:42:44 2025 OK, what are these
+'tables' going to look like?
+
+  constant TapIdx.. could they be a BitStorage? As
+  a bitmap? ..let it go I think.
+
+  (xblock#,grip#) -> RoutingTable
+
+[225:
+
+Sun Feb 23 03:03:04 2025 Wait. Is signal routing
+really per-xblock? Doesn't seem like it should
+be.. Unless we're starting to allow TAPs to appear
+in multiple XBlocks with different routing
+instructions. Which maybe we do want? Want right
+now, though??
+
+Of course we were also claiming we were going to
+move to per-xblock tapidx numbering, to save
+bits.. which would mean that cross-xblock tapidx's
+wouldn't make much sense.. but we gave up on that
+pretty quickly..
+
+[226:
+
+Sun Feb 23 03:06:52 2025 Maybe let's implement
+just per-grip routing tables right now, but have
+those same tables accessible from any given
+xblock, to keep xblockness in the process loop..
+
+So go again:
+
+quark GripRoute + DTU + Fail { }
+
+quark GripRoute_TRAK : GripRoute {
+  constant Unsigned cFIRST_DEST_INDEX[TapIdx.maxof+2u] = {
+     0u, //< starting idx of dests for [tapidx] in cALL_DESTS
+     1u, //< 1 here means [0] has one dest, cALL_DESTS[0]
+     1u, //< 1 repeated here means [1] has zero dests
+     4u, //< means [2] has three dests cALL_DESTS[1:3]
+   etc..
+  };
+  constant TapIdx cALL_DESTS[] = {
+     cTAPIDX_MNCH, // 0: only dest for src[0]
+     cTAPIDX_MTWA, // 1: first dest for src[2]
+     cTAPIDX_MTWB, // 2: second dest for src[2]
+     cTAPIDX_MTWC, // 3: third dest for src[2]
+     ..
+   };
+}
+[227:
+
+Sun Feb 23 03:30:49 2025 We could use Strings for
+the data, maybe. That would be a hard limit at 255
+or so for TapIdxs.. but we're currently at 63 or
+whatever anyway..
+
+So anyway, make..Sources would, for each grip I
+guess, do the O(tapidx**2) iteration, visit each
+possible (src,dest) pair, and look in the
+per-grip and the default tables to see if
+grip.GRIP.routes.SRC = [ .. DEST .. ] can be
+found.
+
+If it can, we append DEST to all_dests (after
+having captured the first cALL_DESTS idx for
+cFIRST_DEST_INDEX[SRC].
+
+Or something along those lines.. after nap.
+
+:227]
+:226]
+
+:225]
+
+:224]
+:223]
+
+:222]
+
+:221]
+
+:220]
+[228:
+
+Sun Feb 23 16:09:58 2025 OK we're generating stuff
+like
+
+    @Concrete
+    element GripRouting_TRAVL : GripRouting {
+      //// GripRouting API
+      @Override String getGripName() { return "TRAVL"; }
+
+now. Haven't tried to build it.
+
+Kind of what more comments in the generated
+tables, but would need to store more info to do
+it? [229:
+
+Sun Feb 23 17:24:24 2025 Well, the new GripRouting
+stuff builds but we have yet to write the code
+that tries it. Time to break for dinner.
+
+:229]
+
+:228]
+[230:
+
+Mon Feb 24 01:45:43 2025 Well, time to nap again I
+think, but we're getting pretty close to seeing
+xblock route some sigs. Current issue is quark
+Grips is abstract, but I'm not sure what we're
+supposed to make instead? BeeveeGrips or
+something? [231:
+
+Mon Feb 24 01:47:12 2025 Right now
+BeeveeBIMXBlock.ulam never mentions Grips. So who
+is supposed to subclass it?[232:
+
+Mon Feb 24 06:42:33 2025 OK, well, BeeveeGrips
+exists and the whole schmear is now running. It
+still doesn't appear to be routing any signals
+anywhere, but now we're debugging.
+
+Actually, maybe now would be a good time to
+reboot, since we've got a(t least one) new kernel
+and so forth.. before setting up the whole
+pybullettime pipeline again and so on..
+[233:
+
+Mon Feb 24 13:32:57 2025 OK, rebooted, gave
+sansama a try, and did today's pickups. Now
+back to XBlock.act(..) and getting it to do
+routing.
+
+Actually, first, we have to decide who controls
+the grip numbering, and get all extant parties to
+agree with the decision.[234:
+
+Mon Feb 24 13:34:49 2025 THE CONTENDERS:
+
+ * IN THE RED CORNER:
+   GripInfoMap handmade constants like:
+
+      //// GripInfoMap SERVICES
+      constant Unsigned cGRIP_HUNTR = 0u;
+      constant Unsigned cGRIP_BV2BY = 1u;
+
+   + PROS: Exists, worked, ties to per grip
+     bespoke info classes like
+
+          case cGRIP_HUNTR: { return HunterGripInfo.classidof; }
+
+   - CONS: Old way, xbar-based, doesn't know squat
+     about Grips10.dtoml, poops lots of bespoke
+     crap everyhwere.
+
+ * IN THE BLUE CORNER
+   Autogenerated stuff subclassing Grips &
+   GripRouting
+
+   + PROS: New way, xblock-based, more declarative
+     / dtoml driven, it's why we're here
+
+   - CONS: Untested routing, unimplemented signal
+     mapping, needs lots of other stuff including
+     perhaps HEMP deployment on all open edges.
+
+[235:
+
+Mon Feb 24 13:41:21 2025 Well, that "it's why
+we're here" does look a little bit compelling..
+[236:
+
+Mon Feb 24 16:20:26 2025 OK, so we got our first
+signals to propagate an an xblock. Now we need
+taps to consume (use or discard) signals arriving
+at the tap..
+[237:
+
+Tue Feb 25 00:55:14 2025 OK, we've got HEMP (now
+being an element instead of a quark, doh)
+consuming signals at the edges of xblocks.
+
+And TermSensor consumes xblock signals inbound to
+it. If we're going to support inputs to sensors
+we'll need to know more about how we want to do
+that.
+
+Can we claim any to-dos, here?
+
+[240:
+
+Tue Feb 25 00:57:33 2025 Well, a couple. But the
+big to-do block at :102: above remains unresolved.
+(There was little risk involved.)
+
+[241:
+
+Tue Feb 25 00:58:13 2025 But with xblock routing
+starting to work, I immediately want:
+
+ - XBlock renderGraphics
+
+..hmm more than anything. Let's do that
+  first.[242:
+
+Tue Feb 25 02:30:36 2025 OK have a simple but
+tolerable renderGraphics for SlotSigs, which
+XBlock is now using. Building a few more tweaks
+now but it might be about nap time here.
+[243:
+
+Tue Feb 25 08:10:50 2025 OK, up for a bit anyway.
+What routing do we want to see now? How about the
+grey sensors? They're young..[244:
+
+Tue Feb 25 08:36:38 2025 OK we have some more
+sensors starting to signal; now looking at
+transhipping signals in TermMotor. Current issue
+is handleSigHook(..), which is taking a
+GripSource&. [245:
+
+Tue Feb 25 08:43:22 2025 Kind of looks like we
+could switch it to a XBlock& / FourWaySlots& combo
+(or two args hmm) without a lot of trouble. But
+also with hardly any backward compatibility.
+
+Here we go.[246:
+
+Tue Feb 25 09:42:43 2025 OK. Current issue is
+XBInfo.TapMap returns ClassId[4], but we were
+interpreting it as TapIdx[4]. Aand, mapping from
+classid to tapidx is currently linear in TAP
+count, which is a bit of a drag on top of a double
+loop.
+
+We're thinking TapMap should return TapIdx[4].
+
+:246]
+
+:245]
+
+:244]
+
+:243]
+:242]
+
+:241]
+
+:240]
+:237]
+
+:236]
+:235]
+
+:234]
+
+:233]
+:232]
+
+:231]
+
+:230]
+[247:
+
+Tue Feb 25 16:37:15 2025 OK, lots of progress,
+yay. Current state is CLOK.ulam.execute needs to
+be updated for XBlock instead of XBarSpace2D.
+
+But it's time to cook wings..
+
+:247]
+[248:
+
+Wed Feb 26 10:17:58 2025 OK, CLOK (and TRAK and
+TRAKPD and maybe otthers) have been updated to use
+TAP.findXBlockSN() and XBlock and they now seem to
+be working again. Current issue is NORED isn't
+working. I suspect that's due to signal mapping
+issues but we haven't got an easy way to set up
+need-for-red startups.
+
+Maybe we should just do that.
+
+:248]
+[249:
+
+Wed Feb 26 13:34:40 2025 Ah, I think NORED
+depending on mapping signals to flip their signs,
+somewhere along the way.. and that's not happening
+now, so now we just accelerating into the void.
+[250:
+
+Wed Feb 26 13:36:01 2025 Sooooooo, how do we
+do (the moral equivalent of)
+NoRedGripInfo.mapSourceSignalValue(..) in the
+modern xblock era??[251:
+
+Wed Feb 26 13:38:33 2025 So, in the old era,
+Router.mapSig called it. And 'in' the new era,
+RouterXBlock.mapSig still (apparently) calls it.
+But does anybody call RouterXBlock.mapSig?
+[252:
+
+Wed Feb 26 13:40:33 2025 Looks like: No.
+
+Now, Router.mapSig(..) is called by
+Router.trySwitch. Let's take another look at
+RouterXBlock.trySwitch.
+[253:
+
+Wed Feb 26 13:55:05 2025 So, RXB.trySwitch(..)
+makes a GripRouting 'gr', which is where we
+imagine the signal mapping knowledge should live.
+It calls gr.switchSig(srctapidx,dsttapidx) to find
+out if a candidate switching pair is ready to go.
+
+It then picks one such candidate pair, and just
+does the copy, without modifying the sig in any
+way.
+
+So, two issues at least:
+(1) how do we specify how to map the signal --
+    we'd like to do it in the dtoml, right? and
+(2) we still have a pending desire to block when
+    (2a) there's only one switching candidate pair
+    (2b) and the destination is occupied.
+    which remains unimplemented, but would
+    logically happen somewhere in here..
+
+[254:
+
+Wed Feb 26 14:20:58 2025 What if we add a
+grip.FOO.map thing? Something like
+
+    [grip.NORED]
+      name="Avoid"
+      doc="Back away from red strategy, with eyestalk hysteresis"
+      routes.SLFY = [ GRIP ]
+      routes.SRFY = [ GRIP ]
+      routes.SLFR = [ MRRF, GRIP ]
+      routes.SRFR = [ MLRF, GRIP ]
+
+      map.SLFR.MRRF = 'o = -10*i;'  # simple inverse and scale
+      map.SRFR.MLRF = 'o = -10*i;'  # simple inverse and scale
+
+where we slug that code into a generated mapping
+routine inside GripRouting_NORED somewhere.
+
+Maybe we shold name the mapping functions, so we
+can reuse them?
+
+      sigfunc.SimpleScale = 'o = -10*i;'
+      map.SLFR.MRRF = SimpleScale
+      map.SRFR.MLRF = SimpleScale
+
+      sigfunc.ComplexMap = '''
+  if (i < 2) o = 2*i;          // 0..1 -> 0..2
+  else if (i < 4) o = 1+i;     // 2..3 -> 3..4
+  else if (i < 8) o = 3+i/2;   // 4..7 -> 5..8
+  else o = 7+i/4;              // 8..100 -> 9..32
+  if (o > 14) o = 14;
+  o = -o;
+'''
+      map.SLFR.MRRF = ComplexMap
+      map.SRFR.MLRF = ComplexMap
+
+that's maybe not too horrible? Set up something
+like
+
+ Int i = sig.mValue;
+ Int o = i;
+
+ahead of time, and do like 'intToSignedAscii(o)'
+afterwards? We'd need to know if the TAPs are
+signed or unsigned, even if we always do the
+mapping as Ints..
+[255:
+
+Wed Feb 26 15:03:38 2025 OK let's go for it, and
+see how the signed/unsigned stuff blows up and
+whatever. How will we generate mapping functions
+and stuff on the fly here?
+
+We've now written stuff like
+
+      routes.SLLR = [ MLEY ]
+      routes.SRRR = [ MREY ]
+
+      sigfunc.StalkMap = '''
+      if (i > 0) {
+        o = i*10;
+        if (o > 90) o = 90;
+      }
+    '''
+      sigmap.SLLR.MLEY = StalkMap
+      sigmap.SRRR.MLEY = StalkMap
+
+in Grips10.dtoml. How will we process that?
+[256:
+
+Wed Feb 26 15:10:18 2025 OK, I made
+
+      virtual Bool mapSig(TapIdx src, TapIdx dst, Int input, Int & output) {
+        output = input;
+        return true;
+      }
+
+in GripRouting. And we'll call that somewhere in
+trySwitch. So we need subclasses to override that
+ad hoc. Now, I'm worried about folding in the
+default grip stuff, here. The default grip might
+have sigfuncs in it, for example, whose names have
+to not collide with sigfunc names from the
+subgrip..
+
+So maybe we can ask any grip to generate just the
+guts of the stuff it needs, returning both some
+sigfunc code and some sigmapping code. Then we
+iterate over our subgrip and then the default
+grip, and generate the union of the sigfuncs and
+the merge of the sigmaps..
+[257:
+
+Wed Feb 26 16:28:09 2025 OK, approach dinner prep
+time again, but we've made some non-sucky progress
+I think. Grips10.dtoml now specifies the red
+signal remapping (except for the signed/unsigned
+signal problem), and it all generates and builds.
+
+Next step is working up to calling
+GripRouting.mapSig(..) from
+RouterXBlock.trySwitch(..). Will have to deal with
+signed/unsigned during that, if nowhere else.
+
+But Let's Call It For The Afternoon!
+
+We Did Good Enough!
+
+:257]
+:256]
+
+:255]
+:254]
+
+:253]
+:252]
+
+:251]
+
+:250]
+:249]
+[258:
+
+Thu Feb 27 09:17:49 2025 OK, so, trySwitch again..
+
+ - Need to save srctapidx + destslot + option idx
+ - Want to distinguish doable vs blocked cases
+
+    Unsigned optcount = 0u;
+    TapIdx srctapidx[12u];   // 4 slots could want to swap to 3 slots each?
+    AxialDir destslot[12u];
+    Unsigned blockedcount = 0u;
+
+    for (Unsigned i = cW; i <= cE; ++i) {
+      SlotSig & ss = fws.getSlotSig(i);  // have src?
+      if (!ss.isOccupied()) continue;    // no
+      TapIdx srcidx = ss.mSource;        // get where the signal's coming from
+
+      for (Unsigned j = cW; j <= cE; ++j) {
+        if (j==i) continue;              // skip self
+
+        if (gr.switchSig(srcidx,taps[j])) { // NOTE: srcidx to see if want switch
+          // would like to switch here
+          if (fws.getSlotSig(j).isOccupied()) ++blockedcount; // but can't
+          else {
+            srctapidx[optcount] = srcidx;
+            destslot[optcount] = j;
+            ++optcount;
+          }
+        }
+
+[259:
+
+Thu Feb 27 09:34:10 2025 Wondering
+(1) if I have this all backwards, and
+(2) if my ambitions for a single event on
+    FourWaySlots are just too big
+
+Backwards? - Maybe we should be checking which
+slots can propagate first, and only then consider
+copying before we do that. And we block only if
+(1) Exactly one occupied slot can propagate, but
+(2) That slot also wants to copy, and
+(3) All of its copy targets are occupied.
+
+Ambitions? - Could we way simplify (and slow)
+routing by just 'going random' in some new
+traditional way? Pick one random occupied slot,
+see if we can propagate and switch it as desired,
+and if so, just do it and be done, and if not, do
+nothing and be done.
+
+That way maybe we can be 'best effort lossless'
+within the xblock, at the risk of deadlock
+instead, if we make doctor-it-hurts routing rules.
+
+I suppose we could step up once by shuffling the
+indices and then consider each until we find
+something to do, or run out. Pick the first
+randomly chosen slot that's occupied and for which
+we can propagate and switch as desired, do that,
+and be done.[260:
+
+Thu Feb 27 10:19:31 2025 OK we're trying like that
+but if we tie switching and propagation together,
+what do we do heading out of the xblock? Normally
+we just sit there and wait for the TAP ahead of us
+to collect / delete us.. but how do we know if
+we've switched yet in the final position?[261:
+
+Thu Feb 27 10:24:35 2025 Could we say that if
+we're pointing outside the XBlock, but the forward
+direction isn't connected our signal source, we
+just discard ourselves? There's no more side
+streets to be found, so if that TAP doesn't want
+us, we're done.. But if it does want us, how long
+are we supposed to wait; how do we know if we've
+switched or not?[262:
+
+Thu Feb 27 10:30:50 2025 Could we not switch until
+the TAP calls for us? The good thing about
+switching is that it's all inside one atom. So
+could we wait until we know we're outbound -
+either because forward is clear inside the xblock,
+or because a TAP is calling for us at the edge..
+and do the switching (attempt) then? And if the
+switch fails due to blocking, then what? The
+propagation outbound fails too?
+
+I suppose.. maybe?[263:
+
+Thu Feb 27 10:38:57 2025 It does seem that
+deadlock is totally possible though, doesn't it?
+Because each 'street' is 'inbound' in one dir and
+'outbound' in the opposite dir.
+
+           Adst1
+           Bdst2
+             |
+             |
+     Asrc ---*---- Bsrc
+             |
+             |
+           Bdst1
+           Adst2
+
+  W: Asrc
+  N:
+  S:
+  E: Bsrc
+
+[264:
+
+Thu Feb 27 10:43:17 2025 Well not sure that's a
+problem anyway. As long as Asrc -> (Adst1 and 2)
+happens atomically, or Bsrc -> (Bdst1 and 2) does,
+I don't see deadlock.
+[265:
+
+Thu Feb 27 11:14:42 2025 So okay, again, what are
+we going to do here? If we say a signal must need
+to switch onto at most one other street - and
+we'll just pick one at random if there's more than
+one - does that solve enough problem to get going?
+
+[266:
+
+Thu Feb 27 11:18:00 2025 Well what about the
+edge-of-xblock thing?
+
+[267:
+
+Thu Feb 27 11:25:18 2025 Well, I'm imagining
+something like
+
+  Bool XBlock.takeSignalIfPossible(AxialDir heading, SlotSig& dest)
+
+which by using, caller asserts they will consume
+dest on a return true, and callee asserts it will
+do any necessary switching for that signal before
+returning true. In particular, callee will copy
+the signal to all of the dests that want it,
+before returning true, or to none of the dests
+that want it, before returning false.
+
+We expect two callers for this:
+(1) TAPs looking for inbound signals
+(2) XBlocks that have an available propagation
+    destination.
+
+Because of (1), the method cannot assume the
+xblock is at ew[0].
+[268:
+
+Thu Feb 27 12:25:11 2025 So we have a first-cut at
+
+  Bool forkSignalIfPossible(GripRouting & gr, AxialDir heading)
+
+in XBlock. Returns true if signal was copied to
+all (>= 0) dirs that wanted it; false if internal
+problems or some dir that wants it is occupied.
+
+We still need callers.
+
+[269:
+
+Thu Feb 27 18:44:26 2025 OK, have callers but not
+tested. After nap, thinking we need
+RouterXBlock.tryPropagation(..) to do signal
+mapping before propagation.
+
+But after nap.[270:
+
+Fri Feb 28 00:46:24 2025 OK, let's review.
+
+ - Who maps the signals?
+ - Where should we call it?[272:
+
+Fri Feb 28 00:53:12 2025 I think we should call it
+from XBlock.forkSignalIfPossible(..)
+
+:272]
+
+[271:
+
+Fri Feb 28 00:47:05 2025 GripRouting.
+
+  virtual Bool mapSig(TapIdx src, TapIdx dst, Int input, Int & output)
+
+maps the signal, we think, in the modern era. And
+if it returns false, we toss the signal instead?
+
+(AND, WE STILL DON'T KNOW ABOUT DIFFERENTIAL
+SIGNED/UNSIGNED SIGNALS IN THE MODRUN ERA)
+
+:271]
+
+
+:270]
+
+:269]:268]
+:267]
+
+:266]
+
+:265]
+:264]
+
+:263]
+
+:262]
+
+:261]
+
+:260]
+
+:259]
+:258]
+[273:
+
+Fri Feb 28 01:07:55 2025 OK we're up against
+signed/unsigned now. First let's review existing
+uses. [274:
+
+Fri Feb 28 01:09:07 2025 Only two uses of signed -
+
+    ./TAP.ulam:444:        Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+    ./TAP.ulam:465:            Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+
+but there's also two defs of it -
+
+    ./SlotSig.ulam:63:  Int(8) getValueSigned() { return (Int(8)) asciiToInt(mValue); }
+    ./BVBrainStem.ulam:21:  Int(8) getValueSigned() {
+
+That can't be, uhh, optimal, can it?
+
+[277:
+
+Fri Feb 28 01:24:50 2025 The BVBrainStem stuff is
+only for spine I/O.. The SlotSig version is for
+internal use.
+
+Let's try doing signed for everything, internally,
+and see where it breaks first.
+
+:277]
+:274]
+
+:273]
+[275:
+
+Fri Feb 28 01:11:21 2025 So TAP.ulam:444 (which we
+just wrote, so no big whup as to authority) which
+in TermMotor appears to just use getValueSigned
+period. Like: All motor outputs are signed.[276:
+
+Fri Feb 28 01:13:37 2025 I really wonder if we
+should just go signed for all signals all the
+time. Using signed when we don't need negatives
+gives up half our resolution, but do we really
+NEED 256 levels of signal, vs 128? Really really?
+
+:276]
+
+:275]
+[278:
+
+Fri Feb 28 10:58:06 2025 Hmm, don't we also need a
+way to ask an xblock if it has routing to a
+particular TAP? It looks like currently we're just
+hardcoding via TAP.trySendSigViaTAP(..) which goes
+by axon without checking if there's a direct route.
+
+:278]
+[279:
+
+Fri Feb 28 13:06:01 2025 OK it seems we have an
+issue here though I'm not completely positive.
+
+ - GTCC.behave eventually goes to
+   TermMotor.behave, without having read input
+   signals itself.
+
+ - TermMotor goes to findMatchingAxonEnd() as part
+   of trying to find input signals.
+
+ - TAP.findMatchingAxonEnd() does
+      'if (a as AxonEnd)'
+   and then 'a.getAxonIdx()' to check if this Axon
+   is meant for us.
+
+ - But in the present case, that search finds the
+   AxonTail that is used to send signals away from
+   GTCC, not the AxonHead meant to bring signals
+   to the GTCC.
+
+ - So TermMotor.behave() ends up looking for input
+   in the output spot, and therefore never finding
+   it.
+
+COMMENTARY: Now, we had had some thoughts, at one
+point, about routing signals in both directions
+through a single axon. So the obvious answer here
+- "Just look for AxonTail to receive instead of
+AxonEnd" - would shut down that possibility.
+
+(There is also a second problem in the current
+example, which is that findMatchingAxonEnd only
+looks out to SN 25 (distance 3), and so it never
+even sees the AxonTail that is in the ew..)
+[280:
+
+Fri Feb 28 13:18:10 2025 What if we
+
+(1) Scan the full ew, duh, and
+(2) Add a forInput vs forOutput arg to
+    findMatchingAxonEnd, so caller tells us
+    whether we want to match our tapidx on the
+    inbound or the outbound.
+
+In a quick look it seems the callers of
+findMatchingAxonEnd fairly obviously have forInput
+or forOutput in mind for each case..
+
+
+:280]
+:279]
+[288:
+
+Sat Mar  1 11:09:23 2025 Well, claimed to-dos, in
+the process of reexamining where-if-anywhere I
+redid the error function. Looks like I didn't
+actually do it. But things are kind of working so
+I (once again) don't want to break it right now.
+
+One thing I would like to do is see if I can get
+our new WNTK (red WarNing TracK) TAP reporting to
+GTCC or somebody like it.
+[290:
+
+Sat Mar  1 21:26:57 2025 OK, checking in while
+we're between bugs for a minute here.. Thinking we
+should expand xblock TILES and put a TAP-based
+localization controller up there, and have WNTK
+report to that rather than trying to get into
+GTCC, which already has plenty of axons around
+it..
+
+I'd like that controller to
+(1) Face to the east, orienting by the sun. Then
+(2) Advance to the eastern edge, using WNTK to
+    know when to stop.
+
+At that point Beevee will 'know' its orientation
+and its longitude (x coord), and that would be a
+great start. Beevee will have a justified belief
+that we (the observers in the lab) can assert is
+true.
+
+We also want the controller to know what it knows.
+So we need at least five states for orientation,
+for example.
+
+[291:
+
+Sun Mar  2 19:20:52 2025 OK well we're pretty damn
+close to doomed, here, for Beevee to localize by
+T2sday, but I want to go out fighting, so let's do
+some 'final'
+
+TODO
+[295: Sun Mar  2 21:23:11 2025 LOCZ.ulam
+DONE :295] - Dupe Corral.ulam to Localizer.ulam
+ - Change GTCC to include Localizer.
+[296: Sun Mar  2 21:23:33 2025 Noted
+DONE :296] - Note that Corral is 18b and GTCC has only 8b
+   free, so Localizer cannot go over 26b in this
+   version
+[297: DONE  :297] - Draft bit budget for Localizer.
+ - Init WM.ulam as a 'world model'. Make it a
+   TermMotor
+ - Add to the TILES xblock
+ - Have WM take signals from GTCC/Localizer.
+
+[292:
+
+Sun Mar  2 19:27:05 2025
+
+Corral has 3b State, 1b x 3 Bools for flags and
+debug, and 6b x 2 for tile counts. ==  18b.
+
+Localizer could have
+  0b   4b for State
+  4b  12b == 6b x 2 for current location
+ 16b   2b for current heading
+ 18b   5b for target location index?
+ 23b   3b for locationalization valid flags?
+ 26b
+
+States
+ 0 cINIT reset main program (forget everything)
+ 1 cSTRT decide what to work on
+ 2 c
+
+[293:
+
+Sun Mar  2 19:42:31 2025 OK so one big issue is we
+can't seriously pretend to localize unless we can
+get WNTK to route signals somewhere.
+
+Let's set up localizer as a separate TAP for now,
+instead of trying to stick it in GTCC. And let's
+try to get WNTK to grow an axon to Localizer. Just
+that. [294:
+
+Sun Mar  2 21:12:14 2025 OK, so we started
+LOCZ.ulam, and got TermHiddenIO up to snuff for
+building axons if needed for outbound (i.e, XBAR
+to AXON) signal transhipment.
+
+:294]
+
+:293]
+
+:292]
+
+:291]
+
+:290]
+:288]
+[289:
+
+Sat Mar  1 11:22:04 2025 (So, in reviewing here,
+using the quarry viewer for the first time (in
+decades?), we see stuff about redoing the error
+measure right before the start of :145: above.
+Which is actually part of :138: above, though
+you'd never know it to look at it..)
+
+:289]
+[298:
+
+Mon Mar  3 01:41:33 2025 Totally out of time here.
+But how about one last hack before t2sday: It
+looks like we have LOCZ managing to light up red
+once we approach the warning track. So what about
+if we did one other thing: When the red light goes
+on, have LOCZ reach over into GTCC/Corral and
+advance it to turn left.
+
+And make up a new starting state where Beevee
+starts out heading west, say, from about 5 or 8
+tiles out. So the warning track should light up
+pretty quick. Or maybe 8 tiles off the SW corner,
+facing more or less W, so there'll be two quick
+turns..
+
+Let's take a look at the Corral code and the LOCZ
+code..
+
+:298]
+[299:
+
+Fri Mar  7 01:31:45 2025 OK we're a few days post
+t2sup 3159. Time to get the pybullet<->mfms spine
+set up again.
+
+Also: I want two infrastructure things promptly:
+(1) RootWire or some other stop on the pipeline
+    should log all packets somewhere, with
+    timestamps and like hexdump output
+(2) Some way to lightly interpret the packets
+    wireshark style, so we don't have to memorize
+    TAP#s and such.
+
+This is in service of debugging the damn 25x3 bug
+that popped up late in February..
+
+Let's see if RootWire is an appropriate
+  place.[300:
+
+Fri Mar  7 01:36:07 2025 Well, RootWire is a thin
+wrapper around socat. Is socat an appropriate
+place? [301:
+
+Fri Mar  7 01:36:45 2025 Man socat says in part:
+
+       The life cycle of a socat instance typically consists of four phases.
+
+       In the init phase, the command line options are parsed and  logging  is
+       initialized.
+
+so that seems encouraging. Also..
+
+       -lu    Extends  the  timestamp of error messages to microsecond resoluâ€
+              tion. Does not work when logging to syslog.
+
+Haven't found 'log to file' options yet..[302:
+
+Fri Mar  7 01:49:36 2025 OK:
+
+       Log messages can be written to stderr, to a file, or to syslog.
+
+but that's syslog-like logging, not data
+recording, it seems.
+[303:
+
+Fri Mar  7 01:55:53 2025 Well, socat might be good
+but the man page is pretty complicated. Would this
+be a modrun oppty to try AI code writing?
+
+[304:
+
+Fri Mar  7 01:58:26 2025 Well, Kagi's fast gpt
+offered
+
+socat -x -v pty,link=/tmp/ptya,raw,echo=0 pty,link=/tmp/ptyb,raw,echo=0 tee log.txt
+
+(with a verbose explanation) in response to my prompt:
+
+   write a socat command that copies bytes bidirectionally through two ptys while logging all traffic to a file
+
+It looks like it 'meant' to say '| tee log.txt',
+but let's give it a few tries in RootWire.[305:
+
+Fri Mar  7 02:02:36 2025 I think we're going to
+get debugging output only.. not actual data
+packets..
+
+I'll let it run a bit, while let's take a quick
+look at the python side, see about other options..
+[306:
+
+Fri Mar  7 03:05:55 2025 OK, we are now logging
+'everything' in PyBulletTime-data/packetlogs/ with
+a disgusting mix of readable and 8BC like:
+
+    >01741341923.508813>W_I~e
+    >01741341923.508878> W _I  ³³   	nn  ÿ      ÿe     !Ù_
+    <01741341923.508923< W^Iç{
+
+(sorry about that for the emacs notes file
+encoding detection.)
+
+>this> way is a packet from world to brain
+<this< way is a packet from brain to world
+[307:
+
+Fri Mar  7 03:46:48 2025 Still need something to
+decode the log file to some minor degree. Make
+regex handlers to unparse packets. Go for the main
+spinal IO packet, to unparse them to TAP names and
+hex/unsigned/signed values.
+
+It would help if each packet file had a config
+file dump in it.. which it could have, but at the
+moment usually doesn't because both ends already
+have it and the checksums match.. right?
+
+[308:
+
+Fri Mar  7 03:50:14 2025 Could we get it to send a
+full config at startup no matter what?[309:
+
+Fri Mar  7 03:53:12 2025 OK well that didn't seem
+too hard. In the first test it was logged as the
+first packet, which bodes reasonably well for the
+unparser being able to make use of it..
+
+But let's see if we can claim some check marks and
+then nap a bit more..
+
+:309]
+
+:308]
+
+:307]
+:306]
+
+:305]
+
+:304]
+
+:303]
+:302]
+
+
+:301]
+
+:300]
+
+:299]
+[310:
+
+Fri Mar  7 20:25:47 2025 I think when we go
+invalid in TRAK we should just repeat whatever our
+last adjustment was, under the theory that we were
+probably already trying to correct for the looming
+invalidity at the time it arrived.
+
+But we don't store the adjustment, right? We could
+recalculate it though?[311:
+
+Fri Mar  7 20:30:29 2025 Let's post a goal for
+that for tomorrow.
+[312:
+
+Sat Mar  8 00:07:32 2025 OK, so on the 25x3 bug
+front, the 'big news' yesterday is that it's
+actually like a 25x19 bug - not just the grey
+signals but also 16 others go to 25 sporadically
+for one update.
+
+It's time to write an bit of an unparser so we can
+see of the 25's are in the packet log or not. At
+25x19 you'd think they'd be easy to see if so!
+[313:
+
+Sat Mar  8 01:01:17 2025 OK, sailing along in
+PacketLogDump.py and getting to where we need to
+know our own packet type codes.. where's that
+meticulously documented again hoho?[314:
+
+Sat Mar  8 01:08:58 2025  hoho indeed. Well,
+/mnt/T2TMP/tags.dat has the basic definitions,
+like
+
+    u>BVREQ
+    u>BVROLL
+    u!CADENCE
+    u>FLWHEEL
+    u<GRIP
+    s<MDBG10
+    s<MLEY
+    s<MLRF
+    s<MREY
+    s<MRRF
+    s>SDBG10
+    u>SFCG
+    u>SFLG
+    u>SFRG
+
+with 'u'->unsigned, 's'->signed
+and '>'->sense, '<'->motor
+(and '!' meaning.. required?)
+
+which is helpful to me since I didn't remember how
+the un/signed distinction flowed through the
+spine..
+[315:
+
+Sat Mar  8 01:16:27 2025 Annnd, so
+
+  int BrainStemSupport::getTermValue(unsigned index)
+
+does
+
+  int pos = bufferPosOfTermIndex(index);
+  if (pos >= 0) {
+    TagRange r = getTermRange(index);
+        if (r == RANGEUNSIGNED) {
+          MFM::u8 val = _buffer[pos+1];
+          return (int) val;         //0..255
+        }
+        if (r == RANGESIGNED) {
+          MFM::s8 val = (MFM::s8) _buffer[pos+1];
+          return val;               //-128..127
+        }
+  ..
+
+to interpret bytes.
+
+[316:
+
+Sat Mar  8 01:33:05 2025 aaaaand i do notice
+there's no explicit range checking on pos vs
+_buffer, unless bufferPosOfTermIndex does it..
+[317:
+
+Sat Mar  8 01:36:35 2025 Yikes it's linear in the
+buffer? Who TF wrote this?
+
+    inline int BrainStemSupport::bufferPosOfTermIndex(int termidx) {
+      for (unsigned i = 0u; i < (unsigned) _bufferLen; i += 2u) {
+        if (_buffer[i] == (unsigned) termidx)
+          return (int) i;
+      }
+      return -1;
+    }
+
+
+:317]
+:316]
+
+:315]
+:314]
+
+:313]
+:312]
+
+:311]
+
+:310]
+[318:
+
+Sat Mar  8 01:44:44 2025 So anyway it seems it's
+the W packet that we want to unparse the most,
+yes? Can we focus there for now? Detect W packets
+and ignore the rest, say?
+
+[319:
+
+Sat Mar  8 01:47:21 2025 OK,
+PacketSpine.sendIPacket has:
+
+        packetFormat = b'%cW%c%cI%b'
+        packet = packetFormat % (Utils.intToSignedByte(hops),
+                                 Utils.intToSignedByte(dest),
+                                 self.nonce,
+                                 payload)
+
+..and somebody must unformat that yes?[320:
+
+Sat Mar  8 01:50:07 2025 It's WorldPacketProc that
+does the first step, in PyBulletTime/src -
+
+    def matches(self,packet):
+        ret = re.match(b'(.)W(.)(.)([IO].*)',packet,re.DOTALL) # DOTALL mode for 8BC? None if no match
+        #if ret == None:
+        #    print("WPPZNOmat",packet)
+        return ret
+
+[321:
+
+Sat Mar  8 01:52:19 2025 And
+WorldRunner.AcceptPayloadFromTile does most of the
+rest with like
+
+        for i in range(1,len(payload)-1,2):
+            idx = payload[i]
+            val = payload[i+1]
+            if idx in termindicesintile:
+                tname = tnames[idx]
+                term = terms.get(tname)
+                if term != None and term['type'] == 'motor':
+                    term['value'] = val
+                    #print("MOTOID",tname,val)
+
+where it brings in specifically and only the
+'motor' terms..
+
+BrainStemSupport must be doing something similar
+on the mfms side yes?[322:
+
+Sat Mar  8 01:54:50 2025 No there's (at least) one
+more layer - 
+
+ - BrainStemSupport.tcc does IO to /mnt/T2TMP,
+ - but only after t2serloop.py bridges between
+   serdev and /mnt/T2TMP (in T2-12/base/apps/sercon/)
+
+[323:
+
+Sat Mar  8 02:02:02 2025 t2serloop.py does like
+
+            if (len(inpacket) >= 5 and  # W pkt reqd: hops,'W',dest,nonce,type
+                inpacket[1] == ord(b'W') and
+                inpacket[4] == ord(b'I')):
+                #print("GOT WI",inpacket)
+                performPacketIO(inpacket)  # Modifies inpacket in place!
+                pio.setHops(inpacket,hops-1)
+                inpacket[4] = ord(b'O')
+                #print("FWD",inpacket)
+                pio.writePacket(inpacket)
+
+[324:
+
+Sat Mar  8 03:15:37 2025 OK we're printing out hex
+codes for TAPs and values of a W packet. Next stop
+would be to somehow print tap names and values
+instead. But tired now.
+[325:
+
+Sat Mar  8 13:40:57 2025 OK so we're getting
+closer to a smoking gun that's saying it's an
+MFM/BrainStem problem, because we now have mfms
+logs showing the 25s happening, like -
+
+    20250308132953-47545: 49979AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:1.000 IE:4.000 LE:1.000 AJ:0.140 CS:3.000 CG:120  
+    20250308132954-47546: 49988AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-1.000 IE:3.968 LE:1.000 AJ:-1.580 CS:3.000 CG:133  
+    20250308133000-47547: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
+    20250308133000-47548: 50033AEPS [5BBB78F6]MSG: print: "SLFR"
+    20250308133000-47549: 50033AEPS [5BBB78F6]MSG: print: "GSV25^^^^"
+    20250308133000-47550: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
+    20250308133000-47551: 50033AEPS [5BBB78F6]MSG: print: "SRFR"
+    20250308133000-47552: 50033AEPS [5BBB78F6]MSG: print: "GSV25^^^^"
+    20250308133000-47553: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
+    20250308133000-47554: 50033AEPS [5BBB78F6]MSG: print: "SLFY"
+    20250308133000-47555: 50033AEPS [5BBB78F6]MSG: print: "GSV25^^^^"
+    20250308133000-47556: 50033AEPS [5BBA38F6]MSG: print: "GSV25vvvv"
+    20250308133000-47557: 50033AEPS [5BBA38F6]MSG: print: "SRLG"
+    20250308133000-47558: 50033AEPS [5BBA38F6]MSG: print: "GSV25^^^^"
+    20250308133000-47559: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
+    20250308133000-47560: 50033AEPS [5BBB78F6]MSG: print: "SRLY"
+    20250308133000-47561: 50033AEPS [5BBB78F6]MSG: print: "GSV25^^^^"
+    20250308133000-47562: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
+
+which we can line up, based on times, with the
+packet log dump, like -
+
+    <B  3887 2025-03-08T13:29:58.551831
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1 
+    MRRF    5 SDB-    0 SFCG  121 SFLG    0 SFRG  255 SLFG   60 SLFR    0 SLFY    8 SLLR    0 SLLY    8 
+    SLRR    0 SLRY    0 SRFG   67 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
+    SRRY    0 SUPR    0 SUPY   16 CAD-    1 
+    W>  3889 2025-03-08T13:30:00.752156
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1 
+    MRRF    5 SDB-    0 SFCG  117 SFLG    0 SFRG  255 SLFG   59 SLFR    0 SLFY    1 SLLR    0 SLLY    1 
+    SLRR    0 SLRY    0 SRFG   72 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+    <B  3891 2025-03-08T13:30:00.752247
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
+    MRRF    5 SDB-    0 SFCG  126 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    0 SLLR    0 SLLY    0 
+    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
+    SRRY    0 SUPR    0 SUPY   10 CAD-    1 
+    <B  3893 2025-03-08T13:30:00.752293
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
+    MRRF    5 SDB-    0 SFCG  128 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    3 SLLR    0 SLLY    3 
+    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+    W>  3895 2025-03-08T13:30:02.920401
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
+    MRRF    5 SDB-    0 SFCG  115 SFLG    0 SFRG  255 SLFG   68 SLFR    0 SLFY    5 SLLR    0 SLLY    5 
+    SLRR    0 SLRY    0 SRFG   69 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+
+where we can see no sign of 25s.
+
+Let's claim traced to wire and then think about
+how we might proceed to dig into
+BrainStem[Support].[326:
+
+Sat Mar  8 13:47:36 2025 OK, how about a method
+callable from ulam that will dump the packet
+buffer to some fixed file? That we could call when
+things go weird (or not). Let's take a look.
+
+:326]
+
+:325]
+
+:324]
+:323]
+:322]
+
+:321]
+
+
+:320]
+
+:319]
+
+:318]
+[327:
+
+Sun Mar  9 03:39:09 2025 OK lots of progress; we
+believe we've fixed the 25x3 bug although we don't
+know EXACTLY why it made 25s - but we made some
+sensible changes and haven't seen it again for
+hours..
+
+And now we're on to a new bug, which manifested as
+SLFY occasionally sending packets to MRRF while
+we're in TRACK grip. Which makes massively no
+sense.
+
+But we just diagnosed what's going on, and it
+reveals a fairly basic bug in xblock grip
+processing, that allows two errant XBs each to
+reinforce an incorrect gripnum of the other.
+
+Don't have all the details yet, but I'm thinking
+the fix is for xblocks to give priority to
+xbarspaces when they are encountered, and only
+fall back to other xblocks if no xbarspaces can be
+found. And I don't think that's what the code is
+doing..
+
+[328:
+
+Sun Mar  9 16:59:44 2025 So fixed that, yes, with 
+xbar priority, fwiw.
+
+[329:
+
+Sun Mar  9 17:00:24 2025 Now reviewing LOCZ as
+part of brainshowering ideas for actual
+localization..
+
+ - LOCZ has 11b free.
+ - LOCZ has Unsigned(3) mState
+   = it's got all of
+
+      | 2	| 12	| mPos[2]	| Unsigned(6)
+      | 14	| 2	| mPosValid[2]	| Bool
+      | 16	| 2	| mHeading	| Unsigned(2)
+      | 18	| 1	| mHeadingValid	| Bool
+      | 19	| 12	| mGoalPos[2]	| Unsigned(6)
+      | 31	| 2	| mGoalHeading	| Unsigned(2)
+
+     already defined (but not hooked up obvs).
+
+ - It's a HOPUnary as far as soaking up signals
+ - We need to route some green signal to it. Maybe
+   just think about that first?
+
+[330:
+
+Sun Mar  9 17:14:09 2025 OK making GReen LaNtern
+along the WNTK pattern to ship smoothed green
+levels to LOCZ. What is LOCZ going to do with
+that? Just store the latest green level maybe, for
+using later?
+
+:330]
+:329]
+
+:328]
+:327]
+[331:
+
+Mon Mar 10 02:50:45 2025 So it seems increasingly
+likely, and to me increasingly appropriate, that
+we're going to have to limit Beevee's speed more
+in the default TRAK grip. It seems like there may
+be no solution to come to a clean halt from 35,
+within the span of one or even two squares.
+
+If we cut his TRAK max speed down to, say, 25,
+we'll have a better shot at that, I think.
+
+And the appropriateness of it all is that: Once
+Beevee localizes himself, he'll be able to know
+about how far he is from the edge or the next
+turn, and he'll be able to fucking burn down the
+long straightaways and only start slow down as the
+next turn approaches - in particular, before
+there's any obvious sign that an edge (say) is
+approaching. 
+[332:
+
+Mon Mar 10 13:08:31 2025 Running at 25 max and
+making the turns successfully so far. Also
+tightened up WNTK/LOCZ warnings and now seeming to
+be triggering at three squares in rather than
+two..
+
+[333:
+
+Mon Mar 10 13:14:39 2025 I guess, next, I'd like
+to understand why mGreenLevel doesn't appear to be
+updating. Should we make a new 'faceEast' sim
+start to look at that directly?[334:
+
+Mon Mar 10 14:37:07 2025 OK, sad that took over an
+hour, considering it was just stupidity in that
+LOCZ.sigToSlot didn't say that GRLN sigs were to
+be accepted.
+
+But now mGreenLevel is plausible. Pop pop pop.
+[335:
+
+Mon Mar 10 14:43:58 2025 Well so I guess the next
+obvious stop is have LOCZ get us to face east as
+the first step of localization.
+[336:
+
+Mon Mar 10 14:57:09 2025 OK so it appears LOCZ has
+nothing implemented so far in terms of its state
+machine. It just watches for WNTK and signals the
+corral to start a left turn.
+
+So let's make up some states.[337:
+
+Mon Mar 10 15:07:37 2025 Well I'm not how
+fine-grained to go in these states, or whether to
+add reusable 'substate' or what. But I want to
+have a state that takes us to 'rear greys on a
+line, front center grey on a line', as our
+starting position.
+
+Because I don't have confidence that we can do
+four quarter turns successfully without
+re-dressing our back greys onto a line.
+
+Could we go the other way, though? Just free
+rotate looking for green. But then getting onto a
+line after we 'know' could mess the orientation a
+lot.
+
+Can we use more existing stuff from Corral as
+'subroutines' here?[338:
+
+Mon Mar 10 15:13:31 2025 Could we give Corral a
+mode that would keep it from changing state, and
+have it instead notify LOCZ when it otherwise
+would have changed state? That would make Corral
+more subserviently suitable for top-down control..
+
+Corral has 45b unused - but that's irrelevant;
+what matters is GTCC, which contains the Corral,
+and only has 8b free. Still, it's enough for
+Corral flag if we want it.
+[339:
+
+Tue Mar 11 10:41:53 2025 OK, so I pushed a
+
+      typedef Unary(2) SteppingState;
+      constant SteppingState cSTEP_RUN = 0u;  //< Not single stepping
+      constant SteppingState cSTEP_STEP = 1u; //< A single step is in progress
+      constant SteppingState cSTEP_WAIT = 2u; //< A single step is done
+      SteppingState mSteppingState = cSTEP_RUN; //< by default, run continuously
+
+into Corral, taking it to using 20b and taking
+GTCC to 6b free.
+
+But nobody it using it for now and we're not sure
+what a good next step is for changing that.
+
+The idea is that some external agent sets
+Corral.mSteppingState to cSTEP_STEP, and then
+Corral automatically switches to cSTEP_WAIT when
+it would have made any mState transition
+otherwise.
+
+And that mState transition does not happen until
+some external agent changes mSteppingState from
+cSTEP_WAIT to cSTEP_RUN or cSTEP_STEP.
+
+So I guess one first step is to have LOCZ set
+cSTEP_STEP before setting cTURN, and then wait for
+cSTEP_WAIT or something? Let's take a look.
+
+:339]
+
+:338]
+
+:337]
+
+:336]
+:335]
+:334]
+
+:333]
+
+:332]
+:331]
+[340:
+
+Wed Mar 12 23:35:03 2025 OK moved flag. Rebooted
+and set up for Beevee here.
+
+Issues to remember:
+[343: Thu Mar 13 13:16:18 2025 To west
+DONE :343] - Move HRLG and friends to west (side or edge of
+   south)
+[344: I think
+DONE :344] - Swap E & S in CTRLGREYS?
+[345: Moved LZRV and just use SN 15
+DONE :345] - Have LZRV be willing to use SNs 2,5,7 to get
+   around obstacles (such as an axon..)
+[346: Thu Mar 13 13:17:35 2025 Declared unneeded
+DONE :346] - Make a specialized MonospacedLabel that does
+   simplified (and robustified) layout planning by
+   taking advantage of fixed char width.
+[341:
+
+Thu Mar 13 02:53:16 2025 Working on
+MonospacedLabel and thinking I could make use of
+the Label.gossipWith(..) API to propagate state,
+but for the life of me I can't find any callers
+for that..[342:
+
+Thu Mar 13 02:57:05 2025 beeeeeecause I don't
+think we actually ever need to call it. When
+Label.behave() finds some 'dominated loser', it
+just copies its whole atom and then customizes the
+Label-specific parts of it.
+
+One might still wish it called gossipWith(..),
+there, if there were other issues beyond shared
+private state to deal with.. but it doesn't happen
+for now.
+
+:342]
+
+:341]
+:340]
+[347:
+
+Thu Mar 13 13:17:53 2025 OK, so, I think we are
+back to the actual localization task. I'm thinking
+maybe we should 'start' (this time) with tearing
+up Corral.ulam into smaller, more modular steps,
+that can be more easily done individually.
+
+Maybe we don't really need that and the existing
+'suspend on state transition' idea is enough..
+considering that we haven't even tested that once
+yet, right?
+
+[348:
+
+Thu Mar 13 13:29:47 2025 Oh, also worth mentioning
+perhaps: Changing the 'turn left' parameters from:
+
+    { .mSpeedNotWheel = false,       //< 5 cTURN
+      .mSpeed1 = -2, .mSpeed2 = 2 },
+
+to the asymmetrical
+
+    { .mSpeedNotWheel = false,       //< 5 cTURN
+      .mSpeed1 = -2, .mSpeed2 = 1 },
+
+helps quite a bit with (1) not overshooting the
+line as much, and (2) keeping the rear wheels near
+the intersection.
+
+So we think that perhaps we could try just four
+turns in a row and not get hopelessly lost.
+
+Let's see what it might take to try that.[349:
+
+Thu Mar 13 16:50:08 2025 OK, well, still trying to
+get comfortable with LOCZ forcing Corral into
+stepping mode and so forth -- it's not really
+working yet, but it's about time to break for the
+evening..
+[350:
+
+Fri Mar 14 01:29:24 2025 OK, today we're giving up
+on puppet-mastering Corral and setting out for a
+new TrackActions thing instead, that just does
+compound-but-coherent actions like "turn left" and
+so on.
+
+Now, are we going to stick a TrackActions instance
+directly into GTCC, like Corral? That has always
+seemed pretty limited. What's the ew around GTCC
+looking like these days?[351:
+
+Fri Mar 14 01:37:19 2025 Getting pretty crowded.
+
+[352:
+
+Fri Mar 14 01:52:21 2025 Well let's keep it where
+it is, for now. Corral is 20b and GTCC has 6b free
+so that's our basic outline.[353:
+
+Fri Mar 14 01:54:24 2025 OK we made TRAKtion.ulam
+and get a check mark.. (actually two..:)
+[354:
+
+Fri Mar 14 01:56:06 2025 OK, so first goal is
+review existing structure:
+
+ - States are currently a mix of 'complete simple
+   steps' and 'parts of a single compound step',
+   and that's already been an issue and arguably
+   is a significant chunk of why we're here
+
+So that says we want to go to a two-level state
+structure:
+
+ - Current action
+ - Current step within action
+
+We'd perhaps like to be table-driven if that's not
+too obnoxious, plus a dispatch or two of some
+kinds to handle irregular components.
+
+Perhaps Unsigned(2) for step within action? Maybe
+start with Unsigned(3) and see how long we can
+afford it as we go.
+
+typedef Unsigned(3) StepNumber;
+StepNumber mStepNumber;
+
+typedef Unsigned(4) ActionNumber;
+ActionNumber mActionNumber;
+
+/** FIND_LINE_(LEFT|RIGHT)
+    GOAL: Go (left|right) to inputs valid
+    PRE: On grid
+    POST: abs(SFLG-SFRG) > 128
+    FAIL:
+    METHOD: Turn (left|right)
+*/
+constant ActionNumber cACN_FIND_LINE_LEFT = 0u;
+constant ActionNumber cACN_FIND_LINE_RIGHT = 1u;
+
+/** TUNE_LINE
+    GOAL: Get approximately centered on line
+    PRE: FIND_LINE_(LEFT|RIGHT) succeeded
+    POST: abs(SFCG-128) < 32
+    FAIL:
+    METHOD: PID FWD SLOW
+*/
+constant ActionNumber cACN_TUNE_LINE = 2u;
+
+/** DRESS_LINE
+    GOAL: Get rear wheels just past line
+    PRE: TUNE_LINE succeeded
+    POST: SRLG and SRRG are invalid
+    FAIL:
+    METHOD: PID FWD SLOW
+*/
+constant ActionNumber cACN_DRESS_LINE = 3u;
+
+/** TURN_(LEFT|RIGHT)
+    GOAL: Find line to (left|right) of current line
+    PRE: DRESS_LINE succeeded,
+    STATE: Bool startedOnTick
+    POST: abs(SFLG-SFRG) > 128 && onTick != startedOnTick 
+    FAIL:
+    METHOD: PID ASYM ROTATE (LEFT|RIGHT) SLOW
+*/
+constant ActionNumber cACN_TURN_LEFT = 4u;
+constant ActionNumber cACN_TURN_RIGHT = 5u;
+
+[355:
+
+Fri Mar 14 02:36:37 2025 ahh etc etc. That's
+plenty to get in over our heads. Let's gut
+TRAKtions.ulam and start setting it up.
+[356:
+
+Fri Mar 14 02:38:12 2025 Hmm not sure if we need
+the (sub) StepNumber, the way those ActionNumbers
+are getting defined. We won't be able to collect
+string of ActionNumbers under another ActionNumber
+because no stack. It will be up to some other
+component to structure combinations of TRAKtions..
+so we might not need (sub) StepNumbers.
+
+Let's leave it out and see how it goes.
+[357:
+
+Fri Mar 14 12:09:36 2025 OK so we need a spike
+driver for TRAKtions? How does that work? I guess
+we try making a spike element that has one, and
+plop it down near GTCC or something?
+
+Or do we have to 
+[358:
+
+Sun Mar 16 01:18:35 2025 Soo, got kind of
+sidetracked on 'world model' displays and such,
+and did not get TRAKtions deployed.
+
+Now we've seen Beevee declare, in effect:
+  mHeadingValid = true
+  mHeading = cE
+
+when the LOCZ.mGreenLevel reached a threshold, and
+that seems to be working nicely. I now want to see
+beevee turning left and declaring mHeading = cN
+and is still valid.
+
+Where do we maybe think that decision should be
+made?
+
+I guess the first thought is we have a couple
+guidelines:
+
+(1) If I see lots of green, I'm probably going east
+(2) If I see no green, I'm probably not going east
+
+although (2) is complicated by balls that can
+occlude the green sun.
+
+[359:
+
+Sun Mar 16 01:36:09 2025 And we're looking at only
+2b currently availalbe in LOCZ, while we want to
+expand its roles to include watchdog timers for
+state validity and so one.
+
+I imagine we're going to need to expand off-atom.
+The question is how and where..
+[360:
+
+Sun Mar 16 02:13:51 2025 We do imagine that
+heading management could be a semiautonomous
+control system. It 'just' needs to see green and
+to be aware of turns left and right starting and
+completing. (And grip changes of course.)
+
+If we had TRAKtions deployed, we'd think it could
+report events like left turn starting and right
+turn complete, and heading management could
+subscribe to them.
+[361:
+
+Sun Mar 16 09:41:58 2025 So maybe let's go back to
+TRAKtions with that in mind.[362:
+
+Sun Mar 16 09:51:52 2025 OK, current status of
+TRAKtions:
+
+ - four state machine reset/ready/run/fail to
+   perform a 'simple-but-compound' action
+
+ - External asynchronous API:
+   Bool reset()
+        //< go to cTKST_RESET from any state
+   Bool takeTRAKtion(TRAKtion act)
+        //< if READY, adopt act and return true
+
+OK we need more external API:
+   Bool isReset()
+   Bool isReady()
+   Bool isRunning()
+   Bool isFailed()
+    maybe just all of them, they're small
+
+So okay now we're saying user should be able to do
+like:
+
+   if (trkn.isReady()) {
+     TRAKtions.TRAKt act = TRAKtions.cTRA_TURN_RIGHT; // whatever
+     return trkn.takeTRAKt(TRAKt act); // we're done if it took it
+   } else if (trkn.isFailed()) {
+     //// FAILURE RECOVERY AD LIB, THEN
+     return trkn.reset(); // always true: we're done for now
+   }
+   /*else isRunning or isReset - either way just wait */
+   return false;
+
+[363:
+
+Sun Mar 16 10:21:45 2025 OK so we've reviewed and
+somewhat clarified the API (and also renamed the
+whole schmear: TRAKtions.ulam -> TRAKtor.ulam).
+
+Now we need to turn around and ask how TRAKtor is
+going to issue and monitor TRAKtionCmds.[364:
+
+Sun Mar 16 11:10:22 2025 So. We're imagining a
+TRAKtor is going to replace Corral, as a data
+member of GTCC? How big is Corral? [365:
+
+Sun Mar 16 11:12:44 2025 Corral is 20b. Last time
+we rebuild TRAKtor (nee TRAKtions) it was 9b, but
+it didn't have much functionality.[366:
+
+Sun Mar 16 11:17:42 2025 Well I really think
+TRAKtor should ultimately be a separate Atom but I
+also really think we should crawl before we fly.
+
+Let's just evict Corral for TRAKtor and let the
+compiler tell us what we're going to have to deal
+with? [367:
+
+Mon Mar 17 10:22:14 2025 Woah so we're trying, for
+the first time in the history of the universe, to
+send an outbound signal along a nominally inbound
+Axon. The case is between TRAKPD and GTCC: GTCC
+is already sending command signals to TRAKPD, now
+we're going to see what blows up if we try to send
+grey sensor centering information back to GTCC.
+
+My assumption is ~0% chance it will all work. Best
+at all likely outcome, I think, is the signals get
+to GTCC and either get discarded, or stall and
+fill the return path. House pays any outcome in
+which the signal propagates at least one step.
+
+Place Your Bets!
+
+[368:
+
+Mon Mar 17 10:26:35 2025 The build has finished!
+No More Bets! [369:
+
+Mon Mar 17 10:27:25 2025 OK, new brain beginning
+to develop. The excitement builds![370:
+
+Mon Mar 17 10:29:03 2025 Axons are beginning to
+grow! Any moment now![371:
+
+Mon Mar 17 10:30:30 2025 Holy crap! Blue 'return
+signals' are reaching all the way to GTCC! WINNER!
+
+They're somehow getting discarded there, I think,
+since the channel isn't backing up..[372:
+
+Mon Mar 17 10:33:11 2025 OH FUCK WAIT HOLD YOUR
+TICKETS LADIES AND GENTLEMAN AN ANOMALY HAS BEEN
+DETECTED! ERROR ON THE FIELD!
+
+THE JUDGES HAVE DETERMINED THAT THE AXON SIGNAL
+COLORS ARE FUCKED UP BACKWARDS! NO 'RETURN'
+SIGNALS WERE SENT. REPEAT: NO RETURN SIGNALS!
+
+All bets automatically roll over to the next test!
+Ha ha on you ticket-tearing losers! Read the fine
+print next time!
+[373:
+
+Mon Mar 17 10:51:00 2025 Going again..[374:
+
+Mon Mar 17 10:59:46 2025 OK, no sign of TRAKPD
+trying to send a return signal so far. When is
+that supposed to happen?[375:
+
+Mon Mar 17 11:00:34 2025 TRAK.executeTRAK() is
+supposed to call TRAKPD.maybeForwardGrey(..). Can
+we arrange to see that happening?
+[376:
+
+Mon Mar 17 11:13:24 2025 OK, made genuinestupidbug
+(tm) TRAKPD.. going again.
+[377:
+
+Mon Mar 17 11:27:47 2025 Looks like the return
+signals may be backing up at GTCC! Cool![378:
+
+[379:
+
+Mon Mar 17 23:34:35 2025 Yikes twelve hours with
+no notes? This is indeed a sad sad sah.
+
+So! We're well beyond the point where we need some
+kind of external spike component to drive the
+TRAKtor, which is beginning to become plausible.
+
+Along with that, we need an implementation for
+TRAKtor.clockEdge(..).
+
+So should we be thinking a TRAKtorDriver API here?
+What might it look like?
+
+[380:
+
+Tue Mar 18 00:29:52 2025 For one thing, how would
+we find it?
+
+:380]  
+
+:379]
+
+:378]
+
+:377]
+:376]
+:375]
+
+:374]
+
+:373]
+:372]
+
+:371]
+
+:370]
+
+:369]
+
+:368]
+:367]
+
+:366]
+
+:365]
+
+:364]
+
+:363]
+:362]
+
+:361]
+
+:360]
+:359]
+
+:358]
+:357]
+:356]
+:355]
+
+:354]
+:353]
+
+:352]
+
+:351]
+
+:350]
+
+:349]
+
+:348]
+
+:347]
+[381:
+
+Tue Mar 18 10:18:58 2025 Just a reminder:
+
+(/ 1000.0 41)
+24.390243902439025
+~25
+
+so if we want to do 1 AER we need to finish the
+average event in under 25ms.
+
+Now if we imagine perhaps an average 50% site
+occupancy and have some quick out for events on
+empty sites, we can maybe up that to 50ms or
+so, which is starting to get into a semiplausible
+range without too much heroics on clock speed and
+such.
+
+And of course if we supported per-element limited
+ew radii, as we planned and kind of used to, then
+the fundamental assumptions change (and an empty
+site is just another radius 0 event).[382:
+
+Tue Mar 18 11:04:20 2025 And it does seem like it
+might be worth imagining some SPLAT-ish fixed
+pipeline architecture (like the Intention API:
+[acquire], observe, stabilize, act, [release]) to
+give intraevent processing a bit more structure
+and thus perhaps facilitate h/w accelerations.
+
+I guess, perhaps, especially focusing on quick-out
+opportunities. If a big chunk of [observe] could
+be collapsed into a set of go/no-go conditions on
+types only, for example, that could help a lot.
+
+The main result of [observe] should be the
+initialization of the per-event-per-element-type
+-State structure based on the observation results,
+or a (not quite so) quick out..
+
+Hmm, what if the quick out of observe was fixed to
+be "Do nothing" but the quick out of stabilize was
+fixed to be "Die"?[384:
+
+Tue Mar 18 11:27:48 2025 'Do nothing' outs are
+particularly valuable, hunh, because we can just
+retire the whole event there, with no commit
+necessary.
+
+If we imagine doing speculative events, where we
+don't lock up front, and instead save both the
+'before' ew and the 'after' ew, so we can check if
+the 'before' is still valid at the time we try to
+(best-effort) atomically commit the event..
+
+We do keep imagining a 'commit queue' of completed
+but uncommitted before-after ew transitions, along
+with a process to pull transitions off the queue
+and commit them 'atomically' if possible and
+entirely discard them if the 'before' has gone
+bad.. but we know, we know we know we know, that
+such an atomic committer process cannot really
+exist in an indefinitely scalable architecture,
+because intertile (or whatever granularity) events
+inherently require SOME kind of coordination
+between all processors that can see the event.
+
+But again, we imagine running RingO/GRDO loops
+among each such set of processors, and part of
+retirement commitment is checking if we hold the
+lock.
+
+How (TF) does 'five-port SRAM' handle write-write
+contention, anyway? Presumably just by declaring
+it undefined behavior..
+
+:384]
+
+And hmm, in principle we really could pipeline
+these stages (across Tensix 'baby RISCVs' perhaps
+even) with different stages of different events
+happening in the pipeline. So we might be able to
+reach 1 AER while taking significantly more than
+25ms, so long as we can typically issue and retire
+events at that cadence. There is of course the
+overhead of pipeline stalls and lock failures (I
+imagine) and so forth, that will chip away at any
+actual delivered pipelined AER.. just like as is
+true of conventional CPU pipelines today.
+[383:
+
+Tue Mar 18 11:26:04 2025 Anyway anyway anyway.
+
+:383]
+:382]
+:381]
+[385:
+
+Tue Mar 18 11:43:57 2025 OK so, today, damnit, I
+want to see - at the very least - border patrol
+implemented in terms of TRAKts. Come on come on.
+
+(1) Let's make quark TRAKtorDriver, and start from
+there. [386:
+
+Tue Mar 18 11:47:52 2025 and so TRAKtor will call
+back to the TRAKtorDriver for TRAKtor status
+changes? Where are we on push and pull, here.
+Callback and/or/xor polling..[387:
+
+Tue Mar 18 11:53:30 2025 OK, there's a super-stub
+SpikeBorderPatrolDriver8 element. Where shall we
+put it?[388:
+
+Tue Mar 18 11:54:57 2025 Could we make it a tap
+and put it kind of between GTCC and LOCZ? Let's
+try. Damn The Fucking Torpedoes Today Today![389:
+
+Tue Mar 18 12:05:16 2025 I guess I'm thinking we
+don't want to use Intender/Intention for TRAKtor
+or TRAKtorDriver, especially considering that
+TRAKtor currently isn't an element.. But it seems
+we could want some kind of transient structure to
+pass back and forth.
+
+:389]
+
+:388]
+
+:387]
+
+
+:386]
+
+:385]
+[390:
+
+Wed Mar 19 00:49:11 2025 Well so the whole
+GTCC/TRAKtor/TRAKtorDriver/LOCZ/HTD8 situation is
+one giant mess, but I need to bull through to see
+some localization before I really face that. Here
+on March 19, less that two weeks to T2sday.
+
+In the meantime it seems the next thing we need is
+for HTD8, via the TRAKtorDriver API, to receive
+and react to warning track notifications. How
+does/shall that information flow?
+[391:
+
+Wed Mar 19 00:59:41 2025 I guess during
+TRAKtor.updateRun(..), we can poll LOCZ.. and copy
+state to detect changes? Urgh.[392:
+
+Wed Mar 19 01:09:41 2025 Wait. Why can't we have
+LOCZ issue notifications to TRAKtorDriver/HTD8
+directly? They're in each others ews.
+
+It kind of means that LOCZ is logically 'part' of
+the TRAKtor, but we suspect that's kind of true
+anyway, just messed up in the current design.
+
+:392]
+
+:391]
+
+:390]
+[393:
+
+Wed Mar 19 10:35:52 2025 Well, having some
+confusions at least with the current idea that
+both 'traktor-internal state changes' like going
+to READY, and 'traktor-external events' like
+RED_PREWARNING_SET, go through the same 'notify'
+interface.
+
+Just noting that here. For now, still pushing on
+with it.
+[394:
+
+Wed Mar 19 11:15:45 2025 What if we had a
+configurable TRAKtor.mPauseOnEdge or something, 
+that TRAKts like DRIVE_SLOW and _FAST would check
+and, if it was set and if a TICK/TOCK comes, would
+go from RUN to READY.
+
+A simpler approach would be always go to READY on
+an edge (any edge?) and let the driver sort it
+out, if we think that would be fast enough.
+
+Maybe we do. Let's try the simpler approach.[395:
+
+Wed Mar 19 11:22:22 2025 Right now,
+cBASE_CLOK_PREDS is an array parallel to
+cBASE_MOTOR_CMDS - one ClokPredicates per
+cBASE_MOTOR_CMDS. And we already have cases where
+we reuse the same ClokPredicates for multiple
+cBASE_MOTOR_CMDS.
+
+So what if we separated that? What if we just had
+an independent array of CLOKPredicates, and let
+the MotorCmds indicate which one (or ones perhaps)
+they want?
+
+It's pretty clearly worthy, I think, given the
+reuse mentioned above, plus the fact that we're
+already calling CLOKPredicates.isTrue(..) in other
+circumstances. So it's not like the CLOKPredicates
+are only valid for terminating TRAKTs.
+
+It was also feeling like we may want a separation
+between CLOK edges and other 'worldly' events, but
+having said all this I'm not sure of that now.
+[396:
+
+Fri Mar 21 14:46:09 2025 So, dammit, come on,
+dammit, need progress here, need a workable plan
+for how to use the TRAKtorDriver, dammit, come on.
+
+Currently all we have is
+
+  virtual Void TRAKtorDriver.notify(GTCC & gtcc, TRAKtor & t, TRAKtorEvent te ) ;
+
+with the 'understanding' that all sorts of events
+- like these:
+
+      //// TRAKtorDriver API
+      typedef Unsigned TRAKtorEvent;
+      constant TRAKtorEvent cTKTR_FAIL = 0u;
+      constant TRAKtorEvent cTKTR_READY = 1u;
+      constant TRAKtorEvent cTKTR_FRONT_TICK = 2u;
+      constant TRAKtorEvent cTKTR_FRONT_TOCK = 3u;
+      constant TRAKtorEvent cTKTR_FRONT_NONE = 4u;
+      constant TRAKtorEvent cTKTR_REAR_TICK = 5u;
+      constant TRAKtorEvent cTKTR_REAR_TOCK = 6u;
+      constant TRAKtorEvent cTKTR_REAR_NONE = 7u;
+      constant TRAKtorEvent cTKTR_RED_PREWARN_SET = 8u;
+      constant TRAKtorEvent cTKTR_RED_WARN_SET = 9u;
+      constant TRAKtorEvent cTKTR_RED_PREWARN_CLEAR = 10u;
+      constant TRAKtorEvent cTKTR_RED_WARN_CLEAR = 11u;
+
+will all be signaled via notify(..). And HTD8 is
+supposed to be our first use case of that. And we
+currently have this mess there:
+
+      @Override Void notify(GTCC & gtcc, TRAKtor & t, TRAKtorEvent te) {
+        pR("D8NTFY10")&&pR(nameOfTRAKtorEvent(te));
+        if (te == cTKTR_READY) { // "RESTART" WHEN T BECOMES READY
+
+          if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT)) 
+            return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+          if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_TUNE_LINE))
+            return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+          t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);      
+
+        } else if (te == cTKTR_RED_PREWARN_SET) {
+          if (t.switchTRAKt(TRAKtor.cTRA_DRIVE_FAST,TRAKtor.cTRA_DRIVE_SLOW))
+            return;
+        } else if (te == cTKTR_RED_WARN_SET) {
+          if (!mTurnInProgress) {
+            mTurnInProgress = true;
+            t.switchTRAKt(TRAKtor.cTRA_DRIVE_SLOW,TRAKtor.cTRA_FULL_STOP);
+            return;
+          } //else ignore
+
+          pR("D8NTFY11")&&pR(t)&&pR(nameOfTRAKtorEvent(te));
+        }
+      }
+
+[397:
+
+Fri Mar 21 14:51:30 2025 Now, we kind of like
+parts of that. For example:
+
+        if (te == cTKTR_READY) { // "RESTART" WHEN T BECOMES READY
+
+>>        if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT)) 
+            return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+>>        if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_TUNE_LINE))
+            return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+>>         t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);      
+
+these sections make a nice kind of
+self-stabilizing start up. "If we haven't
+completed 'find line right', do FIND_LINE_RIGHT".
+And the completion predicate for FIND_LINE_RIGHT
+says:
+
+    {                                //< 1: cTRA_FIND_LINE_RIGHT
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+so it's true if the front wheels are on a valid
+TICK or TOCK, and the rear wheels are anywhere.
+
+And the TUNE_LINE completion predicate is a
+narrowing of that:
+
+    {                                //< 2: cTRA_TUNE_LINE
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+so that if TUNE LINE is true, then FIND LINE RIGHT
+must also be true, so we can flow through both of
+them on every event.
+
+BUT, all that happens, at the moment, only on
+TKTR_READY. Not, for example, on TKTR_RUN.
+
+And we have a current confusion about: When does
+cTRA_DRIVE_SLOW end? We don't have a completion
+predicate for it, do we? [398:
+
+Fri Mar 21 14:59:36 2025 No we do not. And that
+means that at the moment it gets the completion
+predicate of EMERGENCY STOP, which, for some
+reason, is never complete:
+
+    {                           //< lastdefined+1..maxof: cTRA_EMERGENCY_STOP
+      .mFP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
+      .mRP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
+    },
+
+[399:
+
+Fri Mar 21 15:08:46 2025 So, one question is:
+
+   When does a DRIVE_SLOW or DRIVE_FAST TRAKt
+   complete?
+
+Does it complete on every (front) clock edge? or
+on red warning? or what?
+
+Suppose it completes on red warning. So the
+assumption is you're supposed to change TRAKts
+before it gets to that, and if you don't that's on
+you.
+
+Now, in addition, we're going to be receiving
+clok events like
+
+      constant TRAKtorEvent cTKTR_FRONT_TICK = 2u;
+      constant TRAKtorEvent cTKTR_FRONT_TOCK = 3u;
+
+      constant TRAKtorEvent cTKTR_REAR_TICK = 5u;
+      constant TRAKtorEvent cTKTR_REAR_TOCK = 6u;
+
+and we need to handle them sensibly - in
+particular, to count tiles to update our location
+and so forth.
+
+Suppose we have notify split early into
+notifyReady(..) vs notifyRun(..) (and vs
+notifyFail(..), perhaps).
+
+In notifyRun, we look at the TRAKtor to see what
+TRAKt it's running, and that should be enough (?
+in simple cases?) to determine what we want to
+do..
+
+In any case, we will need to maintain our
+localization state, since nobody else can do that.
+
+Let's see if we can't just count tiles while in
+drive slow.
+[400:
+
+Fri Mar 21 22:40:21 2025 OK, so, now we are
+counting 'tiles since entering drive slow' (and
+storing the resulting count in totally the wrong
+place, but at least it's visible on the
+'dashboard').
+
+And we got this:
+
+    20250321173605-42121: 24676AEPS [308D18F6]MSG: print: "D8NTFY10"
+    20250321173605-42122: 24676AEPS [308D18F6]MSG: print: "RUN"
+    20250321173605-42123: 24676AEPS [308D18F6]MSG: print: "D8NFRUN10"
+    20250321173605-42124: 24676AEPS [308D18F6]MSG: print: "RED_WARN_SET"
+    20250321173605-42125: 24676AEPS [308D18F6]MSG: print: "D8NFRUN13"
+    20250321173605-42126: 24676AEPS [308D18F6]MSG: print: "D8NFRUN14"
+
+the end of which comes from this:
+
+          pR("D8NFRUN13");
+          if (!mTurnInProgress) {
+            pR("D8NFRUN14");
+            mTurnInProgress = true;
+            t.switchTRAKt(TRAKtor.cTRA_DRIVE_SLOW,TRAKtor.cTRA_FULL_STOP);
+            return;
+          } //else ignore
+          pR("D8NFRUN15");
+
+leading to mTurnInProgress getting set, and Beevee
+coming to a full stop. What happens now?[401:
+
+Fri Mar 21 22:45:55 2025 Well, if we follow the
+old Corral behavior, I think it'd be something
+like this:
+
+      constant State cSLOW = 3u;    //< decelerate as turn approaches
+      constant State cSTP1 = 4u;    //< stop with rear greys on the line
+      constant State cTURN = 5u;    //< turn left 'in place'
+      constant State cSTP2 = 6u;    //< stop with front greys straddling line
+
+Do we have equivalents to those steps?[402:
+
+Fri Mar 21 22:53:20 2025 Hmm I thought we were in
+READY but we're still actually in RUN/FULL_STOP..
+even though we are fully stopped. How are we
+supposed to exit that?[403:
+
+Fri Mar 21 22:54:56 2025 I guess it's fair that a
+CLOKPredicate can't express the notion 'wheel
+speed equals zero'?
+
+Could we have some other class of predicates that
+could? 
+
+:403]
+
+:402]
+
+:401]
+
+
+:400]
+:399]
+
+:398]
+
+
+
+:397]
+
+:396]
+:395]
+
+:394]
+:393]
+[404:
+
+Sat Mar 22 15:57:46 2025 OK, flag moved and
+machine rebooted and setting up again and whatnot.
+[405:
+
+Sat Mar 22 16:28:10 2025 Not going to happen
+before drinks and dinner, but next stop is to try
+using the new 'Function' APIs to represent
+completion predicates for TRAKts issued by the
+HTD8 TRAKtorDriver.[406:
+
+Sun Mar 23 02:23:09 2025 So, we're going to say a
+predicate is a small array of functions?
+
+:406]
+
+:405]
+
+:404]
+[407:
+
+Tue Mar 25 13:22:33 2025 OK, so, calling predicates
+written in "non-FORTH" are starting to work. One
+issue we're having is we'd like to have a 'slower'
+offline predicate. Right now we have:
+
+    [function.fOFFLINE_FRONT]
+      doc="true on front not tick and not tock"
+      code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_EQ ]
+
+and we're using that to exit the DRIVE TRAKts:
+
+        {                           //< 10: cTRA_DRIVE_SLOW
+          .mSpeedNotWheel = true, 
+          .mSpeed1 = 8,     // min
+          .mSpeed2 = 20,    // max
+          .mDoneFunc = fOFFLINE_FRONT, // go til interrupted or fall off line
+        },
+        {                           //< 11: cTRA_DRIVE_FAST
+          .mSpeedNotWheel = true, 
+          .mSpeed1 = 8,     // min
+          .mSpeed2 = 50,    // max
+          .mDoneFunc = fOFFLINE_FRONT, // ditto
+        },
+
+but fOFFLINE_FRONT goes true kind of too often,
+like pretty often while passing between TICK and
+TOCK. But not really reliably either, like
+sometimes not between TICK and TOCK.
+
+So the obvious though is we'd like to debounce
+fOFFLINE_FRONT with some kind of timer, so
+sufficiently short cCLOK_NONEs wouldn't raise the
+predicate.
+
+What timers does GTCC already have? Does it have
+something for this?[408:
+
+Tue Mar 25 13:34:47 2025 Well, it's got
+mEdgeTimer[2], which determines how long to wait
+before committing mNewCloks[i] to mLastClocks[i],
+and sending a clock edge notification.
+
+But that doesn't seem quite like what we want for
+fREALLY_OFFLINE_FRONT or whatever. GTCChas 6b left
+so we could just add another XTimer that resets on
+cCLOK_TICK or cCLOK_TOCK, and counts on
+cCLOK_NONE, and then just do
+
+    [operator.oREALLY_OFFLINE_FRONT] 
+      impl='return s.push(g.mOfflineFrontTimer.alarm())'
+
+or whatever, plus
+
+    [function.fREALLY_OFFLINE_FRONT]
+      doc="true on offline front for a 'long' time"
+      code = [ oREALLY_OFFLINE_FRONT ]
+
+(Do we really need a function for everything? Why
+couldn't we just do
+
+        {                           //< 11: cTRA_DRIVE_FAST
+          .mSpeedNotWheel = true, 
+          .mSpeed1 = 8,     // min
+          .mSpeed2 = 50,    // max
+          .mDoneFunc = oREALLY_OFFLINE_FRONT, 
+        },
+
+and be done with it? I guess the problem is
+function invocations are really two words -
+  [ fFUNC oCALL ]
+- and fFUNC by itself is indistinguisable from an
+immediate.
+
+We could have .mDoneOp as an alternative though.. )
+
+:408]
+
+:407]
+[409:
+
+Thu Mar 27 01:02:03 2025 OK, this is going to take
+forever, but, because I think there's a bug buried
+in it, we're going to try to understand at least
+some parts of this:
+
+    20250326180703-573853: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1< 
+    20250326180703-573855: 24068AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1< 
+    20250326180703-573857: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< 
+    20250326180703-573859: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
+    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573861: 24068AEPS [9A60B8F6]MSG: print: "oENTER"
+    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573865: 24068AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573867: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573869: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
+
+    20250326180703-573870: 24068AEPS [9A60B8F6]MSG: print: "TKUR11"
+    20250326180703-573871: 24068AEPS [9A60B8F6]MSG: print: "cTRA_FIND_LINE_RIGHT.1"
+    20250326180703-573872: 24069AEPS [9A60B8F6]MSG: print: "D8NTFY10"
+    20250326180703-573873: 24069AEPS [9A60B8F6]MSG: print: "READY"
+    20250326180703-573874: 24069AEPS [9A60B8F6]MSG: print: "READY"
+    20250326180703-573875: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY10"
+    20250326180703-573876: 24069AEPS [9A60B8F6]MSG: print: "READY"
+    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573878: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
+    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573880: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573882: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573884: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573886: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+
+    20250326180703-573887: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY11"
+    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573889: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
+    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573891: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1< 
+    20250326180703-573893: 24069AEPS [9A60B8F6]MSG: print: "oCALL"
+    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1< 
+    20250326180703-573895: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573897: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1< 
+    20250326180703-573899: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573901: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573903: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+    20250326180703-573905: 24069AEPS [9A60B8F6]MSG: print: "oAND"
+    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573907: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+    20250326180703-573908: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY1110"
+    20250326180703-573909: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
+    20250326180703-573910: 24070AEPS [9A5F78F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-27.000 IE:-5.000 LE:-27.000 AJ:-2.187 CS:18.000 CG:237  
+    20250326180704-573911: 24074AEPS [9A60B8F6]MSG: print: "D8NTFY10"
+    20250326180704-573912: 24074AEPS [9A60B8F6]MSG: print: "RUN"
+    20250326180704-573913: 24074AEPS [9A60B8F6]MSG: print: "FRONT_TOCK"
+    20250326180704-573914: 24074AEPS [9A60B8F6]MSG: print: "D8NFRUN10"
+    20250326180704-573915: 24074AEPS [9A60B8F6]MSG: print: "FRONT_TOCK"
+    20250326180704-573916: 24074AEPS [9A60B8F6]MSG: print: "D8NFRUN16"
+
+using, I think, this piece of cRAM:
+
+        oENTER,              //  25 fCLOK_EDGE_FRONT: true on front tick or front tock
+        oCLOK_FRONT,         //  26 
+        cCLOK_NONE,          //  27 
+        oCMP_NE,             //  28 
+        oRETURN,             //  29 From: fCLOK_EDGE_FRONT
+        oENTER,              //  30 fCLOK_EDGE_REAR: true on rear tick or rear tock
+        oCLOK_REAR,          //  31 
+        cCLOK_NONE,          //  32 
+        oCMP_NE,             //  33 
+        oRETURN,             //  34 From: fCLOK_EDGE_REAR
+        oENTER,              //  35 fSMALL_GREY_DEV: true on small deviation
+        oGREY_FCTR,          //  36 
+        oDUP,                //  37 
+        25,                  //  38 
+        oCMP_LE,             //  39 
+        oSWAP,               //  40 
+        -25,                 //  41 
+        oCMP_GE,             //  42 
+        oAND,                //  43 
+        oRETURN,             //  44 From: fSMALL_GREY_DEV
+        oENTER,              //  45 fCLOK_EDGE_TUNED: true on front edge and small deviation
+        fCLOK_EDGE_FRONT,    //  46 
+        oCALL,               //  47 
+        fSMALL_GREY_DEV,     //  48 
+        oAND,                //  49 
+        oRETURN,             //  50 From: fCLOK_EDGE_TUNED
+
+and perhaps mostly these scattered bits of
+Code10.dtoml:
+
+    [operator.oCLOK_FRONT]           # : { outs[0] = g.mNewCloks[0]; return true; } // front newclok
+      impl='return s.push(g.mNewCloks[0])'
+
+    [operator.oCMP_NE]           # : { outs[0] = ins[0] != ins[1] ? 1 : 0; return true; }
+      impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] != v[1])'
+
+    [function.fCLOK_EDGE_FRONT]
+      doc="true on front tick or front tock"
+      code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_NE ]
+
+    [function.fSMALL_GREY_DEV]
+      doc="true on small deviation"
+      code = [ oGREY_FCTR, oDUP, 25, oCMP_LE, oSWAP, -25, oCMP_GE, oAND ]
+
+    [function.fCLOK_EDGE_TUNED]
+      doc="true on front edge and small deviation"
+      code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oAND ]
+
+    [trakt.cTRA_FIND_LINE_RIGHT]
+      mSpeedLeft = 3
+      mSpeedRight = 1
+      mDoneFunc = fCLOK_EDGE_FRONT
+
+    [trakt.cTRA_TUNE_LINE]
+      mSpeedMin = 1
+      mSpeedMax = 2
+      mDoneFunc = fCLOK_EDGE_TUNED
+
+    [trakt.cTRA_DRESS_LINE_FWD]
+      mSpeedMin = 1
+      mSpeedMax = 3
+      mDoneFunc = fSAME_EDGE
+
+I'm going to leave all that 'pure', there, and
+repaste pieces of it as we go.
+[410:
+
+Thu Mar 27 01:16:33 2025 OK. Here goes.
+
+As the scene opens, 'for some reason', we are
+evaluating oCLOK_FRONT -
+
+    20250326180703-573853: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+
+- which pushes a literal 2 (#2) on the stack:
+
+    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1< 
+
+because that's what oCLOK_FRONT does:
+
+    [operator.oCLOK_FRONT]           # : { outs[0] = g.mNewCloks[0]; return true; } // front newclok
+      impl='return s.push(g.mNewCloks[0])'
+
+and #2 is the value meaning the front grey sensors
+are neither TICK nor TOCK, but instead are:
+
+      constant ClokState cCLOK_NONE = 2u; //< unsettled state
+
+(which is from DTU.ulam and not quoted above grr)
+[411:
+
+Thu Mar 27 01:20:50 2025 Then another literal is
+pused on the stack - 
+
+    20250326180703-573855: 24068AEPS [9A60B8F6]MSG: print: "#"
+
+which happens also to be #2 - 
+
+    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1< 
+
+because, I believe, we were evaluating
+fCLOK_EDGE_FRONT:
+
+    [function.fCLOK_EDGE_FRONT]
+      doc="true on front tick or front tock"
+      code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_NE ]
+
+And indeed, the next thing is oCMP_NE
+
+    20250326180703-573857: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< 
+
+which pops the two #2s, discovers they are NOT !=
+so the result is #0, which it pushes on the stack:
+
+    [operator.oCMP_NE]           # : { outs[0] = ins[0] != ins[1] ? 1 : 0; return true; }
+      impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] != v[1])'
+
+fCLOK_EDGE_FRONT then does oRETURN (which is
+implicit at end of function)
+
+  [ 20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< ]
+    20250326180703-573859: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
+    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+
+which pops the #0 and returns it, completing the
+evaluation of fCLOK_EDGE_FRONT.
+
+[412:
+
+Thu Mar 27 01:29:17 2025 Then we see:
+
+  [ 20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< ]
+    20250326180703-573861: 24068AEPS [9A60B8F6]MSG: print: "oENTER"
+    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+
+which is, I believe, fCLOK_EDGE_FRONT being called
+again. As do all functions (I think), it begins
+with a hardcoded oENTER, and then it evals
+oCLOK_FRONT, same as before. But this time, the
+result is different -
+
+  [ 20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT" ]
+    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+
+This time, the value is 1, not 2, because the
+front grey sensor calculations have now decided
+they're seeing:
+
+  constant ClokState cCLOK_TOCK = 1u; //< left low, right high
+
+Then that result is pushed on the stack, and as
+before, a #2 is pushed on top of it:
+
+  [ 20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< ]
+    20250326180703-573865: 24068AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+
+an oCMP_NE is evaluated -
+
+    20250326180703-573867: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+
+this time pushing #1, as #2 and #1 are indeed NE, 
+
+    20250326180703-573869: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
+
+and that #1 is then returned.
+
+[413:
+
+Thu Mar 27 01:38:27 2025 That changed value, I
+believe, caused the previously running TRAKt to be
+done:
+
+    [trakt.cTRA_FIND_LINE_RIGHT]
+      mSpeedLeft = 3
+      mSpeedRight = 1
+      mDoneFunc = fCLOK_EDGE_FRONT
+
+and so the TRAKtor switches from RUN to READY:
+
+      Void updateRun(GTCC &g, TRAKtorDriver & td, LOCZ & l) {
+        if (isTRAKtDone(g,l)) {
+          pR("TKUR11")&&pR(nameOfCurrentTRAKt());
+          mTRAKtorState = cTKST_READY;
+
+(from TRAKtor.ulam) yielding
+
+  [ 20250326180703-573869: 24068AEPS [9A60B8F6]MSG: print: "oRETURN" ]
+    20250326180703-573870: 24068AEPS [9A60B8F6]MSG: print: "TKUR11"
+    20250326180703-573871: 24068AEPS [9A60B8F6]MSG: print: "cTRA_FIND_LINE_RIGHT.1"
+
+(thus confirming we HAD been running
+FIND_LINE_RIGHT..)
+
+That is followed by a notification to the
+TRAKtorDriver (which in this spike is called HTD8)
+-
+
+  [ 20250326180703-573871: 24068AEPS [9A60B8F6]MSG: print: "cTRA_FIND_LINE_RIGHT.1" ]
+    20250326180703-573872: 24069AEPS [9A60B8F6]MSG: print: "D8NTFY10"
+    20250326180703-573873: 24069AEPS [9A60B8F6]MSG: print: "READY"
+    20250326180703-573874: 24069AEPS [9A60B8F6]MSG: print: "READY"
+
+coming from this code in element HTD8
+
+      @Override Void notify(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+        TRAKtor.TRAKtorState tstate = t.mTRAKtorState;
+        pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
+
+(in TRAKtorDriver.ulam), in which the name of the
+TRAKtorState is "READY", and the name of the
+current event being notified is also "READY",
+meaning "we have just entered the READY state".
+
+That in turn leads to
+
+  [ 20250326180703-573874: 24069AEPS [9A60B8F6]MSG: print: "READY" ]
+    20250326180703-573875: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY10"
+    20250326180703-573876: 24069AEPS [9A60B8F6]MSG: print: "READY"
+
+which comes from HTD8:
+
+  Void notifyReady(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+    l.mPosValid[0] = false;     // XXX SPIKE
+
+    // Square up, then decide what to do
+    pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te));
+
+[414:
+
+Thu Mar 27 01:52:51 2025 HTD8.notifyReady(..) then
+continues with
+
+  [ pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te)); ]
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) {
+
+because HTD8 is being paranoid, making a call to
+isThisTRAKtDone(..) - not to start running
+FIND_LINE_RIGHT (which just finished, in this
+case) - but to confirm that we really HAVE
+completed FIND_LINE_RIGHT.
+
+That fires off another complete burst of
+evaluation:
+
+  [ 20250326180703-573876: 24069AEPS [9A60B8F6]MSG: print: "READY" ]
+    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573878: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
+    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573880: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573882: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573884: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573886: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+
+which does, again, indeed return 1. So we skip
+trying to start FIND_LINE_RIGHT, and continue on - 
+
+  [ if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) { ]
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+    }
+
+    pR("D8NTFYRDY11");
+
+producing
+
+  [ 20250326180703-573886: 24069AEPS [9A60B8F6]MSG: print: "oRETURN" ]
+    20250326180703-573887: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY11"
+
+[415:
+
+Thu Mar 27 02:00:37 2025 Now, here's where things
+get, perhaps, more interesting. After
+"D8NTFYRDY11", the HTD8.notifyReady(..) code does
+this: 
+
+  [ pR("D8NTFYRDY11"); ]
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+    }
+
+to see if we're fine-tuned on the line, and switch
+to running the TUNE_LINE trakt if we're not.
+
+Here's cTRA_TUNE_LINE
+
+    [trakt.cTRA_TUNE_LINE]
+      mSpeedMin = 1
+      mSpeedMax = 2
+      mDoneFunc = fCLOK_EDGE_TUNED
+
+so its 'done code' is fCLOK_EDGE_TUNED, which is: 
+
+    [function.fCLOK_EDGE_TUNED]
+      doc="true on front edge and small deviation"
+      code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oAND ]
+
+Now we finally finally get to the reason we're
+here. That fCLOK_EDGE_TUNED code wants to call the
+function fCLOK_EDGE_FRONT, and then call the
+function fSMALL_GREY_DEV, and then oAND those two
+results together: The front grey sensors are edge
+tuned if we're on an edge AND the center grey
+sensor has only a small deviation from its
+midpoint.
+
+BUT THAT'S NOT WHAT THAT CODE SAYS. That code
+
+      code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oAND ]
+
+says call CLOK_EDGE_FRONT, then push the result,
+then push the FUCKING FUNCTION ADDRESS of
+fSMALL_GREV_DEV, which happens to be 35
+
+        oENTER,              //  35 fSMALL_GREY_DEV: true on small deviation
+
+(from the cRAM excerpt above), THEN RETURN THE
+RESULT OF clok_edge_front ANDED with FUCKING 35.
+
+And indeed, that's what I saw, that caught my eye,
+that lead to this 'analysis'.
+
+But we have to go through that blow by blow,
+because I think I see right now that there's a
+second bug as well. And my restatement of what the
+code did is also wrong. Yikes.
+[416:
+
+Thu Mar 27 02:17:23 2025 So. Let's go through it.
+Here's the cRAM for fCLOK_EDGE_TUNED
+
+        oENTER,              //  45 fCLOK_EDGE_TUNED: true on front edge and small deviation
+        fCLOK_EDGE_FRONT,    //  46 
+        oCALL,               //  47 
+        fSMALL_GREY_DEV,     //  48 
+        oAND,                //  49 
+        oRETURN,             //  50 From: fCLOK_EDGE_TUNED
+
+We were here: 
+
+  [ 20250326180703-573887: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY11" ]
+    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573889: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
+
+ - so we've entered fCLOK_EDGE_TUNED and done the
+(no-op) oENTER,
+
+    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+
+ - leaving the stack unchanged. 
+
+    20250326180703-573891: 24069AEPS [9A60B8F6]MSG: print: "#"
+
+ - Then we push the entry point of
+fCLOK_EDGE_FRONT, which is 25 -
+
+         oENTER,              //  25 fCLOK_EDGE_FRONT: true on front tick or front tock
+
+    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1< 
+
+- onto the stack as well.
+
+    20250326180703-573893: 24069AEPS [9A60B8F6]MSG: print: "oCALL"
+    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1< 
+
+ - then we make the call, which pops the starting
+   address (25) to call, and pushes the return
+   address, which is 48 from
+
+  [     oCALL,               //  47 ]
+        fSMALL_GREY_DEV,     //  48 
+
+and execution continues at entry point + 1, cRAM[26].
+
+    20250326180703-573895: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
+    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+
+ - Operator oCLOK_FRONT pushes #1 because we're
+(still) on front tock
+
+    20250326180703-573897: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1< 
+
+ - then literal cCLOK_NONE (value 2) is pushed.
+
+    20250326180703-573899: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
+    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+
+ - then CMP_NE pops #2 and #1, discovers they ARE
+!=, so pushes #1.
+
+    20250326180703-573901: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+
+ - then oRETURN pops the return value (#1) and the
+return address (#48), repushes the return value
+(#1) and sets the PC to 48. Because that's how
+it's implemented:
+
+    [operator.oRETURN]
+      impl=''' // FUNCTION RETURN: stack is [RETVAL RETADDR ...]
+          return s.pop(v[0])            // v0 <- retval
+              && s.pop(v[1])            // v1 <- retaddr
+              && readRAM(v[1] - 1,v[2]) // v2 <- cRAM[retaddr-1]
+              && v[2] == oCALL          // [retaddr-1] is a call
+              && s.push(v[0])           // restash retval
+              && setPC(pc,v[1])         // jump to retaddr
+      '''
+
+(from Code10.dtoml) I see it also confirms that
+the return address - 1 is an oCALL, before
+repushing the return value.
+
+    20250326180703-573903: 24069AEPS [9A60B8F6]MSG: print: "#"
+    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+
+ - then it pushes the starting address of
+fSMALL_GREY_DEV (35), preparatory to making the
+second (BUT MISSING) oCALL. So wait, I guess there
+isn't a second bug here? I was thinking oRETURN
+had a problem, but this looks okay. I was worried
+how #35 got on the stack but now I see that's
+'OK'. 
+
+    20250326180703-573905: 24069AEPS [9A60B8F6]MSG: print: "oAND"
+
+ - then we boldly oAND #1 and #25
+
+    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+
+ - obtaining #1
+ 
+    20250326180703-573907: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
+
+ - which we return
+ 
+   20250326180703-573908: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY1110"
+
+[417:
+
+Thu Mar 27 02:44:50 2025 OK, stop the clock. We
+started the analysis at 01:02:03, so we spent over
+1.5 hours on this. "Just for one measly bug" Yeah,
+yeah, I know..
+
+This 
+
+    [function.fCLOK_EDGE_TUNED]
+      doc="true on front edge and small deviation"
+      code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oAND ]
+
+wants to be this
+
+    [function.fCLOK_EDGE_TUNED]
+      doc="true on front edge and small deviation"
+      code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oCALL, oAND ]
+
+[418:
+
+Thu Mar 27 02:47:03 2025 And now it is.
+Rebuilding.[419:
+
+Thu Mar 27 02:56:35 2025 Done. Reupping Beevee's
+brain.. 
+
+:419]
+
+:418]
+
+:417]
+:416]
+
+
+:415]
+
+
+:414]
+:413]
+
+
+:412]
+
+:411]
+:410]
+:409]
+[420:
+
+Thu Mar 27 03:53:31 2025 OK, as a side issue, I
+finally diagnosed an ancient FloodFind issue where
+sometimes the root would unexpectedly bail with
+"NO KID BYEEEE!" Not sure if my fix - special case
+code if the root can see the goal directly - will
+actually work, and not sure when the issue will
+come up again 'organically', but we're rebuilding
+with the 'fix' anyway.
+
+:420]
+[421:
+
+Thu Mar 27 04:25:31 2025 And look at that stack
+grow now! --
+
+    20250327042226-527393: 10782AEPS [A18D58F6]MSG: print: "oENTER"
+    20250327042226-527394: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 1<#1< 
+    20250327042226-527395: 10782AEPS [A18D58F6]MSG: print: "#"
+    20250327042226-527396: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#25 #1< 
+    20250327042226-527397: 10782AEPS [A18D58F6]MSG: print: "oCALL"
+    20250327042226-527398: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#48 #1< 
+    20250327042226-527399: 10782AEPS [A18D58F6]MSG: print: "oCLOK_FRONT"
+    20250327042226-527400: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#0 #48 #1< 
+    20250327042226-527401: 10782AEPS [A18D58F6]MSG: print: "#"
+    20250327042226-527402: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#2 #0 #48 #1< 
+    20250327042226-527403: 10782AEPS [A18D58F6]MSG: print: "oCMP_NE"
+    20250327042226-527404: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250327042226-527405: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
+    20250327042226-527406: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250327042226-527407: 10782AEPS [A18D58F6]MSG: print: "#"
+    20250327042226-527408: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+    20250327042226-527409: 10782AEPS [A18D58F6]MSG: print: "oCALL"
+    20250327042226-527410: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#50 #1 #1< 
+    20250327042226-527411: 10782AEPS [A18D58F6]MSG: print: "oGREY_FCTR"
+    20250327042226-527412: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#11 #50 #1 #1< 
+    20250327042226-527413: 10782AEPS [A18D58F6]MSG: print: "oDUP"
+    20250327042226-527414: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #11 #50 #1 #1< 
+    20250327042226-527415: 10782AEPS [A18D58F6]MSG: print: "#"
+    20250327042226-527416: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#25 #11 #11 #50 #1 #1< 
+    20250327042226-527417: 10782AEPS [A18D58F6]MSG: print: "oCMP_LE"
+    20250327042226-527418: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #11 #50 #1 #1< 
+    20250327042226-527419: 10782AEPS [A18D58F6]MSG: print: "oSWAP"
+    20250327042226-527420: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #1 #50 #1 #1< 
+    20250327042226-527421: 10782AEPS [A18D58F6]MSG: print: "#"
+    20250327042226-527422: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#-25 #11 #1 #50 #1 #1< 
+    20250327042226-527423: 10782AEPS [A18D58F6]MSG: print: "oCMP_GE"
+    20250327042226-527424: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #1 #50 #1 #1< 
+    20250327042226-527425: 10782AEPS [A18D58F6]MSG: print: "oAND"
+    20250327042226-527426: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#1 #50 #1 #1< 
+    20250327042226-527427: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
+    20250327042226-527428: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #1 #1< 
+    20250327042226-527429: 10782AEPS [A18D58F6]MSG: print: "oAND"
+    20250327042226-527430: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250327042226-527431: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
+    20250327042226-527432: 10782AEPS [A18D58F6]MSG: print: "D8NTFYRDY1110"
+    20250327042226-527433: 10782AEPS [A18D58F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
+
+[422:
+
+Thu Mar 27 04:26:59 2025 ah hrm.. except the small
+dev implementation is completely fucked, doh.
+
+    [function.fSMALL_GREY_DEV]
+      doc="true on small deviation"
+      code = [ oGREY_FCTR, oDUP, 25, oCMP_LE, oSWAP, -25, oCMP_GE, oAND ]
+
+oGREY_FCTR is the raw value of the center grey
+sensor! Not the deviation of the center grey
+sensor from the midpoint!
+
+But we can fix that easily, right? With like
+
+    [function.fSMALL_GREY_DEV]
+      doc="true on small deviation 128+-25 == 103..153"
+      code = [ oGREY_FCTR, oDUP, 153, oCMP_LE, oSWAP, 103, oCMP_GE, oAND ]
+
+
+:422]
+:421]
+[423:
+
+Thu Mar 27 14:37:37 2025 OK, well, 'they' said it
+would never happen, but Beevee initiated a left
+turn, on a red warning, all on Beevee's 'own
+initiative', and managed to stay focused and
+complete the turn.
+
+After the cTRA_TURN_LEFT_TO_TOCK.6 TRAKt, the
+TRAKtor went back to READY. That generated a
+notification to that effect, and the TRAKtorDriver
+code went back through HTD8.notifyReady(..), which
+did:
+
+    // Square up, then decide what to do
+    pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te));
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) {
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+    }
+
+which was fine, because the done code for
+FIND_LINE_RIGHT was already satisfied.
+
+Then it did:
+
+    pR("D8NTFYRDY11");
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+    }
+
+and the TUNE_LINE done code was NOT satisfied, so
+it started the TUNE_LINE TRAKt.[424:
+
+Thu Mar 27 15:10:06 2025 Which was actually kind
+of okay as well.. but after the TUNE_LINE TRAKt
+finished, notifyReady(..) blithely went to
+DRIVE_SLOW, without a care in the world.
+
+:424]
+
+:423]
+[425:
+
+Thu Mar 27 15:11:20 2025 The thing is, we need
+some kind of higher-order sequencing, like our
+little non-FORTH code, except one that can persist
+over many steps.
+
+Well, we only 'really' need to persist the PC and
+a stack.. and then we could reinit a Function
+object as needed for an event. We could do a size
+4 stack with like two atoms, and probably store a
+PC in there too..
+
+[426:
+
+Thu Mar 27 15:27:23 2025 That's silly, though,
+right? At least silly to be thinking about
+starting during the T2sday countdown..
+
+:426]
+
+:425]
+[427:
+
+Fri Mar 28 02:24:53 2025 So, one issue with the
+current code is that it's relying on
+notifications. So if a notification comes at the
+wrong time or is mishandled, there's no recovering
+from that short of (say) NORED.
+
+What we ought to be doing is polling the things we
+care about reasonably regularly, and using
+notifications as a shortcut to triggering a
+polling.
+
+I mean it's totally embarrassing that LOCZ is
+sitting there saying mPreWarning=true and
+mWarningTrack=true for whole grid counts, while
+Beevee blithely blasts away in DRIVE_SLOW until
+NORED kicks in.
+[428:
+
+Fri Mar 28 02:33:25 2025 We should at least add
+some more operators to access such things.. but
+the main thing is deciding when and where to
+access them..
+
+Shouldn't there be some 'invariants' that we could
+associate with a TRAKt? That would be
+automatically checked?
+[429:
+
+Fri Mar 28 02:44:30 2025 OK well we added
+
+    [operator.oRED_WARNING_TRACK]
+      impl='return s.push(l.mWarningTrack)'
+    [operator.oRED_PRE_WARNING]
+      impl='return s.push(l.mPreWarning)'
+    [operator.oGREEN_LEVEL]
+      impl='return s.push(l.mGreenLevel)'
+
+but where will we use it/them?[430:
+
+Fri Mar 28 02:46:43 2025 Is having a 'go code' in
+a MotorCmd any different that the existing
+'mDoneCode'?
+
+Continue while this or done when that?
+
+'seems same same'.. 
+[431:
+
+Fri Mar 28 02:54:28 2025 OK, made
+
+    [function.fSTOP_DRIVE_SLOW]
+      doc="done if hard offline, or red warning"
+      code = [ oHARD_OFFLINE_FRONT, oRED_WARNING_TRACK, oOR ]
+
+and switched to
+
+    [trakt.cTRA_DRIVE_SLOW]
+      mSpeedMin = 8
+      mSpeedMax = 20
+      mDoneOp = fSTOP_DRIVE_SLOW
+
+so that ought to 'end' the just-discussed
+embarrassment. But that 'just' means we'll find
+ourselves back in notifyReady(..), needing to
+decide what to do. What'll happen there? Something
+embarrassing probably hunh.
+
+[432:
+
+Fri Mar 28 02:57:31 2025 I guess one possibility
+is having a MotorCmd.mNextTRAKt, so
+TRAKt-switching could, at least in some cases, be
+automated. Or, better I guess, we could have
+MotorCmd.mNextTraktOp[433: Fri Mar 28 02:59:48
+2025 Opps I just noticed the bug in the above..
+which should 'obviously' be:
+
+    [trakt.cTRA_DRIVE_SLOW]
+      mSpeedMin = 8
+      mSpeedMax = 20
+      mDoneFunc = fSTOP_DRIVE_SLOW
+
+but makeBeeveeXBlockSources.py didn't blink an eye
+about the buggy version, because so far we aren't
+saying our oFOO/cBAR/fGAH naming convention is
+required[434:
+
+Fri Mar 28 04:02:24 2025 OK we've been watching
+this version approach the red, here, and saw this:
+
+    20250328040129-41729: 18573AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-22.000 IE:-5.000 LE:-22.000 AJ:-1.796 CS:19.000 CG:217  
+    20250328040132-41730: 18588AEPS [73FF18F6]MSG: print: "D8NTFY10"
+
+notification arrives at HTD8
+
+    20250328040132-41731: 18588AEPS [73FF18F6]MSG: print: "RUN"
+    20250328040132-41732: 18588AEPS [73FF18F6]MSG: print: "RED_WARN_SET"
+
+it's the red warning
+
+    20250328040132-41733: 18588AEPS [73FF18F6]MSG: print: "D8NFRUN10"
+    20250328040132-41734: 18588AEPS [73FF18F6]MSG: print: "RED_WARN_SET"
+
+leading to this code:
+ --
+    } else if (te == cTKTR_RED_WARN_SET) {
+      pR("D8NFRUN13");
+      if (!mTurnInProgress) {
+        pR("D8NFRUN14");
+        mTurnInProgress = true;
+        t.switchTRAKt(TRAKtor.cTRA_DRIVE_SLOW,TRAKtor.cTRA_DRESS_LINE_FWD);
+        return;
+ --
+
+    20250328040132-41735: 18588AEPS [73FF18F6]MSG: print: "D8NFRUN13"
+    20250328040132-41736: 18588AEPS [73FF18F6]MSG: print: "D8NFRUN14"
+    20250328040132-41737: 18588AEPS [73FF18F6]MSG: s[16,13] t[1,1]: TRAKtor.ulam:433: RUN/cTRA_DRIVE_SLOW.10 => RUN/cTRA_DRESS_LINE_FWD.3 
+
+which switches trakts 'on the fly' -- meaning
+without leaving TRAKtorState RUN
+
+    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3 
+
+but then that happens. The TRAKtor goes READY
+anyway. Why did that happen?
+
+    20250328040132-41739: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_FULL_STOP.9 
+
+The default updateReady preemptively switches to FULL_STOP..
+
+    20250328040132-41740: 18592AEPS [73FF18F6]MSG: print: "D8NTFY10"
+    20250328040132-41741: 18592AEPS [73FF18F6]MSG: print: "READY"
+
+and a notification that we've gone READY arrives.. 
+
+    20250328040132-41742: 18592AEPS [73FF18F6]MSG: print: "READY"
+    20250328040132-41743: 18592AEPS [73FF18F6]MSG: print: "D8NTFYRDY10"
+    20250328040132-41744: 18592AEPS [73FF18F6]MSG: print: "READY"
+    20250328040132-41745: 18592AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
+    20250328040132-41746: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_TUNE_LINE.2 
+    20250328040132-41747: 18593AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-23.000 IE:-5.000 LE:-22.000 AJ:-2.500 CS:19.000 CG:221  
+[435:
+
+Fri Mar 28 04:11:30 2025 aand a few moments later
+we're looping:
+
+    20250328041156-45967: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45968: 22081AEPS [73FF18F6]MSG: print: "D8NTFY10"
+    20250328041156-45969: 22081AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45970: 22081AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45971: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY10"
+    20250328041156-45972: 22081AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45973: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
+    20250328041156-45974: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
+    20250328041156-45975: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
+    20250328041156-45976: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
+    20250328041156-45977: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
+    20250328041156-45978: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45979: 22082AEPS [73FF18F6]MSG: print: "D8NTFY10"
+    20250328041156-45980: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45981: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45982: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY10"
+    20250328041156-45983: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45984: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
+    20250328041156-45985: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
+    20250328041156-45986: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
+    20250328041156-45987: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
+    20250328041156-45988: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
+    20250328041156-45989: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45990: 22082AEPS [73FF18F6]MSG: print: "D8NTFY10"
+    20250328041156-45991: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45992: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45993: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY10"
+    20250328041156-45994: 22082AEPS [73FF18F6]MSG: print: "READY"
+    20250328041156-45995: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
+    20250328041156-45996: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
+    20250328041156-45997: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
+    20250328041156-45998: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
+    20250328041156-45999: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
+    20250328041156-46000: 22083AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+
+etc.. because we don't have a mechanism to
+recognize stigmergically that we entered a turn,
+way back after
+
+    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3 
+
+Did we go READY there because the line was already
+dressed? What's the donefunc?[436:
+
+Fri Mar 28 04:17:39 2025 It's
+
+    [trakt.cTRA_DRESS_LINE_FWD]
+      mSpeedMin = 1
+      mSpeedMax = 3
+      mDoneFunc = fSAME_EDGE
+
+which might indeed have been true. Have to check
+the tape.
+
+Now I'm thinking part of being done is having
+speed within bounds. We shouldn't declare LINE
+DRESSED when we're going 20, even if we are on the
+same edge. Not sure[437:
+
+Fri Mar 28 12:26:44 2025 So, for each TRAKt, we
+should be able to say
+(1) how to know when it's done
+(2) how to react to things while it's running
+(3) what to do if it fails
+
+[438:
+
+Fri Mar 28 13:47:24 2025 Let's see about adding a
+little stack around HTD8. Like four Ints. Let's
+just see.[439:
+
+Fri Mar 28 14:10:13 2025 Well, first did a giant
+checkpoint of all this stuff..
+
+:439]
+
+:438]
+:437]
+
+
+:436]
+
+
+:435]
+
+:434].
+
+  :433]
+
+:432]
+
+:431]
+:430]
+
+:429]
+:428]
+:427]
