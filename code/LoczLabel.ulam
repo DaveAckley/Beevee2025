@@ -1,0 +1,227 @@
+
+element LZRV : TermHiddenIO {
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cAXON_TO_XBAR;
+  }
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    SN sn = findLabelSN();
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return false;
+    LoczLabel & lb = (LoczLabel&) ew[sn];
+    Bool ret = false;
+    if (iss.isOccupied()) {
+      LOCZPacket p;
+      p.mData = iss.mValue;
+      which (p.mSignal.mSigFmt) {
+      case LOCZSignal.cSIGFMT_XPOS: {
+        if (lb.mXPos != p.mSignal.mSigData.mData) {
+          lb.mXPos = p.mSignal.mSigData.mData;
+          lb.mHasXPos = lb.mXPos != 63u;
+          ret = true;
+        }
+      }
+      case LOCZSignal.cSIGFMT_YPOS: {
+        if (lb.mYPos != p.mSignal.mSigData.mData) {
+          lb.mYPos = p.mSignal.mSigData.mData;
+          lb.mHasYPos = lb.mYPos != 63u;
+          ret = true;
+        }
+      }
+      case LOCZSignal.cSIGFMT_CSP8: {
+        if (lb.mSpeed8 != p.mSignal.mSigData.mData) {
+          lb.mSpeed8 = p.mSignal.mSigData.mData;
+          lb.mHasSpeed8 = lb.mSpeed8 != 63u;
+          ret = true;
+        }
+      }
+      case LOCZSignal.cSIGFMT_EXTN: {
+        which (p.mSignal.mSigData.mExtn.mExtFmt) {
+        case LOCZExtn.cSIGEXT_HEAD: {
+          Unsigned head = p.mSignal.mSigData.mExtn.mExtData;
+          Bool valid = head <= cE;
+          if (valid != lb.mHasOrientation ||
+              ((AxialDir) head) != lb.mOrientation) {
+            lb.mHasOrientation = valid;
+            lb.mOrientation = (AxialDir) head; // will be cE if invalid..
+            ret = true;
+          }
+        }
+        case LOCZExtn.cSIGEXT_STAT: {
+        }
+        otherwise: { }
+        }
+      }
+      }
+      Random random;
+      if (false && random.oneIn(10)) {
+        lb.mFormatStringIdx = (LoczLabel.FormatStringIdx) random.between(0u,lb.cFORMAT_STRINGS.lengthof-1u);
+        ret = true;
+      }
+    }
+    if (ret)
+      lb.mPrio.increment();
+
+    return ret;
+  }
+
+  SN findLabelSN() {
+    SN retsn = SN.maxof;        // assume no good
+    SN sn = 29u;                // assume we're tap.S and go westx2 of W
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return retsn;
+    Atom & a = ew[sn];
+    if (a is LoczLabel) retsn = sn;
+    else if (!a is LoczLabel) { // vs 'is Empty': be arrogant here
+      LoczLabel lb;
+      lb.mLabelIndex = LoczLabel.cLOCZLABEL_LEN/2u;
+      lb.mGloc.set(7,0);        // bottom right corner of glyph
+      ew[sn] = lb.atomof;
+      retsn = sn;
+    }
+    return retsn;
+  }
+}
+
+element LoczLabel : Label + DTU + Fail {
+  /** Label layout:
+      
+     0123456789
+     E99(99,99)
+      \ \  \  \-> mHasYPos,mYPos (Y pos)
+       \ \  \---> mHasXPos,mXPos (X pos)
+        \ \-----> mCurSpeed (if != .maxof)
+         \------> mHasOrientation,mOrientation
+
+   */
+  constant Unsigned cLOCZLABEL_LEN = 10u;
+  Unsigned(7) mSpinCounter;
+
+  @Override Void behave() {
+    if (mSpinCounter++ == mSpinCounter.maxof) mSpinCounter = 0u;
+    return super.behave();
+  }
+
+  //// Label API
+  @Override ASCII aref(Unsigned idx) {
+    if (idx >= cLOCZLABEL_LEN) fail(__FILE__,__LINE__);
+    String fmt = cFORMAT_STRINGS[mFormatStringIdx];
+    ASCII ch = fmt[idx];
+    if (ch < cCODE_MIN || ch > cCODE_MAX) return ch;
+    Bool again = true;
+    while (again) {
+      again = false;
+      which (ch) {
+      case cCODE_NOISE25: {
+        if (mSpinCounter < 32)
+          ch = (ASCII) (mSpinCounter + 33u);
+        else
+          ch = ' ';
+      }
+      case cCODE_NOISE50: {
+        if (mSpinCounter < 64)
+          ch = (ASCII) (mSpinCounter + 33u);
+        else
+          ch = ' ';
+      }
+      case cCODE_NOISE75: {
+        if (mSpinCounter < 96)
+          ch = (ASCII) (mSpinCounter + 33u);
+        else
+          ch = ' ';
+      }
+
+      case cCODE_ORIENT: { // orientation as WNSE or noise
+        if (!mHasOrientation) { ch = cCODE_NOISE50; again = true; }
+        else ch = axialDir2ASCII(mOrientation);
+      }
+
+      case cCODE_XDIGIT1: 
+      case cCODE_XDIGIT2: {
+        if (!mHasXPos) { ch = cCODE_NOISE50; again = true; }
+        else if (ch == cCODE_XDIGIT1) ch = (ASCII) ('0'+(mXPos/10)%10);
+        else /* cCODE_XDIGIT2 */ ch = (ASCII) ('0' + mXPos%10);
+      }
+
+      case cCODE_YDIGIT1: 
+      case cCODE_YDIGIT2: {
+        if (!mHasYPos) { ch = cCODE_NOISE50; again = true; }
+        else if (ch == cCODE_YDIGIT1) ch = (ASCII) ('0'+(mYPos/10)%10);
+        else /* cCODE_YDIGIT2 */ ch = (ASCII) ('0' + mYPos%10);
+      }
+
+      case cCODE_SPEED1:
+      case cCODE_SPEED2: {
+        if (!mHasSpeed8) { ch = cCODE_NOISE50; again = true; }
+        else {
+          Int speed = (Int) mSpeed8 - 8;
+          if (ch == cCODE_SPEED1) {
+            if (speed < 0) ch = '-';
+            else ch = (ASCII) ('0'+(speed/10)%10);
+          } else /* cCODE_SPEED2 */ {
+            if (speed < 0) ch = (ASCII) ('0' + -speed%10);
+            else ch = (ASCII) ('0' + speed%10);
+          }
+        }
+      }
+      /// OTHER CASES HERE
+      /// AND FINALLY
+      otherwise: { ch = '?'; }
+      }
+    }
+    return ch;
+  }
+  @Override Unsigned alengthof() { return cLOCZLABEL_LEN; }
+  @Override FontNumber getFontNumber(LabelIndex idx) { return 1u; } // 1==Inconsolata
+
+  constant ASCII cCODE_NOISE25 = '\001';  //< 25% black pixels
+  constant ASCII cCODE_NOISE50 = '\002';  //< 50% black pixels
+  constant ASCII cCODE_NOISE75 = '\003';  //< 75% black pixels
+
+  constant ASCII cCODE_XDIGIT1 = '\004';  //< high order decimal of xpos
+  constant ASCII cCODE_XDIGIT2 = '\005';  //< low order decimal of xpos
+
+  constant ASCII cCODE_YDIGIT1 = '\006';  //< high order decimal of ypos
+  constant ASCII cCODE_YDIGIT2 = '\007';  //< low order decimal of ypos
+
+  constant ASCII cCODE_ORIENT = '\010';   //< orientation as WNSE+noise
+
+  constant ASCII cCODE_SPEED1 = '\011';  //< high order decimal of speed
+  constant ASCII cCODE_SPEED2 = '\012';  //< low order decimal of speed
+
+  constant ASCII cCODE_WHITE = '\013';  //< 0% black pixels
+  constant ASCII cCODE_BLACK = '\014';  //< 100% black pixels
+
+
+  constant ASCII cCODE_MIN = cCODE_NOISE25;
+  constant ASCII cCODE_MAX = cCODE_BLACK;
+
+  //            012345678
+  // LOCZLABEL: (xx,yy) d
+
+  typedef Unsigned(3) FormatStringIdx;
+  FormatStringIdx mFormatStringIdx = 0u;
+
+  constant String cFORMAT_STRINGS[FormatStringIdx.maxof+1u] = {
+    "\010\011\012(\004\005,\006\007)", // "actual" display: orientation + speed + ( +xpos + ypos + ) 
+    "\001\001\001\001\001\001\001\001\001\001", // all noise
+    "\002 \002 \002 \002 \002 ", // noise + spaces
+    " \002 \002 \002 \002 \002", // spaces + noise
+    "\002\004\005!!\003\003\003 \010", // xpos + space + orientation
+    "hi hello!!",
+    "*()&#:!@}?",
+    " \001\002\002\003\003\002\002\001 ", // all noise
+  };
+
+  Bool mHasSpeed8;
+  LOCZ.Speed8 mSpeed8;
+
+  Bool mHasOrientation;
+  AxialDir mOrientation;
+
+  typedef Unsigned(6) SquareCoord;
+  Bool mHasXPos;
+  SquareCoord mXPos;
+
+  Bool mHasYPos;
+  SquareCoord mYPos;
+}

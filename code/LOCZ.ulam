@@ -1,0 +1,495 @@
+/* NOT USED
+transient Speed8Predicate + DTU { 
+  Unary(2) mCMP = 0u;                  //< val must be LS <, EQ =, GT > than reference
+  constant Unary(2) cCMP_LS = 0u;
+  constant Unary(2) cCMP_EQ = 1u;
+  constant Unary(2) cCMP_GT = 2u;
+  Int mReference;
+  Bool isTrue(LOCZ & l) {
+    return isTrue(l.mSpeed8 - 8);
+  }
+  Bool isTrue(Int speed) {
+    return
+      (mCMP == cCMP_LS && speed < mReference) ||
+      (mCMP == cCMP_EQ && speed == mReference) ||
+      (mCMP == cCMP_GT && speed > mReference) ;
+  }
+}
+
+transient Speed8Predicates + DTU + QDebugUtils {
+  constant Unary(1) cLOP_AND = 0u;
+  constant Unary(1) cLOP_OR = 1u;
+  Unary(1) mLOP = cLOP_AND;     //< default logical op: AND
+
+  Speed8Predicate mSP1;         //< first predicate
+  Speed8Predicate mSP2;         //< second predicate
+
+  Bool isAcceptableSpeed(LOCZ & l) {
+    Bool b1 = mSP1.isTrue(l);
+    Bool b2 = mSP2.isTrue(l);
+    return
+      (mLOP == cLOP_AND && (b1 && b2)) ||
+      (mLOP == cLOP_OR  && (b1 || b2)) ;
+  }
+}
+*/
+
+/*
+quark Speed8Constants + DTU {
+  // constant Unsigned cSP8_MIN_PRED_INDEX = cCLOKPRED_FIRST_UNUSED_INDEX;
+  // constant Unsigned cSP8_FIRST_UNUSED_INDEX = cSP8_MIN_PRED_INDEX + cSP8_PREDICATE_COUNT;
+
+  // constant Unsigned cSP8_STOPPED = 0u; // only one so far
+
+  // constant Unsigned cSP8_PREDICATE_COUNT = 1u; // so this is one
+
+  // Bool isPredicateHandled(Unsigned idx) {
+  //   return idx >= cSP8_MIN_PRED_INDEX && idx < cSP8_FIRST_UNUSED_INDEX;
+  // }
+
+  constant CLOKPredicates cBASE_CLOK_PREDS[] = {
+
+    // 0: cCLOKPRED_TRUE - always true
+    {
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+  };
+}
+*/
+
+union LOCZPacket {
+  LOCZSignal mSignal;
+  ASCII mData;
+}
+quark LOCZSignal {
+  typedef Unsigned(2) SignalFormat;
+  constant SignalFormat cSIGFMT_XPOS = 0u; //< x position
+  constant SignalFormat cSIGFMT_YPOS = 1u; //< y position
+  constant SignalFormat cSIGFMT_CSP8 = 2u; //< current speed + 8
+  constant SignalFormat cSIGFMT_EXTN = 3u; //< extended cmds
+  SignalFormat mSigFmt;
+  LOCZSigData mSigData;
+}
+
+quark LOCZExtn {
+  typedef Unsigned(2) ExtendedFormat;
+  constant ExtendedFormat cSIGEXT_HEAD = 0u; //< current heading (0..3 or invalid if greater)
+  constant ExtendedFormat cSIGEXT_STAT = 1u; //< current state (unimplemented)
+  constant ExtendedFormat cSIGEXT_RSV2 = 2u;
+  constant ExtendedFormat cSIGEXT_RSV3 = 3u;
+  ExtendedFormat mExtFmt;
+
+  typedef Unsigned(4) ExtData;
+  ExtData mExtData;
+}
+
+union LOCZSigData {
+  typedef Unsigned(6) Data;
+  Data mData;
+  LOCZExtn mExtn;
+}
+
+/** Localizer
+    \symbol LZ
+    \color #42f
+ */
+element LOCZ : HOpUnary + Fail {
+
+  Bool mWarningTrack;
+  Bool mPreWarning;
+
+  typedef Unsigned(2u) GreenLevel;
+  GreenLevel mGreenLevel;
+
+  @Override ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (mWarningTrack) return cu.color(0xffff0000); // RED
+    if (mPreWarning)   return cu.color(0xffffaa33); // 'yellow orange'
+    if (mGreenLevel > 0u)  return cu.color(0x11,(ASCII) (mGreenLevel*0x30+0x80), 0x11); // 'various greens'
+
+    return super.getColor(selector);
+  }
+
+  typedef Unsigned(6u) TileCount;
+  TileCount mPos[2];
+  Bool mPosValid[2];
+  AxialDir mHeading;
+  Bool mHeadingValid;
+
+  typedef Unsigned(6) Speed8; // nominal wheel speed - 8; 0-63-> -8..55
+  Bool mSpeed8Valid;
+  Speed8 mSpeed8;
+
+  TileCount mGoalPos[2];
+  AxialDir mGoalHeading;
+  
+  typedef Unsigned(3u) State;
+  constant State cLOCZ_RESET = 0u;    //< forget state, start localization from scratch
+  constant State cLOCZ_TRIAGE = 1u;   //< assess current state, decide what's next
+  constant State cLOCZ_ORIENT0 = 2u;  //< begin orientation: cSTP1
+  constant State cLOCZ_ORIENT1 = 3u;  //< continue orientation: cTURNs
+
+  State mState;
+
+  Void changeState(State newstate) {
+    if (mState != newstate) {
+      mD&&pR("LCZCS10")&&pR(mState);
+      mState = newstate;
+    }
+    mD&&pR("LCZCS11")&&pR(newstate);
+  }
+
+  SN getCorralWaitSN() {
+    EventWindow ew;
+    SN ret = SN.maxof;
+    SN gsn = findGTCCSN();
+    if (!ew.isAccessible(gsn)) return ret;
+    GTCC & gtcc = (GTCC&) ew[gsn];
+    /*
+    Corral & corral = gtcc.mStateMachine;
+    if (corral.mSteppingState == Corral.cSTEP_RUN) { // if currently running
+      corral.mSteppingState = Corral.cSTEP_STEP; // switch to stepping
+      return ret;                               // return unready
+    }
+    if (corral.mSteppingState == Corral.cSTEP_WAIT) // if at end of step
+      ret = gsn;                                    // ready to go
+    */
+    return ret;
+  }
+
+  /*
+  Void startCorralState(Corral & corral, Corral.State newstate) {
+    if (corral.mSteppingState != Corral.cSTEP_WAIT) fail(__FILE__,__LINE__);
+
+    corral.mState = newstate;
+    corral.mSteppingState = Corral.cSTEP_STEP;
+  }
+
+  Void advanceCorralState(Corral & corral) {
+    if (corral.mSteppingState != Corral.cSTEP_WAIT) fail(__FILE__,__LINE__);
+    corral.mSteppingState = Corral.cSTEP_ADVANCE;
+  }
+  */
+
+  Void doStartOrientation() {
+    EventWindow ew;
+    SN gsn = getCorralWaitSN();
+    if (!ew.isAccessible(gsn)) return;
+    GTCC & gtcc = (GTCC&) ew[gsn];
+    pR("REWRITEME")&&pR(__FUNC__);
+    /*
+    Corral & corral = gtcc.mStateMachine;
+    which (corral.mState) {
+      // corral advances through startup states on its own
+      case Corral.cINIT: 
+      case Corral.cSTRT:
+        { return advanceCorralState(corral); } 
+
+      case Corral.cGOST: { return startCorralState(corral, Corral.cSLOW); }
+      case Corral.cSLOW: { return startCorralState(corral, Corral.cSTP1); }
+
+      case Corral.cSTP1: { return changeState(cLOCZ_ORIENT1); }
+      }*/
+    fail(__FILE__,__LINE__);
+  }
+  
+  Void doTurns() {
+    pR("DOTURNS WRIIIIIITEME");
+  }
+
+  Void update() {
+    mD&&pR("LCZUP10")&&pR(self);
+    if (mState == cLOCZ_RESET) {
+      mState = cLOCZ_ORIENT0;
+      return doStartOrientation();
+    }
+    if (mState == cLOCZ_ORIENT0) {
+      mState = cLOCZ_ORIENT1;
+      return doTurns();
+    }
+    mD&&pR("LCZUP11")&&pR(mState);
+    //fail(__FILE__,__LINE__);
+  }
+
+  Bool maybeMakePosCode(Unsigned idx, ASCII & val) {
+    LOCZPacket p;
+    p.mSignal.mSigFmt = (idx == 0u) ? LOCZSignal.cSIGFMT_XPOS : LOCZSignal.cSIGFMT_YPOS;
+    if (mPosValid[idx]) p.mSignal.mSigData.mData = mPos[idx];
+    else p.mSignal.mSigData.mData = p.mSignal.mSigData.mData.maxof; // invalid pos
+    val = p.mData;
+    return true;
+  }
+
+  Bool maybeMakeHeadingCode(ASCII & val) {
+    LOCZSigData s;
+    s.mExtn.mExtFmt = LOCZExtn.cSIGEXT_HEAD;
+    if (mHeadingValid) s.mExtn.mExtData = mHeading;
+    else s.mExtn.mExtData = s.mExtn.mExtData.maxof; // invalid heading
+
+    LOCZPacket p;
+    p.mSignal.mSigFmt = LOCZSignal.cSIGFMT_EXTN;
+    p.mSignal.mSigData.mData = s.mData;
+    val = p.mData;
+
+    return true;
+  }
+
+  Bool maybeMakeSpeedCode(ASCII & val) {
+    LOCZPacket p;
+    p.mSignal.mSigFmt = LOCZSignal.cSIGFMT_CSP8;
+    if (mSpeed8Valid) p.mSignal.mSigData.mData = mSpeed8;
+    else p.mSignal.mSigData.mData = p.mSignal.mSigData.mData.maxof; // invalid speed
+    val = p.mData;
+    return true;
+  }
+
+  Bool maybeMakeRandomSig(ASCII & val) {
+    Random random;
+    Int x = random.between(0,3);
+    which (x) {
+    case 0: { return maybeMakePosCode(0,val); }
+    case 1: { return maybeMakePosCode(1,val); }
+    case 2: { return maybeMakeHeadingCode(val); }
+    case 3: { return maybeMakeSpeedCode(val); }
+    }
+    return false;
+  }
+
+  Void invalidateAll() {
+    mPosValid[0] = false;
+    mPosValid[1] = false;
+    mHeadingValid = false;
+    mSpeed8Valid = false;
+  }
+
+  Bool findOtherSNs(SN &gtccsn, SN &tdsn) {
+    EventWindow ew;
+    MinXPick gtccpick;
+    MinXPick tdpick;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (ew[sn] is GTCC) 
+        gtccpick.update(sn,sn);
+      if (ew[sn] is TRAKtorDriver)
+        tdpick.update(sn,sn);
+    }
+    if (gtccpick.hasPick() && tdpick.hasPick()) {
+      gtccsn = gtccpick.getIdxSN();
+      tdsn = tdpick.getIdxSN();
+      return true;
+    }
+    return false;
+  }
+
+  Void behave() {
+
+    /// ARE WE TRAK-ING?
+    Unsigned gripnum = getGripNumber();
+    if (gripnum != BeeveeGrips.cGRIPIDX_TRACK) // we are not
+      invalidateAll();
+
+    /* NOT ANY MORE. LEAVE IT TO HTD8 & CO
+    /// LET MACHINE THINK 
+    self.update();
+    */
+
+    /// DO BAREBONES "ARE WE HEADED EAST?" ORIENTING
+    if (mGreenLevel >= 2u) {
+      mHeadingValid = true;
+      mHeading = cE;
+    } else {
+      mHeadingValid = false;
+    }
+    
+    /// SEND A SIGNAL IF WE CAN
+    {
+      ASCII val;
+      mD&&pR("LCZBV210")&&pR(self);
+      if (maybeMakeRandomSig(val)) {
+        mD&&pR("LCZBV211")&&pR(val);
+        trySendSigViaTAPIdxs(val,
+                             BeeveeBIMXBlock.cTAPIDX_LOCZ,
+                             BeeveeBIMXBlock.cTAPIDX_LZRV);
+      }
+    }
+    
+    /// AND DO NORMAL BUSINESS
+    super.behave();
+  }
+
+  //// HOpArgsT API
+  @Override
+  virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("LCZS2S10")&&pR(self);
+
+    BeeveeBIMXBlock bim;
+    TapIdx idx = sig.mSource;
+    if (idx == bim.getTapIdxFromClassId(WNTK.classidof)) // warning track
+      return 0;             
+    if (idx == bim.getTapIdxFromClassId(GRLN.classidof)) // green lantern
+      return 0;             
+    if (idx == bim.getTapIdxFromClassId(TRAK.classidof)) // motor speed
+      return 0;             
+    return Int.maxof;           // or don't want
+  }
+
+  @Override
+  virtual Bool execute(SlotSig & result) {
+    mD&&pR("LCZCX10")&&pR(self);
+    SlotSig & sig = getSlotSig(0);
+
+    if (!sig.isOccupied()) return false;
+    mD&&pR("LCZCX1010")&&pR(self)&&pR(sig);
+
+    SN gtccsn, tdsn;
+    if (!findOtherSNs(gtccsn, tdsn)) return false;
+    EventWindow ew;
+    GTCC & gtcc = (GTCC&) ew[gtccsn];
+    TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
+
+    BeeveeBIMXBlock bim;
+    TapIdx sigsrc = sig.mSource;
+
+    if (sigsrc == bim.getTapIdxFromClassId(WNTK.classidof)) {
+      /// PICK UP WARNING TRACK STATUS
+      {
+        Bool old = mD;
+        //mD = true;
+        Random random;
+        Unsigned val = sig.getValueRaw();
+
+        if (val > 3u) {
+          prewarningStatus(true,gtcc,td); //if (!mPreWarning) 
+          if (val > 5u) warningStatus(true,gtcc,td); //if (!mWarningTrack) 
+        } else if (val < 2u) {
+          warningStatus(false,gtcc,td); //if (!mWarningTrack) 
+          if (val < 1u) prewarningStatus(false,gtcc,td); //if (!mPreWarning) 
+        }
+        mD&&pR("LCZCX1011")&&pR(val);
+        mD = old;
+      }
+      return false;
+
+    }
+
+    if (sigsrc == bim.getTapIdxFromClassId(GRLN.classidof)) {
+      /// PICK UP GREEN LANTERN STATUS
+      {
+        Bool old = mD;
+        //mD = true;
+        Random random;
+        Unsigned val = sig.getValueRaw();
+        mGreenLevel = (GreenLevel) (val/20u);
+        mD&&pR("LCZCX1012")&&pR(val)&&pR((Unsigned) mGreenLevel);
+        mD = old;
+      }
+      return false;
+    }
+
+    if (sigsrc == bim.getTapIdxFromClassId(TRAK.classidof)) {
+      /// PICK UP TRAK SPEED REPORTS
+      {
+        Bool old = mD;
+        //mD = true;
+        LOCZPacket p;
+        p.mData = sig.getValueRaw();
+        mD&&pR("LCZCX11")&&pR(sig)&&pR(p);
+
+        if (p.mSignal.mSigFmt == LOCZSignal.cSIGFMT_CSP8) {
+          mSpeed8Valid = true;
+          mSpeed8 = p.mSignal.mSigData.mData;
+          mD&&pR("LCZCX1110")&&pR(mSpeed8);
+        }
+        mD&&pR("LCZCX1111");
+        mD = old;
+      }
+      return false;
+    }
+
+    return false; // NOT REACHED
+ }
+
+  SN findGTCCSN() {
+    MinXPick gtccpick;          // like there might be multiple? in for a penny
+    for (SN sn = 1u; sn < 41u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (!(a is GTCC)) continue;
+      gtccpick.update(sn,sn);
+    }
+    SN gsn = SN.maxof;
+    if (gtccpick.hasPick()) 
+      gsn = gtccpick.getIdxSN();
+    return gsn;
+  }
+
+  Void prewarningStatus(Bool status, GTCC & gtcc, TRAKtorDriver & td) {
+    statusUpdateBool(mPreWarning, status, gtcc, td,
+                     TRAKtorDriver.cTKTR_RED_PREWARN_SET,
+                     TRAKtorDriver.cTKTR_RED_PREWARN_CLEAR);
+  }
+
+  Void warningStatus(Bool status, GTCC & gtcc, TRAKtorDriver & td) {
+    statusUpdateBool(mWarningTrack, status, gtcc, td,
+                     TRAKtorDriver.cTKTR_RED_WARN_SET,
+                     TRAKtorDriver.cTKTR_RED_WARN_CLEAR);
+  }
+
+  Void statusUpdateBool(Bool & store, Bool newval, GTCC & gtcc, TRAKtorDriver & td
+                        TRAKtorDriver.TRAKtorEvent ifset,
+                        TRAKtorDriver.TRAKtorEvent ifclear) {
+    if (store == newval) return;
+    store = newval;
+    TRAKtorDriver.TRAKtorEvent te = newval ? ifset : ifclear;
+    td.notify(gtcc, self, gtcc.mStateMachine, te);
+  }
+
+  Void executeWarning() {
+    EventWindow ew;
+    Bool warned = false;
+    SN gsn = findGTCCSN();
+    if (!ew.isAccessible(gsn)) return; // or?
+
+    GTCC & gtcc = (GTCC&) ew[gsn];
+    pR("REWRITEME")&&pR(__FUNC__)&&pR(__FILE__)&&pR(__LINE__);
+
+    /*
+    Corral & corral = gtcc.mStateMachine;
+    if (corral.mState == Corral.cGOST) {
+      corral.mTilesRemaining = 0u;
+      corral.mEdgeSize = corral.mEdgeSize.maxof;
+      corral.mState = Corral.cSLOW;
+      mWarningTrack = true;
+      warned = true;
+    }
+    */
+    if (!warned) {
+      DebugUtils du;
+      du.print(" * * * WARNING FAILED * * *");
+      du.print(self);
+      if (gsn != SN.maxof)
+        du.print(ew[gsn]);
+      du.print(" :(  :(  :(  :(");
+    }
+    
+  }
+}
+
+/** Reset (all) LOCZ in ngb
+    \symbol RZ
+    \color #ace
+*/
+element RSLZ + DTU {
+  Void behave() {
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as LOCZ)
+        a.mState = LOCZ.cLOCZ_RESET;
+    }
+    ew[0] = Empty.instanceof;
+  }
+}

@@ -9,13 +9,18 @@ quark Axon : FreeWormBase + Fail + DTU + QDebugUtils {
   //// UrSelf API
   @Override
   virtual ARGB getColor(Unsigned selector) {
-    ARGB ret = super.getColor(selector);
     ColorUtils cu;
-    ARGB hc = cu.color(0xffffff00); // add yellow for each occupant
-    if (mAxonSigs[cAXON_HEAD_IDX].isOccupied()) 
-      ret = cu.between(ret,hc,50u);
-    if (mAxonSigs[cAXON_TAIL_IDX].isOccupied()) 
-      ret = cu.between(ret,hc,50u);
+    ARGB ret = cu.color(0xff005500); // start with a dark green
+    Unsigned code =
+      (mAxonSigs[cAXON_TAIL_IDX].isOccupied() ? 1u : 0u) +
+      (mAxonSigs[cAXON_HEAD_IDX].isOccupied() ? 2u : 0u);
+    
+    which (code) {
+    // case 0u: add nothing
+    case 1u: { ret = cu.between(cu.color(0xffff5555),ret,70u); } // just tail: add some red and brighten
+    case 2u: { ret = cu.between(cu.color(0xff5555ff),ret,70u); } // just head: add some blue and brighten
+    case 3u: { ret = cu.between(cu.color(0xffffff55),ret,70u); } // both: add some yellow
+    }
     return ret;
   }
 
@@ -90,7 +95,7 @@ quark Axon : FreeWormBase + Fail + DTU + QDebugUtils {
     SN ret = SN.maxof;
     tookbranch = false;
     
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     ClassId cid = bim.getTAPClassIdFromTapIdx(tapidx);
 
     EventWindow ew;
@@ -271,6 +276,11 @@ quark AxonEnd : Axon + QDebugUtils {
   }
 
   //// AxonEnd SERVICES
+  AxonIdx getRemoteAxonIdx() {
+    AxonIdx aidx = getAxonIdx(); 
+    return (AxonIdx) (1u-aidx); 
+  }
+
   SlotSig & getEndSlotSig(Bool arriving) {
     AxonIdx aidx = getAxonIdx(); // 0 we are head, 1 we are tail
     if (arriving) aidx = (AxonIdx) (1u-aidx); // get inbound not outbound
@@ -470,7 +480,7 @@ element SpikeAxonBuilder10 + DTU {
     SN hsn = emp.getIdxSN();
     C2D hc = ew.getCoord(hsn);
     SN revhsn = ew.getSiteNumber(-hc);
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx hanchor = (TapIdx) bim.getTapIdxFromClassId(MLRF.classidof); // DEMO SPIKE
     //    TapIdx tanchor = (TapIdx) bim.getTapIdxFromClassId(HDGF.classidof);
     TapIdx tanchor = (TapIdx) bim.getTapIdxFromClassId(HFRG.classidof);

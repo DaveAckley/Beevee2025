@@ -1,0 +1,289 @@
+/** An abstract sequence of ASCII bytes to be laid out in some Font
+
+    Implementations of Label MUST provide these concrete methods:
+
+    (1) virtual ASCII aref(Unsigned idx) 
+
+        Return the ASCII character at location idx of the label, or
+        fail if idx is out of bounds
+
+    (2) virtual Unsigned alengthof() 
+
+        Return the length of the label.  Neither the aref method in
+        (1), nor the getFontNumber method in (3), will fail if its
+        supplied idx arg is in the range 0..alengthof()-1
+
+    (3) virtual FontSet.FontNumber getFontNumber(LabelIndex idx) 
+
+        Return the number of the font (in the global FontSet) to use
+        to style the glyph at location idx, or fail if idx is out of
+        bounds.
+
+    In addition, implementations of Label MAY provide these concrete
+    methods:
+
+    (4) virtual Bool gossipWith(Label & newer, C2D at) { return true; }
+
+        Update self as needed considering that 'newer' -- which is
+        located at 'at' with respect to self -- is consistent with
+        self and is claiming a higher priority.  Return true if self
+        should now be considered at the same priority as newer, false
+        if self's priority should not be changed.
+
+ */
+quark Label + Fail {
+
+  typedef EventWindow.SiteNum SiteNum;
+  typedef Unsigned(8) LabelIndex;
+  typedef C2DT(7) CharCoord;
+  typedef UMod(5) Priority;
+  typedef FontSet.FontNumber FontNumber;
+
+  DebugUtils du;
+  Random random;
+  EventWindow ew;
+
+  LabelIndex mLabelIndex = 0;  // Glyph number within Label
+  CharCoord mGloc;     // Location within glyph, with baseline start at (0,0)
+  Priority mPrio;      // Controller for providing global updates
+  Bool mDie;           // Flag for flood killing
+
+  Bool getASCII(ASCII & out) 
+  {
+    Unsigned slen = self.lengthof;
+    if (mLabelIndex >= slen) return false;
+    out = self[mLabelIndex];
+    return true;
+  }
+
+  virtual ASCII aref(Unsigned idx) ;
+  virtual Unsigned alengthof() ;
+  virtual FontNumber getFontNumber(LabelIndex idx) ;
+
+  virtual Bool gossipWith(Label & newer, C2D at) { return true; }
+
+  Font.SiteGlyphStatus mapToLabelCoords(C2D glyphCoord, Unsigned & oLabelIndex, C2D & oGloc) 
+  {
+
+    // Note that for now we are assuming the entire Label is to be
+    // set in a single font, so we can use _our_ mFont information to
+    // determine the sizes of all glyphs in the Label.  This could be
+    // relaxed in at least two ways: (1) Providing a Label
+    // virtual to access the font of any labelIndex individually; or
+    // (2) allowing each label index to be styled individually using
+    // additional state information per Label subclass atom.  Doing (1)
+    // would be a reasonable near-term extension; doing (2) seems like
+    // a major pain.  And do neither now: Crawl before fly.
+
+    // (Well, we're going for (1).  Superbaby crawl like pro.)
+
+    // Iterate over which label index we are examining
+    Int curidx = mLabelIndex;  
+    Bool updateForPrev = false;  // Initially no special prev handling
+    FontSet fontset;
+    while (curidx >= 0 && curidx < (Int) self.lengthof) {
+      LabelIndex i = (LabelIndex) curidx;
+      ASCII byte = self[i];
+
+      FontNumber fn = getFontNumber(i);
+      Font & font = fontset.getFont(fn);
+      String charInfo = font.getCharInfo(byte);
+
+      C2D fillbox, glyphbox, glyphoffset;
+      font.getBoxes(charInfo, fillbox, glyphbox, glyphoffset);
+
+      if (updateForPrev) {
+        // We arrived here from the subsequent glyph, so we need to
+        // update the glyphCoord by the width of this char
+        //        du.print("Going prev - old x");
+        //        du.print(glyphCoord.getX());
+        glyphCoord.setX(glyphCoord.getX() + fillbox.getX());
+        //        du.print("Going prev - new x");
+        //        du.print(glyphCoord.getX());
+        updateForPrev = false;
+      }
+
+      if (fillbox.contains(glyphCoord)) {
+        // Found our target
+        oLabelIndex = i;
+        oGloc = glyphCoord;
+        return font.getSiteStatus(glyphCoord, charInfo);
+      }
+
+      if (glyphCoord.getY() < 0) return Font.cOUT;  // Can't be
+      if (glyphCoord.getY() >= fillbox.getY()) return Font.cOUT;  // Can't be
+
+      // OK, we're in the fillbox row.
+
+      // Determine if we're off to the left or right..
+      if (glyphCoord.getX() < 0) {
+        --curidx;              // yup. consider previous guy, if any,
+        updateForPrev = true;  // but fix up the coord first.
+        continue;
+      } 
+
+      if (glyphCoord.getX() >= glyphbox.getX()) {
+        ++curidx;              // yup. consider next guy, if any,
+        glyphCoord.setX(glyphCoord.getX() - fillbox.getX());  // but fix up the coord first.
+        continue;
+      } 
+      // Can't happen?  Can't be on the same glyph?
+      // This can absolutely happen, if the chosen glyphs
+      // are state dependent in any way. So don't
+      //XXX fail(__FILE__,__LINE__,"Can't happen?  Can't be on the same glyph?");
+      // just punt and hope for better days
+      return font.getSiteStatus(glyphCoord, charInfo);
+    }
+
+    // Ran out of bytes to consider..
+    return Font.cOUT;
+  }
+  
+  Void suicide() { return suicide(0); }
+  Void suicide(Int code) {
+    //du.print("SUICIDE"); du.print(code);
+    ew[0] = Empty.instanceof; 
+  }
+  //  Void fail() { Fail f; f.fail(); }
+  C2D getLoc() { C2D ret; ret.set(mGloc.getX(), mGloc.getY()); return ret; }
+  Void setLoc(C2D to) { mGloc.setX(to.getX()); mGloc.setY(to.getY()); }
+
+ /*
+   'Brain Dead Simple' Approach#1: Fill the entire Label area with us,
+   and just change our color depending on whether we are in the glyph
+   or not.
+
+   Unless we find a conflict, I choose to believe:
+   - What glyph I'm supposed to represent (mLabelIndex)
+   - My location within my glyph (mGloc, implying my glyph origin).
+
+   First I sanity check, and erase myself if:
+   - My glyph index is outside the length of my Label, or
+   - My glyph location is outside my glyph bounding box.
+
+   If I'm sane I consider (some radius of) neighbors.  For each neighbor:
+   - If it's empty, I remember it if it needs to be part of my Label
+     area (not just my glyph)
+   - If it's a Self, I check it for consistency with me, and remember
+     what I found.  (This includes Selfs that are outside my Label area.)
+
+   Based on those considerations, I act:
+   - If there are no Self that are inconsistent with me:
+     = If any empties need filling, fill (one or all of) them,
+       appropriately setting their glyph index and glyph location
+   - Otherwise, if there are more Selfs consistent than inconsistent
+       with me, I erase (one or all of) the inconsistent
+   - Otherwise I erase myself
+ */
+
+  virtual Void behave() {
+
+    if (mDie) {
+      for (EventWindow.SiteNum sn = 1; sn < 41; ++sn) {
+        Atom & a = ew[sn];
+        if (a as Self) {
+          if (mPrio.isGreaterEqual(a.mPrio))    // If they're no better than us.
+            a.mDie = true;                      // they should die too
+        }
+      }
+      self.atomof = Paper.instanceof;
+      return;
+    }
+
+    Unsigned effidx;
+    C2D effgloc;
+    C2D myloc = getLoc();
+    Font.SiteGlyphStatus fss = mapToLabelCoords(myloc, effidx, effgloc);
+
+    EventWindow.SiteNum sn = (EventWindow.SiteNum) random.between(1,40);
+    if (!ew.isLive(sn)) return;
+
+    C2D at = ew.getCoord(sn);
+    at.setY(-at.getY());  // flip y axis immediately?
+
+    C2D gat = at.add(myloc);  // your loc in glyph
+    Unsigned effidx2;
+    C2D effgloc2;
+    Font.SiteGlyphStatus fss2 = 
+      mapToLabelCoords(gat, effidx2, effgloc2);
+
+    Atom & a = ew[sn];        // Access neighboring guy
+
+    if (a as Self) {          // CotT: Have we run into another us?
+
+      if (mPrio.isGreater(a.mPrio))    // If we dominate them
+      {
+        a.mDie = true;         // Send them packing
+        return;
+      }
+      else {
+        if (a.mPrio.isGreater(mPrio))  // If they dominate us
+          return;                      // Do nothing and wait for them to kill us
+
+        // We are even on priority.  If we're inconsistent, MAD, else nothing to do
+        if (!a.getLoc().equals(effgloc2) || a.mLabelIndex != effidx2) {
+          a.atomof = Empty.instanceof;
+          suicide(1);  
+        }
+        return;
+      }
+    }
+
+    // Sanity checks - 1: Am I not even in my Label?
+    if (fss == Font.cOUT) return suicide(2);
+
+    // Sanity checks - 2: Am I in my own glyph?
+    if (effidx != mLabelIndex) return suicide(3);
+
+    // Sanity checks - 3: Am I where I think in my glyph?
+    if (!myloc.equals(effgloc)) return suicide(4);
+
+    FontSet fs;
+    FontNumber fn = getFontNumber(mLabelIndex);
+    Font & font = fs.getFont(fn);
+
+    // Reproduce if:
+    // (1) We're forcing ourselves over some dominated loser, or
+    // (2) Neighbor is empty and wants to be part of our label
+    if ((a is Empty || a is Paper) && fss2 != Font.cOUT) {
+      a = self.atomof;  // you be like me
+      Self & kid = (Self&) a; // refer to the us in the copy
+      kid.mLabelIndex = (LabelIndex) effidx2; // This is your byte
+      kid.setLoc(effgloc2);       // and this is your coord in it.
+      //      du.print("DUP idx"); du.print(effidx2);
+      //      du.print("DUP effgloc2 x"); du.print(effgloc2.getX());
+      //      du.print("DUP effgloc2 y"); du.print(effgloc2.getY());
+    }
+
+  }
+
+  ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    ARGB ret = cu.color(0xffff0000);
+    ASCII glyph;
+    if (!getASCII(glyph)) return ret;
+
+    C2D myLoc = getLoc();
+    FontNumber fn = getFontNumber(mLabelIndex);
+    FontSet fs;
+    Font & font = fs.getFont(fn);
+    Font.SiteGlyphStatus fss = font.getSiteStatus(myLoc, glyph);
+    if (fss == Font.cON)
+      ret = cu.color(0xff000000);
+    else if (fss == Font.cOFF)
+      ret = cu.color(0xffffffff); // else cOUT == red
+    return ret;
+  }
+}
+
+/**
+   Just something white that lives long enough to be overwritten by
+   font atoms.
+ */
+element Paper {
+  Unsigned(7) mCount;
+  Void behave() {
+    if (++mCount == mCount.maxof)
+      self.atomof = Empty.instanceof;
+  }
+}

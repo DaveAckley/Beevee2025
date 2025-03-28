@@ -76,17 +76,28 @@ element TOCK : TermSensor + Once {
     incr();
     mD&&pR("TOCKSNBV10")&&pR(mClockState);
 
-    constant SN cGRIPSN = 2u;
-    if (!ew.isAccessible(cGRIPSN)) return;
-    mD&&pR("TOCKSNBV11");
+    SN xblocksn = findXBlockSN();
+    mD&&pR("TOCKSNBV1010")&&pR(xblocksn);
+    if (!ew.isAccessible(xblocksn)) return;
 
-    Atom & a = ew[cGRIPSN];
-    if (a as GripSource) {
-      if (a.hasSymmetry()) {
-        
-        SlotSig & oss = a.getSlotSig(true); // check outgoing
+    Atom & a = ew[xblocksn];
+    mD&&pR("TOCKSNBV11")&&pR(a);
+    if (a as FourWaySlots) {
+      mD&&pR("TOCKSNBV1110");
+      if (true /*a.hasSymmetry() DITCHING SYMMETRY*/) {
+        AxialDir adout = sn2AxialDir(xblocksn);
+        AxialDir adin = oppositeAxialDir(adout);
+        mD&&pR("TOCKSNBV1111")&&pR(adin)&&pR(adout);
+        SlotSig & iss = a.getSlotSig(adin); // check incoming to us
+        SlotSig & oss = a.getSlotSig(adout); // check outgoing from us
+        mD&&pR("TOCKSNBV1112")&&pR(iss)&&pR(oss);
+        if (iss.isOccupied()) {
+          iss.reset();          // discard input to us
+          mD&&pR("TOCKSNBV1113")&&pR(iss)&&pR(oss);
+        }
         if (!oss.isOccupied()) {
-          BeeveeBIM bim;
+          mD&&pR("TOCKSNBV1114")&&pR(iss);
+          BeeveeBIMXBlock bim;
           TapIdx tapidx = bim.getTapIdx(self);
 
           ASCII val = 32u; // XXX getSig();

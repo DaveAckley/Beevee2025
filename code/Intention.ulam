@@ -25,7 +25,7 @@ transient Intention + DTU + QDebugUtils {
 
   /** change to this intention, however that desire is represented
       persistently. \return false if accomplished, true if blocked */
-  virtual Bool adopt(Intender & in) { return false; }
+  virtual Bool adopt(Intender & in) { return false; } // XXX UNUSED
 
   //// Intention SERVICES
   Bool pursue(Intender & in) { //< \return false to continue, true to block

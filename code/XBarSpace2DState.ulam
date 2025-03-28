@@ -7,25 +7,34 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
     if (super.init(in)) return true;
     return false;
   }
-  BeeveeBIM mBrainMap;
+  BeeveeBIMXBlock mBrainMap;
 
   MinXPick mMinTap;
+  MinXPick mMinXBlock;
+  MinXPick mMinLabel;
+  Bool mNoGrow;
 
   @Override
   virtual Bool observe(Intender & in) {
     mD&&pR("XBSpOB10");
     if (super.observe(in)) return true;
-    for (SN sn = 1u; sn <= 8u; ++sn) { // moore ngb
+    for (SN sn = 1u; sn <= 40u; ++sn) { // moore ngb
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
       C2D c = ew.getCoord(sn);
       Unsigned dist = c.euclideanSquaredLength();
-      if (a is TAP) mMinTap.update(sn,dist); // nearest TAP if any
+      if (sn <= 8u) {
+        if (a is TAP) mMinTap.update(sn,dist); // nearest TAP if any
+      }
+      if (a is XBlock) mMinXBlock.update(sn,dist);
+      if (a is Label) mMinLabel.update(sn,dist);
     }
     return false;
   }
 
   Bool makeTAP(XBarSpace2D & xb) {
+    fail(__FILE__,__LINE__);
+    /*
     C2D absc = xb.getPos2D(); // our pos
     Unsigned xbidx = mBrainMap.getContainingXBIndex(absc);
     mD&&pR("MTXBSBNEW10")&&pR(absc)&&pR(xbidx);
@@ -57,114 +66,165 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
     // a.mSenseVert == issense ??
     ew[tapc] = a;
     mD&&pR("XBSBNEW17")&&pR(tapc)&&pR(ew[tapc]);
+    */
     return true;            // Needed and made a TAP
   }
 
   @Override
   virtual Bool stabilize(Intender & in) {
+
+    /// IF TOO CLOSE TO XBLOCK, DIE
+    if (false) { // vs don't treat xblock as special at all
+      if (mMinXBlock.hasPick()) {
+        Unsigned sqdist = mMinXBlock.getX();
+        if (sqdist <= 8u) {
+          ew[0] = Empty.instanceof;
+          return true;
+        }
+        mNoGrow = true;
+      }
+    }
+
+    /// IF TOO CLOSE TO LABEL, DIE
+    if (true) { // vs don't treat label as special
+      if (mMinLabel.hasPick()) {
+        Unsigned sqdist = mMinLabel.getX();
+        if (sqdist <= 8u) {
+          ew[0] = Empty.instanceof;
+          return true;
+        }
+        mNoGrow = true;
+      }
+    }
+
     /// CALL SUPER, BAIL IF DONE
     mD&&pR("XBSBNEW10");
     if (super.stabilize(in)) return true;
 
-    /// SET OUR MTAPS ALL NONE
-    XBarSpace2D & xb = (XBarSpace2D&) in;
-    mD&&pR("XBSBNEW11")&&pR(xb);
-    for (Unsigned i = 0u; i < xb.mTaps.lengthof; ++i)
-      xb.mTaps[i] = cTAPIDX_NONE;
-
-    /// SET OUR SYMMETRY TO UNKNOWN
-    xb.mSymmetry = xb.cXSU;
-
-    mD&&pR("XBSBNEW12")&&pR(xb);
-    /// SEE IF HAVE OR NEED A TAP
-    Bool hasTAP = mMinTap.hasPick();
-    if (!hasTAP && makeTAP(xb))
-      return true;            // Didn't have, but needed and made a TAP
-
-    // now either hasTAP or don't need a TAP
-    mD&&pR("XBSBNEW13")&&pR(xb)&&pR(mMinTap)&&pR(hasTAP);
-
-    //// SET SYMMETRY IF HASTAP
-    if (hasTAP) {
-      TAP & tap = (TAP&) ew[mMinTap.getIdxSN()];
-      xb.mSymmetry = (tap.mSenseVert ? cXSV : cXSH);
-
-      /// ALSO SET ORIGINATING mTaps
-      {
-        C2D absc = xb.getPos2D();
-        mD&&pR("NEWXBSBNEW10")&&pR(absc);
-        BeeveeBIM bim;
-        Unsigned xbidx = bim.getContainingXBIndex(absc);
-        if (xbidx == Unsigned.maxof) fail(__FILE__,__LINE__);
-        BrainInfoMap.XBInfoBuffer xbib;
-        XBInfo & xbinfo = bim.getXBInfo(xbidx,xbib);
-        C2D relc = xbinfo.absToRel(absc);
-        mD&&pR("NEWXBSBNEW11")&&pR(relc)&&pR(xbinfo);
-        AxialDir ad;
-        Bool isinput;
-        if (xbinfo.getXBInfoFeedDir(relc,ad,isinput)) {
-          ClassUtils cu;
-          Unsigned tapidx = bim.getTapIdxFromClassId(cu.getClassId(tap));
-          if (tapidx == Unsigned.maxof) fail(__FILE__,__LINE__);
-          xb.mTaps[ad] = (TapIdx) tapidx;
-          mD&&pR("NEWXBSBNEW12")&&pR(ad)&&pR(isinput);
+    /// DO WE ORIGINATE AN XBLOCK?
+    if (in as XBarSpace2D) {
+      BeeveeBIMXBlock bvx;
+      C2D pos = in.getPos2D();
+      Unsigned xbli = bvx.getXBlockIndexAtOrigin(pos);
+      if (xbli != Unsigned.maxof) {
+        Atom a = bvx.getXBlockInstance(xbli);
+        XBlock & xb = (XBlock&) a;
+        SN sn = xb.getOriginSN();
+        if (ew.isAccessible(sn) && ew[sn] is Empty) {
+          DebugUtils du;
+          du.print("WEORIGN");
+          du.print(pos);
+          du.print(sn);
+          du.print(a);
+          ew[sn] = a;
+          return true;
         }
       }
-      mD&&pR("XBSBNEW14")&&pR(tap)&&pR(xb);      
+    }
+    if (false) { // we don't own taps anymore
 
-    } else {
+      /// SET OUR MTAPS ALL NONE
+      XBarSpace2D & xb = (XBarSpace2D&) in;
+      mD&&pR("XBSBNEW11")&&pR(xb);
+      for (Unsigned i = 0u; i < xb.mTaps.lengthof; ++i)
+        xb.mTaps[i] = cTAPIDX_NONE;
 
-      /// SEARCH NGBS FOR DOMINANT SYMMETRY
-      Unsigned symCount[3];
-      for (Unsigned i = 0u; i < mGrid.lengthof; ++i) {
+      /// SET OUR SYMMETRY TO UNKNOWN
+      xb.mSymmetry = xb.cXSU;
+
+      mD&&pR("XBSBNEW12")&&pR(xb);
+      /// SEE IF HAVE OR NEED A TAP
+      Bool hasTAP = mMinTap.hasPick();
+      if (!hasTAP && makeTAP(xb))
+        return true;            // Didn't have, but needed and made a TAP
+
+      // now either hasTAP or don't need a TAP
+      mD&&pR("XBSBNEW13")&&pR(xb)&&pR(mMinTap)&&pR(hasTAP);
+
+      //// SET SYMMETRY IF HASTAP
+      if (hasTAP) {
+        TAP & tap = (TAP&) ew[mMinTap.getIdxSN()];
+        xb.mSymmetry = (tap.mSenseVert ? cXSV : cXSH);
+
+        /// ALSO SET ORIGINATING mTaps
+        /*
+        {
+          C2D absc = xb.getPos2D();
+          mD&&pR("NEWXBSBNEW10")&&pR(absc);
+          BeeveeBIMXBlock bim;
+          Unsigned xbidx = bim.getContainingXBIndex(absc);
+          if (xbidx == Unsigned.maxof) fail(__FILE__,__LINE__);
+          BrainInfoMapXBlock.XBInfoBuffer xbib;
+          XBInfo & xbinfo = bim.getXBInfo(xbidx,xbib);
+          C2D relc = xbinfo.absToRel(absc);
+          mD&&pR("NEWXBSBNEW11")&&pR(relc)&&pR(xbinfo);
+          AxialDir ad;
+          Bool isinput;
+          if (xbinfo.getXBInfoFeedDir(relc,ad,isinput)) {
+            ClassUtils cu;
+            Unsigned tapidx = bim.getTapIdxFromClassId(cu.getClassId(tap));
+            if (tapidx == Unsigned.maxof) fail(__FILE__,__LINE__);
+            xb.mTaps[ad] = (TapIdx) tapidx;
+            mD&&pR("NEWXBSBNEW12")&&pR(ad)&&pR(isinput);
+          }
+          }*/
+        mD&&pR("XBSBNEW14")&&pR(tap)&&pR(xb);      
+        
+      } else {
+        
+        /// SEARCH NGBS FOR DOMINANT SYMMETRY
+        Unsigned symCount[3];
+        for (Unsigned i = 0u; i < mGrid.lengthof; ++i) {
+          SN sn = mGrid[i];
+          mD&&pR(sn);
+          if (!ew.isAccessible(sn)) continue;
+          Atom & a = ew[sn];
+          if (a as XBarSpace2D) 
+            symCount[a.mSymmetry]++;
+        }
+        mD&&pR("XBSBNEW15")&&pR(symCount[0])&&pR(symCount[1])&&pR(symCount[2]);
+        if (symCount[cXSH] > 1u && symCount[cXSH] > symCount[cXSV])
+          xb.mSymmetry = cXSH;
+        else if (symCount[cXSV] > 1u && symCount[cXSV] > symCount[cXSH])
+          xb.mSymmetry = cXSV;
+        else
+          return true;            // blocked for lack of symmetry
+        mD&&pR("XBSBNEW16")&&pR(xb);
+      }
+
+      //// WE NOW HAVE A SYMMETRY
+      mD&&pR("XBSBNEW17")&&pR(xb);
+
+      //// PROPAGATE INTO OUR mTaps
+
+      for (Unsigned i = 0u; i <= AxialDir.maxof; ++i) {
+        AxialDir ad = (AxialDir) i;
+        AxialDir oppad = oppositeAxialDir(ad);
+
+        /// IF NGB HAS PROP TO US AND OUR MTAP IS UNSET, SET IT
+        mD&&pR("XBSBNEW18")&&pR(i)&&pR(ad)&&pR(oppad);
+        if (xb.mTaps[i] != cTAPIDX_NONE) continue; // we're originating this one
+
+        EventWindow ew;
         SN sn = mGrid[i];
-        mD&&pR(sn);
+        mD&&pR("XBSBNEW19")&&pR(sn);
         if (!ew.isAccessible(sn)) continue;
+
         Atom & a = ew[sn];
-        if (a as XBarSpace2D) 
-          symCount[a.mSymmetry]++;
-      }
-      mD&&pR("XBSBNEW15")&&pR(symCount[0])&&pR(symCount[1])&&pR(symCount[2]);
-      if (symCount[cXSH] > 1u && symCount[cXSH] > symCount[cXSV])
-        xb.mSymmetry = cXSH;
-      else if (symCount[cXSV] > 1u && symCount[cXSV] > symCount[cXSH])
-        xb.mSymmetry = cXSV;
-      else
-        return true;            // blocked for lack of symmetry
-      mD&&pR("XBSBNEW16")&&pR(xb);
-    }
-
-    //// WE NOW HAVE A SYMMETRY
-    mD&&pR("XBSBNEW17")&&pR(xb);
-
-    //// PROPAGATE INTO OUR mTaps
-
-    for (Unsigned i = 0u; i <= AxialDir.maxof; ++i) {
-      AxialDir ad = (AxialDir) i;
-      AxialDir oppad = oppositeAxialDir(ad);
-
-      /// IF NGB HAS PROP TO US AND OUR MTAP IS UNSET, SET IT
-      mD&&pR("XBSBNEW18")&&pR(i)&&pR(ad)&&pR(oppad);
-      if (xb.mTaps[i] != cTAPIDX_NONE) continue; // we're originating this one
-
-      EventWindow ew;
-      SN sn = mGrid[i];
-      mD&&pR("XBSBNEW19")&&pR(sn);
-      if (!ew.isAccessible(sn)) continue;
-
-      Atom & a = ew[sn];
-      if (a as XBarSpace2D) {
-        AxialDir ad = (AxialDir) (sn-21u);
-        if (a.mTaps[ad] != cTAPIDX_NONE) {
-          mD&&pR("XBSBNEW210")&&pR(a.mTaps[ad]);
-          xb.mTaps[i] = (XBarSpace2D.TapIdx) a.mTaps[ad]; // PROPAGATE
+        if (a as XBarSpace2D) {
+          AxialDir ad = (AxialDir) (sn-21u);
+          if (a.mTaps[ad] != cTAPIDX_NONE) {
+            mD&&pR("XBSBNEW210")&&pR(a.mTaps[ad]);
+            xb.mTaps[i] = (XBarSpace2D.TapIdx) a.mTaps[ad]; // PROPAGATE
+          }
         }
       }
     }
-    mD&&pR("XBSBNEW211")&&pR(xb);
+    //    mD&&pR("XBSBNEW211")&&pR(xb);
     return false;
   }
 
+  /* PROPAGATION AND SWITCHING NOW XBLOCK TERRITORY ONLY
   @Override
   virtual Bool act(Intender & in) {
     mD&&pR("XBSpAC10");
@@ -180,6 +240,7 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
     mD&&pR("XBSpAC13");
     return false;
   }
+  */
 }
 
   

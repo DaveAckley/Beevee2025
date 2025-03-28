@@ -1,0 +1,371 @@
+quark FunctionOpCodes + DTU {
+  typedef Int FOC;
+  constant FOC cFOC_BASE_VAL = Int.minof + 1;
+  constant FOC cFOC_DONE = cFOC_BASE_VAL + 1; //< ToS is result
+  constant FOC cFOC_CLOK_FRONT = cFOC_DONE + 1;
+  constant FOC cFOC_CLOK_REAR = cFOC_CLOK_FRONT + 1;
+  constant FOC cFOC_GREY_FCTR = cFOC_CLOK_REAR + 1;
+  constant FOC cFOC_GREY_CDEV = cFOC_GREY_FCTR + 1;
+  constant FOC cFOC_VALID_SPEED = cFOC_GREY_CDEV + 1;
+  constant FOC cFOC_CUR_SPEED = cFOC_VALID_SPEED + 1;
+  constant FOC cFOC_VALID_HEAD = cFOC_CUR_SPEED + 1;
+  constant FOC cFOC_CUR_HEAD = cFOC_VALID_HEAD + 1;
+  
+  constant FOC cFOC_NOP = cFOC_CUR_HEAD + 1;
+  constant FOC cFOC_CMP_EQ = cFOC_NOP + 1;
+  constant FOC cFOC_CMP_NE = cFOC_CMP_EQ + 1;
+  constant FOC cFOC_CMP_LT = cFOC_CMP_NE + 1;
+  constant FOC cFOC_CMP_LE = cFOC_CMP_LT + 1;
+  constant FOC cFOC_CMP_GT = cFOC_CMP_LE + 1;
+  constant FOC cFOC_CMP_GE = cFOC_CMP_GT + 1;
+  constant FOC cFOC_MAX = cFOC_CMP_GE + 1;
+  constant FOC cFOC_MIN = cFOC_MAX + 1;
+  constant FOC cFOC_ADD = cFOC_MIN + 1;
+  constant FOC cFOC_SUB = cFOC_ADD + 1;
+  constant FOC cFOC_MUL = cFOC_SUB + 1;
+  constant FOC cFOC_DIV = cFOC_MUL + 1;
+  constant FOC cFOC_AND = cFOC_DIV + 1;
+  constant FOC cFOC_OR =  cFOC_AND + 1;
+  constant FOC cFOC_NOT = cFOC_OR + 1;
+  constant FOC cFOC_NEG = cFOC_NOT + 1;
+
+  constant FOC cFOC_LAST_DEFINED = cFOC_NOT;
+
+  constant FOC cFOC_MAX_RESERVED = Int.minof/2; // (LAST_DEFINED..MAX_RESERVED] -> future ops ha
+
+  constant FOC cFOC_MIN_IMMEDIATE = cFOC_MAX_RESERVED + 1;
+  constant FOC cFOC_MAX_IMMEDIATE = Int.maxof/2 - 1; // for no reason but symmetry
+
+  Bool isImmediate(FOC op) {
+    return op >= cFOC_MIN_IMMEDIATE && op <= cFOC_MAX_IMMEDIATE;
+  }
+
+  /*
+  Bool getArities(FOC op, Arities & arities) {
+    Int idx = op - cFOC_BASE_VAL;
+    if (idx >= cOP_ARITIES.lengthof) return false;
+    arities = cOP_ARITIES[idx];
+    return true;
+  }
+  */
+  
+  /*
+  constant Arities cOP_ARITIES[] = {
+    { .mIn = 0u, .mOut = 1u },      // cFOC_DONE
+    { .mIn = 0u, .mOut = 1u },      // cFOC_CLOK_FRONT
+    { .mIn = 0u, .mOut = 1u },      // cFOC_CLOK_REAR
+    { .mIn = 0u, .mOut = 1u },      // cFOC_GREY_FCTR
+    { .mIn = 0u, .mOut = 1u },      // cFOC_GREY_CDEV
+    { .mIn = 0u, .mOut = 1u },      // cFOC_VALID_SPEED
+    { .mIn = 0u, .mOut = 1u },      // cFOC_CUR_SPEED
+    { .mIn = 0u, .mOut = 1u },      // cFOC_VALID_HEAD
+    { .mIn = 0u, .mOut = 1u },      // cFOC_CUR_HEAD
+  
+    { .mIn = 0u, .mOut = 0u },      // cFOC_NOP
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_EQ
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_NE
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_LT
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_LE
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_GT
+    { .mIn = 2u, .mOut = 1u },      // cFOC_CMP_GE
+    { .mIn = 2u, .mOut = 1u },      // cFOC_MAX
+    { .mIn = 2u, .mOut = 1u },      // cFOC_MIN
+    { .mIn = 2u, .mOut = 1u },      // cFOC_ADD
+    { .mIn = 2u, .mOut = 1u },      // cFOC_SUB
+    { .mIn = 2u, .mOut = 1u },      // cFOC_MUL
+    { .mIn = 2u, .mOut = 1u },      // cFOC_DIV
+    { .mIn = 2u, .mOut = 1u },      // cFOC_AND
+    { .mIn = 2u, .mOut = 1u },      // cFOC_OR
+    { .mIn = 1u, .mOut = 1u },      // cFOC_NOT
+    { .mIn = 1u, .mOut = 1u },      // cFOC_NEG
+  };
+  */
+}
+
+transient FunctionBlock(Unsigned cSLOTS) + FunctionOpCodes {
+  Int mOps[cSLOTS];
+  Bool eval(Function & stack, GTCC & g, LOCZ & l, TRAKtor & t) {
+    for (Unsigned pc = 0u; pc < cSLOTS; ++pc) {
+      Int op = mOps[pc];
+      if (op == cFOC_DONE) return true; // "answer on top of stack"
+      if (!stack.eval(op,g,t,l)) break;
+    }
+    return false;               // "eval failed"
+  }
+}
+
+transient Function + FunctionOpCodes + CodeConstants + QDebugUtils {
+  constant Unsigned cSTACK_SIZE = 100u; // gimme a break (max possible 250-something)
+  Int mStack[cSTACK_SIZE];
+  Unsigned mStackFF = 0u;       //< first free pos on stack
+
+  Bool isEmpty() { return mStackFF == 0u; }
+
+  Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
+
+  Bool push(FOC op) {
+    if (!isFull()) {
+      mStack[mStackFF++] = op;
+      return true;
+    }
+    return false;
+  }
+
+  Bool push(Bool b) { return push(b ? 1 : 0); }
+
+  Bool pop(FOC & op) {
+    if (!isEmpty()) {
+      op = mStack[--mStackFF];
+      return true;
+    }
+    return false;
+  }
+
+  Bool evalOp(Int op, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+    if (evaluateThisOperatorOnly(op,self,g,l,t)) {
+      return pop(result);
+    }
+    return false;
+  }
+
+  Bool evalFunction(Int pc, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+    mD&&pR("EVFN10")&&pR(pc)&&pR(nameOfFunction(pc));
+    Int v;
+    if (!readRAM(pc,v)) return false;
+    mD&&pR("EVFN11")&&pR(v);
+    if (v != oENTER) return false;
+    push(1);                    // fake return address
+    mD&&pR("EVFN12")&&pR(nameOfOperator(v));
+    while (evaluateOperator(pc,self,g,l,t) && pc > 1) { // pc == 1: returned to top level
+      mD&&pRStack("EVN13")&&pR(pc);
+    }
+    mD&&pRStack("EVFN14")&&pR(pc);
+    if (pc == 1) {
+      pop(result);
+      mD&&pR("EVFN15")&&pR(result);
+      return true;
+    } // else evaluateOperator failed
+    mD&&pRStack("EVFN16")&&pR(self);
+    return false;
+  }
+
+  Bool pRStack(String msg) {
+    ByteStreamLogger buf;
+    buf.forceOutput(true);
+    buf.print(msg);
+    buf.print(" <");
+    Bool first = true;
+    for (Int i = (Int) mStackFF; --i >= 0; ) {
+      if (first) first = false;
+      else buf.print(" ");
+      Int s = mStack[i];
+      String n = nameOfOperatorOrNull(s); // try op first
+      //if (!(Bool) n) n = nameOfFunctionOrNull(s); // then try func
+      if ((Bool) n) {
+        buf.print(n);
+      }
+      buf.print("#");
+      buf.print(s);             // include decimal anyway
+    }
+    buf.print("<\n");
+    return true;
+  }
+
+  Int clampImmed(Int in) {
+    if (in < cFOC_MIN_IMMEDIATE) return cFOC_MIN_IMMEDIATE;
+    if (in > cFOC_MAX_IMMEDIATE) return cFOC_MAX_IMMEDIATE;
+    return in;
+  }
+
+  /*
+  Bool doOp(FOC op, Int ins[3], Int outs[3], GTCC & g, TRAKtor & t, LOCZ & l) {
+    Int i1 = ins[0], i2 = ins[1], i3 = ins[2];
+    Int & o1 = outs[0], & o2 = outs[1], & o3 = outs[2];
+    which (op) {
+    case cFOC_CLOK_FRONT: { outs[0] = g.mNewCloks[0]; return true; } // front newclok
+    case cFOC_CLOK_REAR: { outs[0] = g.mNewCloks[1]; return true; } // rear newclok
+    case cFOC_GREY_FCTR: { outs[0] = g.mCenterGrey; return true; } // front center grey
+    case cFOC_GREY_CDEV: { outs[0] = (Int) abs(128-g.mCenterGrey); return true; } // front center grey distance from 128
+    case cFOC_VALID_SPEED: { outs[0] = l.mSpeed8Valid ? 1 : 0; return true; } // cur speed valid
+    case cFOC_CUR_SPEED: { outs[0] = l.mSpeed8 - 8; return true; } // cur speed 
+    case cFOC_VALID_HEAD: { outs[0] = l.mHeadingValid ? 1 : 0; return true; } // heading valid
+    case cFOC_CUR_HEAD: { outs[0] = l.mHeading; return true; } // cur heading
+
+    case cFOC_NOP: { return true; }
+    case cFOC_CMP_EQ: { outs[0] = ins[0] == ins[1] ? 1 : 0; return true; }
+    case cFOC_CMP_NE: { outs[0] = ins[0] != ins[1] ? 1 : 0; return true; }
+    case cFOC_CMP_LT: { outs[0] = ins[0] <  ins[1] ? 1 : 0; return true; }
+    case cFOC_CMP_LE: { outs[0] = ins[0] <= ins[1] ? 1 : 0; return true; }
+    case cFOC_CMP_GT: { outs[0] = ins[0] >  ins[1] ? 1 : 0; return true; }
+    case cFOC_CMP_GE: { outs[0] = ins[0] >= ins[1] ? 1 : 0; return true; }
+
+    case cFOC_MAX: { outs[0] = max(ins[0],ins[1]); return true; }
+    case cFOC_MIN: { outs[0] = min(ins[0],ins[1]); return true; }
+    case cFOC_ADD: { outs[0] = clampImmed(ins[0]+ins[1]); return true; }
+    case cFOC_SUB: { outs[0] = clampImmed(ins[0]-ins[1]); return true; }
+    case cFOC_MUL: { outs[0] = clampImmed(ins[0]*ins[1]); return true; }
+    case cFOC_DIV: {
+      if (ins[1] == 0) return false;
+      outs[0] = clampImmed(ins[0]/ins[1]); 
+      return true;
+    }
+    case cFOC_AND: { outs[0] = min(ins[0],ins[1]); return true; }
+    case cFOC_OR: { outs[0] = max(ins[0],ins[1]); return true; }
+    case cFOC_NOT: { outs[0] = ins[0] == 0 ? 1 : 0; return true; }
+    case cFOC_NEG: { outs[0] = -ins[0]; return true; }
+
+    otherwise:  { return false; } // not evaluable
+    }
+    return false;
+  }
+  */
+}
+
+/*
+transient FunctionSNORG + FunctionOpCodes {
+  Unsigned mOpIndex = FunctionOps.cFOC_NOP;
+  Int mArgIndices[2];
+
+  //// Function SERVICES
+  Bool eval(Int & result, GTCC & g, TRAKtor & t, LOCZ & l) {
+
+    Int a1, a2, val;
+
+    FunctionValues fv;
+    if (!fv.getFunctionValue(mArgIndices[0],a1,g,t,l)) return false;
+    if (!fv.getFunctionValue(mArgIndices[1],a2,g,t,l)) return false;
+
+    FunctionOps fops;
+    if (!fops.evaluateBinOp(mOpIndex, a1, a2, val)) return false;
+
+    result = val;
+    return true;
+  }
+}
+
+
+transient FunctionValues + DTU + QDebugUtils + Fail {
+  constant FOC cFOC_NONE = Int.minof;
+  constant FOC cFOC_CLOK_FRONT = cFOC_NONE + 1;
+  constant FOC cFOC_CLOK_REAR = cFOC_CLOK_FRONT + 1;
+  constant FOC cFOC_GREY_FCTR = cFOC_CLOK_REAR + 1;
+  constant FOC cFOC_VALID_SPEED = cFOC_GREY_FCTR + 1;
+  constant FOC cFOC_CUR_SPEED = cFOC_VALID_SPEED + 1;
+  constant FOC cFOC_VALID_HEAD = cFOC_CUR_SPEED + 1;
+  constant FOC cFOC_CUR_HEAD = cFOC_VALID_HEAD + 1;
+  
+  constant FOC cFOC_MAX_RESERVED = Int.minof / 2;
+  constant FOC cFOC_MIN_IMMEDIATE = cFOC_MAX_RESERVED + 1;
+  constant FOC cFOC_MAX_IMMEDIATE = Int.maxof / 2;  //< top half reserved for nothing except symmetry
+
+  Bool getFunctionValue(Int predvalidx, Int & result, GTCC & g, TRAKtor & t, LOCZ & l) {
+    which (predvalidx) {
+    case cFOC_NONE:        { return false; }
+    case cFOC_CLOK_FRONT:  { result = g.mNewCloks[0]; return true; }
+    case cFOC_CLOK_REAR:   { result = g.mNewCloks[1]; return true; }
+    case cFOC_GREY_FCTR:   { result = g.mCenterGrey; return true; }
+    case cFOC_VALID_SPEED: { result = l.mSpeed8Valid ? 1 : 0; return true; } 
+    case cFOC_CUR_SPEED:   {
+      if (l.mSpeed8Valid) { result = (Int) l.mSpeed8 - 8; return true; }
+      return false;
+    }
+    case cFOC_VALID_HEAD:  { result = l.mHeadingValid ? 1 : 0; return true; }
+    case cFOC_CUR_HEAD:    {
+      if (l.mHeadingValid) { result = l.mHeading; return true; }
+      return false;
+    }
+    }
+    if (predvalidx >= cFOC_MIN_IMMEDIATE &&
+        predvalidx <= cFOC_MAX_IMMEDIATE) {
+      result = predvalidx;
+      return true;
+    }
+    return false;
+  }
+}
+
+transient FunctionOps + DTU + QDebugUtils + Fail {
+  constant Unsigned cFOC_NOP = 0u;
+
+  constant Unsigned cFOC_CMP_EQ = 1u;
+  constant Unsigned cFOC_CMP_NE = 2u;
+  constant Unsigned cFOC_CMP_LT = 3u;
+  constant Unsigned cFOC_CMP_LE = 4u;
+  constant Unsigned cFOC_CMP_GT = 5u;
+  constant Unsigned cFOC_CMP_GE = 6u;
+
+  constant Unsigned cFOC_MAX = 7u;
+  constant Unsigned cFOC_MIN = 8u;
+
+  constant Unsigned cFOC_ADD = 9u;
+  constant Unsigned cFOC_SUB = 10u;
+  constant Unsigned cFOC_MUL = 11u;
+  constant Unsigned cFOC_DIV = 12u;
+
+  constant Unsigned cFOC_AND = 13u;
+  constant Unsigned cFOC_OR =  14u;
+
+  constant Unsigned cFOC_NOT = 15u;
+  constant Unsigned cFOC_NEG = 16u;
+
+  constant Arities cOP_ARITIES[] = {
+    { .mIn = 0, .mOut = 0 }, // cFOC_NOP = 0u;
+
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_EQ = 1u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_NE = 2u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_LT = 3u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_LE = 4u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_GT = 5u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_CMP_GE = 6u;
+
+    { .mIn = 2, .mOut = 1 }, // cFOC_MAX = 7u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_MIN = 8u;
+
+    { .mIn = 2, .mOut = 1 }, // cFOC_ADD = 9u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_SUB = 10u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_MUL = 11u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_DIV = 12u;
+
+    { .mIn = 2, .mOut = 1 }, // cFOC_AND = 13u;
+    { .mIn = 2, .mOut = 1 }, // cFOC_OR =  14u;
+
+    { .mIn = 1, .mOut = 1 }, // cFOC_NOT = 15u;
+    { .mIn = 1, .mOut = 1 }, // cFOC_NEG = 16u;
+  };
+  
+
+
+  Bool isImmediate(Int i) {
+    return
+      i >= FunctionValues.cFOC_MIN_IMMEDIATE &&
+      i <= FunctionValues.cFOC_MAX_IMMEDIATE;
+  }
+      
+  Bool evaluateBinOp(Unsigned predidx, Int a1, Int a2, Int & result) {
+    which (predidx) {
+    case cFOC_CMP_EQ: { result = (a1 == a2 ? 1 : 0); return true; }
+    case cFOC_CMP_NE: { result = (a1 != a2 ? 1 : 0); return true; }
+    case cFOC_CMP_LT: { result = (a1 <  a2 ? 1 : 0); return true; }
+    case cFOC_CMP_LE: { result = (a1 <= a2 ? 1 : 0); return true; }
+    case cFOC_CMP_GT: { result = (a1 >  a2 ? 1 : 0); return true; }
+    case cFOC_CMP_GE: { result = (a1 >= a2 ? 1 : 0); return true; }
+
+    case cFOC_MAX: {result = a1 < a2 ? a2 : a1; return true; }
+    case cFOC_MIN: {result = a1 > a2 ? a2 : a1; return true; }
+
+    case cFOC_ADD: {result = a1 + a2; return isImmediate(result); }
+    case cFOC_SUB: {result = a1 - a2; return isImmediate(result); }
+    case cFOC_MUL: {result = a1 * a2; return isImmediate(result); }
+    case cFOC_DIV: {
+      if (a2 == 0) return false;
+      result = a1 / a2;
+      return isImmediate(result);
+    }
+
+    case cFOC_AND: { result = (a1 == 0) ? a1 : a2; return true; }
+    case cFOC_OR:  { result = (a1 != 0) ? a1 : a2; return true; }
+    }
+  }
+}
+*/
+

@@ -1,0 +1,25 @@
+transient MotorCmd + DTU + QDebugUtils + Fail {
+  String mTRAKtName;
+  Unsigned mTRAKtNumber;
+  Bool mSpeedNotWheel; //< true for min(1)/max(2) speeds, false for left(1)/right(2) speeds
+  Int(16) mSpeed1;     //< min or left wheel speed
+  Int(16) mSpeed2;     //< max or right wheel speed
+  Bool mFuncNotOp;     //< true if mDoneCode is func, false if op
+  Int mDoneCode;       //< funcaddr or op
+
+  Bool evalDoneCode(Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+    Function f;
+    f.takeDebug(self);
+    if (mFuncNotOp) {
+      if (f.evalFunction(mDoneCode, result, g, l, t))
+        return true;
+      fail(__FILE__,__LINE__);
+    } else /* op */ {
+      if (f.evalOp(mDoneCode, result, g, l, t))
+        return true;
+      fail(__FILE__,__LINE__);
+    }
+    return false;
+  }
+}
+

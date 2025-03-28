@@ -2,6 +2,18 @@ transient GripInfoMap + DTU + QDebugUtils {
   Self(QDebugUtils& du) { takeDebug(du); }
   
   //// GripInfoMap SERVICES
+  constant Unsigned cGRIP_HUNTR = BeeveeGrips.cGRIPIDX_HUNTR;
+  constant Unsigned cGRIP_BV2BY = BeeveeGrips.cGRIPIDX_BV2BY;
+  constant Unsigned cGRIP_NORED = BeeveeGrips.cGRIPIDX_NORED;
+  constant Unsigned cGRIP_TRAVL = BeeveeGrips.cGRIPIDX_TRAVL;
+  constant Unsigned cGRIP_TRACK = BeeveeGrips.cGRIPIDX_TRACK;
+
+  constant Unsigned cGRIP_TURNW = cGRIP_TRACK+1u; //< handled by OrientGrip
+  constant Unsigned cGRIP_TURNN = cGRIP_TRACK+2u; //< handled by OrientGrip
+  constant Unsigned cGRIP_TURNS = cGRIP_TRACK+3u; //< handled by OrientGrip
+  constant Unsigned cGRIP_TURNE = cGRIP_TRACK+4u; //< handled by OrientGrip
+  
+  /* UNDER RECONSTRUCTION
   constant Unsigned cGRIP_HUNTR = 0u;
   constant Unsigned cGRIP_BV2BY = 1u;
   constant Unsigned cGRIP_NORED = 2u;
@@ -11,6 +23,7 @@ transient GripInfoMap + DTU + QDebugUtils {
   constant Unsigned cGRIP_TURNS = 6u; //< handled by OrientGrip
   constant Unsigned cGRIP_TURNE = 7u; //< handled by OrientGrip
   constant Unsigned cGRIP_TRACK = 8u; //< handled by TrackGrip
+  */
 
   constant Unsigned cMAX_RECAST_SIZE = 4096u;
   typedef BitStorageT(cMAX_RECAST_SIZE) GripInfoBuffer;

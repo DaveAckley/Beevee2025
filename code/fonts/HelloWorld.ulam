@@ -1,0 +1,27 @@
+use ConstantLabel; // get ConstantLabelWithFont
+
+element HelloWorld : ConstantLabelWithFont("Hello world.",0)
+{
+}
+
+/** \color #f00 
+    \symmetries all
+*/
+element RefontHW {
+  Void behave() {
+    EventWindow ew;
+    Random random;
+    EventWindow.SiteNum sn = (EventWindow.SiteNum) random.between(1,4);
+    Atom & a = ew[sn];
+    if (a as HelloWorld) {
+      Label.LabelIndex si = a.mLabelIndex;
+      Label.FontNumber fn = a.getFontNumber(si);
+      if (fn == fn.maxof) fn = fn.minof;
+      else ++fn;
+      a.setFontNumber(fn);
+      a.mPrio.increment();
+      ew[0] = Empty.instanceof;
+    } 
+  }
+}
+

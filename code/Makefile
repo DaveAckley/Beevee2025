@@ -11,20 +11,24 @@ MFZRUN:=$(MFM_BIN_DIR)/mfzrun
 UFLAGS:=-o
 ARGS_TXT_FILES:=$(wildcard args.txt)
 ULAM_FILES:=$(wildcard *.ulam)
+FONTDIR_FILES:=$(wildcard fonts/*.ulam)
+#$(info FONTDIR_FILES $(FONTDIR_FILES))
+FONTS_FILES+=$(patsubst fonts/%.ulam,%.ulam,$(FONTDIR_FILES))
 H_FILES:=$(sort $(wildcard *.h))
 TCC_FILES:=$(sort $(wildcard *.tcc))
 INC_FILES:=$(wildcard *.inc)
 TIMESTAMP:=$(shell date +%Y%m%d-%H%M%S)
 DEV:=$(shell whoami)
 ISHNAME:=$(TIMESTAMP)-$(DEV)
+ALL_MFZ_FILES:=$(sort $(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) $(FONTS_FILES) FixedPoint.ulam)
 
 all:	$(MFZ)
 
 run:	$(MFZ)
 	$(MFZRUN) $(MFZ)
 
-$(MFZ):	$(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) FixedPoint.ulam | Makefile
-	$(ULAM) $(UFLAGS) $^ $(MFZ)
+$(MFZ):	$(ULAM_FILES) $(TCC_FILES) $(H_FILES) $(ARGS_TXT_FILES) FixedPoint.ulam Makefile $(FONTDIR_FILES)
+	$(ULAM) --sd ./fonts $(UFLAGS) $(ALL_MFZ_FILES) $(MFZ)
 
 FixedPoint.ulam: ../../FixedPoint/code/FixedPoint.ulam
 	cp $^ $@

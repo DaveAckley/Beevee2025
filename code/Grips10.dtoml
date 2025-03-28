@@ -1,0 +1,122 @@
+# -*- mode: conf-toml; -*-
+# Fri Feb 28 11:08:22 2025 try moving CLOK to GREYS, and be always-on
+# Fri Feb 21 11:19:12 2025 try a dtoml for grips info
+
+[Config]
+
+[grip._] 
+  name="Default"
+  doc="default routing in all grips"
+
+# Grey processing in all grips
+  routes.SFLG = [ TRAK, HFLG, CLOK ]
+  routes.SFCG = [ TRAK ]  
+  routes.SFRG = [ TRAK, HFRG, CLOK ]
+
+  routes.SRLG = [ HRLG, CLOK ]
+  routes.SRRG = [ HRRG, CLOK ]
+
+  routes.IFLG = [HPDF, HFQA]
+  routes.IFRG = [HPDF, HFQA]
+  routes.IRLG = [HPDR, HFQA]
+  routes.IRRG = [HPDR, HFQA]
+
+  routes.CLOK = [ GTCC ]
+  routes.GTCC = [ TRAKPD ]
+
+# Green tracking in all grips
+  routes.SLFG = [ GRLN ]
+  routes.SRFG = [ GRLN ]
+
+# Emergency Red processing in all grips
+  routes.SLFR = [ GRIP ]
+  routes.SRFR = [ GRIP ]
+
+# Red Warning Track in all grips
+  routes.SLRR = [ WNTK ]   # {front} left red (right side) 
+  routes.SRLR = [ WNTK ]   # {front} right red (left side)
+
+[grip.HUNTR]
+  name="Hunter"
+  doc="Seek Yellow to set up for BV2BY"
+  routes.TOCK = [ MRRF, MLRF ]
+  routes.SLFY = [ MRRF, GRIP ]
+  routes.SRFY = [ MLRF, GRIP ]
+  routes.SLFR = [ GRIP ]
+  routes.SRFR = [ GRIP ]
+  routes.SLLY = [ MLEY ]
+  routes.SLRY = [ MLEY ]
+  routes.SRLY = [ MREY ]
+  routes.SRRY = [ MREY ]
+
+
+[grip.BV2BY]
+  name="Pursue"
+  doc="Braitenberg Vehicle Figure 2B strategy, treating yellow as light"
+  routes.SLFY = [ MRRF, GRIP ]
+  routes.SRFY = [ MLRF, GRIP ]
+
+  routes.SLLY = [ MLEY ]
+  routes.SLRY = [ MLEY ]
+  routes.SRLY = [ MREY ]
+  routes.SRRY = [ MREY ]
+
+[grip.NORED]
+  name="Avoid"
+  doc="Back away from red strategy, with eyestalk hysteresis"
+  routes.SLFY = [ GRIP ]
+  routes.SRFY = [ GRIP ]
+
+  routes.SLFR = [ MRRF, GRIP ]
+  routes.SRFR = [ MLRF, GRIP ]
+
+  sigfunc.RedCrossMap = '''
+  if (i < 2) o = 2*i;          // 0..1 -> 0..2
+  else if (i < 4) o = 1+i;     // 2..3 -> 3..4
+  else if (i < 8) o = 3+i/2;   // 4..7 -> 5..8
+  else o = 8+i/8;              // 8..100 -> 9..20
+  if (o > 14) o = 14;
+  o = -o;
+'''
+  sigmap.SLFR.MRRF = RedCrossMap
+  sigmap.SRFR.MLRF = RedCrossMap
+
+  routes.SLLR = [ MLEY ]
+  routes.SRRR = [ MREY ]
+
+  sigfunc.StalkMap = '''
+  if (i > 0) {
+    o = i*10;
+    if (o > 90) o = 90;
+  }
+'''
+  sigmap.SLLR.MLEY = StalkMap
+  sigmap.SRRR.MREY = StalkMap
+
+[grip.TRAVL]
+  name="Travel"
+  doc="Loosely grid aligned movement"
+  routes.TOCK = [ MRRF, MLRF ]
+  routes.SLFY = [ MRRF, GRIP ]
+  routes.SRFY = [ MLRF, GRIP ]
+  routes.SLFR = [ GRIP ]
+  routes.SRFR = [ GRIP ]
+  routes.SLLY = [ MLEY ]
+  routes.SLRY = [ MLEY ]
+  routes.SRLY = [ MREY ]
+  routes.SRRY = [ MREY ]
+
+[grip.TRACK]
+  name="Track"
+  doc="Checkerboard line following"
+  routes.SLFY = [ GRIP ]
+  routes.SRFY = [ GRIP ]
+  routes.SLFR = [ GRIP ]
+  routes.SRFR = [ GRIP ]
+
+  # Treat TOCK just as a constant signal generator?
+  routes.TOCK = [ MLEY, MREY ]
+
+  sigfunc.StalkMap = "o = 1;"   # eyestalks basically straight ahead?
+  sigmap.TOCK.MLEY = StalkMap
+  sigmap.TOCK.MREY = StalkMap

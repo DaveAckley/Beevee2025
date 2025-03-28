@@ -1,0 +1,34 @@
+/** GReen LanterN - green signal for orientation during tracking
+    \symbol GL
+    \color #4e2
+*/
+element GRLN : TermHiddenIO + Fail {
+  typedef FixedPoint(20u,10u) Frac;
+  Frac mGreenLevel;
+
+  //// TERMHIDDENIO API
+  @Override RouteDir getHiddenRouteDir(XBlock & xb) {
+    return cXBAR_TO_AXON;
+  }
+
+  @Override TapIdx getAxonTapIdx(SlotSig & forsig) {
+    BeeveeBIMXBlock bim;
+    Unsigned t = bim.getTapIdxFromClassId(LOCZ.classidof);
+    if (t == t.maxof) fail(__FILE__,__LINE__);
+    return (TapIdx) t;
+  }
+
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    BeeveeBIMXBlock bim;
+    TapIdx idx = iss.mSource;
+    if (idx != bim.getTapIdxFromClassId(SLFG.classidof) &&
+        idx != bim.getTapIdxFromClassId(SRFG.classidof))
+      return false;             
+
+    Frac fval((Int) iss.mValue);
+    mGreenLevel = mGreenLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+    mD&&pR("GRLN10")&&pR(iss)&&pR(fval)&&pR(mGreenLevel);
+    iss.mValue = (ASCII) mGreenLevel.getInt();
+    return true;
+  }
+}

@@ -60,10 +60,18 @@ quark SeqCore + DTU + Fail {
 }
 
 element TRAKPD : HOpUnary + Fail {
- 
+  //// UrSelf API
+  @Override ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    FPErr minfp500 = FPErr.instanceof(0).getMin();
+    if (getLastError() == minfp500)
+      return cu.color(0xffff0000);  // RED for invalid
+    return super.getColor(selector);
+  }
+
   //// HOpArgsT API
   virtual Int sigToSlot(SlotSig sig, Unsigned gripnum) {
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx idx = sig.mSource;
 
     if (idx == bim.getTapIdxFromClassId(GTCC.classidof)) { // insns bound for TRAKPD
@@ -77,20 +85,18 @@ element TRAKPD : HOpUnary + Fail {
   //// TermHOp API
   virtual Bool execute(SlotSig & result) {
     /// REFRESH GRIPNUM
-    SN sn = 2u;
+    SN sn = findXBlockSN();
     if (!ew.isAccessible(sn)) return false;
-    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
-    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+    if (!(ew[sn] is XBlock)) { die(); return false; }
+    XBlock & xb = (XBlock&) ew[sn];
    
-    mD&&pR("TRKX11")&&pR(xb);
-
-    if (!xb.hasSymmetry()) return false; // too soon?
+    mD&&pR("TPDX11")&&pR(xb);
 
     Unsigned gripnum = getGripNumber(); // our current grip
     if (gripnum != xb.getGripNumber()) {
       gripnum = xb.getGripNumber();
       setGripNumber(gripnum);
-      mD&&pR("TRKX12")&&pR(self);
+      mD&&pR("TPDX12")&&pR(self);
     }
 
     GripInfoMap gim(self);
@@ -100,7 +106,7 @@ element TRAKPD : HOpUnary + Fail {
     SlotSig & sig = getSlotSig(0u);
     if (!sig.isOccupied())
       return false; // ??
-    ASCII val = sig.getValueUnsigned();
+    ASCII val = sig.getValueRaw();
     sig.reset();
 
     executeSig(val);
@@ -148,15 +154,52 @@ element TRAKPD : HOpUnary + Fail {
     return true;
   }
   
+  //// XXX HOT HOT HOT ULTRAHACK WARNING HOT HOT HOT XXX
+  //// here we're trying to send a signal 'backwards' down
+  //// an incoming axon. we expect it will fail if there
+  //// is any branching on the path, but otherwise ???
+  Void maybeForwardGrey(Int vl,Int vc,Int vr) {
+    mD&&pR("MYBFG10");
+
+    EventWindow ew;
+    SN axonsn = findMatchingAxonEnd(true); // LOOK FOR **INBOUND** FROM GTCC
+    if (!ew.isAccessible(axonsn)) return;  // nope
+
+    mD&&pR("MYBFG11")&&pR(axonsn);
+    Atom & a = ew[axonsn];
+    if (!a is AxonEnd) return;  // WTF?
+
+    AxonEnd & ae = (AxonEnd&) a;
+
+    AxonIdx aidx = ae.getRemoteAxonIdx();
+    TapIdx ti = ae.getAxonTap(aidx);
+    mD&&pR("MYBFG12")&&pR(aidx)&&pR(ti);
+
+    if (ti != BeeveeBIMXBlock.cTAPIDX_GTCC) return; // "?
+    SlotSig & oss = ae.getEndSlotSig(false); // get **outbound** slot of axon
+    mD&&pR("MYBFG13")&&pR(oss);
+
+    if (oss.isOccupied()) return;
+
+    Unsigned dd = abs(vl-vr);    // dist btwn left and right
+    Unsigned ld = abs(vl-vc);    // dist btwn left and center
+    Unsigned rd = abs(vr-vc);    // dist btwn right and center
+    Int c = (Int) ld - (Int) rd; // <0 center too left (rd too big), >0 center too right (ld too big)
+    ASCII val = (ASCII) (c/2 + 127); // <127 center too left, >127 center too right
+    oss.setOccupied(val,BeeveeBIMXBlock.cTAPIDX_TRAKPD);  // with lub from us
+
+    mD&&pR("MYBFG14")&&pR(oss);
+  }
+
   Bool mWheelSpeedControl = false;
 
-  typedef FixedPoint(8u,8u) FPErr;
+  typedef FixedPoint(7u,9u) FPErr;
   FPErr mLastError;
   FPErr mIntegralError;
 
   typedef FixedPoint(7u,0u) FP30; // opps no frac at the inn
-  FP30 mTargetMaxSpeed;
-  FP30 mTargetMinSpeed;
+  FP30 mTargetMaxSpeed = { .mFP = (FP30.FP) (4u<<FP30.cFRAC_BITS) };
+  FP30 mTargetMinSpeed = { .mFP = (FP30.FP) (1u<<FP30.cFRAC_BITS) };
 
   typedef FP30 MotorSpeeds[2];
   

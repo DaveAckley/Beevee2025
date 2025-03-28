@@ -1,0 +1,30 @@
+/** WarN TracK for use during tracking
+    \symbol RW
+    \color #e42
+*/
+element WNTK : TermHiddenIO + Fail {
+  typedef FixedPoint(20u,10u) Frac;
+  Frac mRedLevel;
+
+  //// TERMHIDDENIO API
+  @Override RouteDir getHiddenRouteDir(XBlock & xb) {
+    return cXBAR_TO_AXON;
+  }
+
+  @Override TapIdx getAxonTapIdx(SlotSig & forsig) {
+    BeeveeBIMXBlock bim;
+    Unsigned t = bim.getTapIdxFromClassId(LOCZ.classidof);
+    if (t == t.maxof) fail(__FILE__,__LINE__);
+    return (TapIdx) t;
+  }
+
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    Frac fval((Int) iss.mValue);
+    mRedLevel = mRedLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+    mD&&pR("WNTK10")&&pR(iss)&&pR(fval)&&pR(mRedLevel);
+    iss.mValue = (ASCII) mRedLevel.getInt();
+    //Random random;
+    //return random.oneIn(2u);    // drop 50%, ship 50%
+    return true;
+  }
+}

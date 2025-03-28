@@ -1,7 +1,8 @@
 local typedef XBarSpace2D GripSource; //< What grid we are built to live in..
 
 /** Terminal Alias Point. Represents a sensory or motor connection to
-    the spine, or an internal 'hidden tap' that works similarly.
+    the spine, or an internal 'hidden tap' that works similarly (or
+    perhaps wildly differently opps).
  */
 quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
 
@@ -49,10 +50,12 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     return false;
   }
 
-  SN findMatchingAxonEnd() { //< SN of axon matching our tapidx or SN.maxof if none
+  /** SN of axon matching our tapidx or SN.maxof if none. 
+   */
+  SN findMatchingAxonEnd(Bool forInput) {
     mD&&pR("FNMTAXE10");
     SN ret = SN.maxof;
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx tapidx = bim.getTapIdx(self);
 
     if (tapidx == cTAPIDX_NONE) return ret;
@@ -60,10 +63,12 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     mD&&pR("FNMTAXE11")&&pR(tapidx);
     MinXPick snpick;
     EventWindow ew;
-    for (SN sn = 0u; sn <= 24u; ++sn) {
+    for (SN sn = 0u; sn <= 40u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
       if (a as AxonEnd) {
+        if (forInput && !(a is AxonHead)) continue;
+        if (!forInput && !(a is AxonTail)) continue;
         AxonIdx aix = a.getAxonIdx();
         if (a.getAxonTap(aix) == tapidx) // that's our axon
           snpick.update(sn);
@@ -76,7 +81,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   }
 
   SN findMatchingAxonEndWithClassId(ClassId otherclassid) { 
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     Unsigned otheridx = bim.getTapIdxFromClassId(otherclassid);
     if (otheridx == Unsigned.maxof) return SN.maxof;
     return findMatchingAxonEndWith((TapIdx) otheridx);
@@ -85,7 +90,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   SN findMatchingAxonEndWith(TapIdx otheridx) { //< SN of axon matching our tapidx and otheridx or SN.maxof if none
     mD&&pR("FNMTAXEF10");
     SN ret = SN.maxof;
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx tapidx = bim.getTapIdx(self);
 
     if (tapidx == cTAPIDX_NONE) return ret;
@@ -94,15 +99,17 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     mD&&pR("FNMTAXEf11")&&pR(tapidx)&&pR(otheridx);
     MinXPick snpick;
     EventWindow ew;
-    for (SN sn = 0u; sn <= 24u; ++sn) {
+    for (SN sn = 0u; sn <= 40u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
       if (a as AxonEnd) {
         mD&&pR("FNMTAXEf12")&&pR(a);
         AxonIdx aix = a.getAxonIdx();
         if (a.getAxonTap(aix) == tapidx && // that's our axon
-            a.getAxonTap((AxonIdx)(1u-aix)) == otheridx) // from to the tap we want
+            a.getAxonTap((AxonIdx)(1u-aix)) == otheridx) { // from to the tap we want
           snpick.update(sn);
+          mD&&pR("FNMTAXEf1210")&&pR(snpick);
+        }
       }
     }
     if (snpick.hasPick())
@@ -112,60 +119,161 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   }
 
   Bool trySendSigViaTAP(ASCII sig, ClassId toclassid) { /// imported from TRAK
+    mD&&pR("TSSVTP10")&&pR(self);
+    mD&&pR("TSSVTP11")&&pR(sig)&&pR(toclassid);
     EventWindow ew;
     Fail f;
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx mytapidx = bim.getTapIdx(self);
     Unsigned themt = bim.getTapIdxFromClassId(toclassid);
+
+    mD&&pR("TSSVTP12")&&pR(mytapidx)&&pR(themt);
     if (themt == Unsigned.maxof)
       f.fail(__FILE__,__LINE__);
     TapIdx themtapidx = (TapIdx) themt;
-    SN axonsn = findMatchingAxonEndWithClassId(toclassid);
+    return trySendSigViaTAPIdxs(sig, mytapidx, themtapidx);
+  }
+
+  Bool trySendSigViaTAPIdxs(ASCII sig, TapIdx srcidx, TapIdx destidx) {
+    mD&&pR("TSSVTPI10")&&pR(sig)&&pR(srcidx)&&pR(destidx);
+    EventWindow ew;
+    SN axonsn = findMatchingAxonEndWith(destidx); // find axon outbound to destidx
+    mD&&pR("TSSVTPI13")&&pR(axonsn)&&pR(destidx);
     if (axonsn != SN.maxof) {
       AxonEnd & axon = (AxonEnd&) ew[axonsn];
-      mD&&pR("TMTOR14")&&pR(axonsn);
+      AxonIdx raxidx = axon.getRemoteAxonIdx();
+      TapIdx remoteidx = axon.getAxonTap(raxidx);
+      mD&&pR("TSSVTPI14")&&pR(axonsn)&&pR(raxidx)&&pR(remoteidx);
+      if (remoteidx != destidx) {
+        Bool mD = true; //OVERRIDE
+        mD&&pR("TSSVTPI1410 FAIL")&&pR(srcidx)&&pR(destidx)&&pR(axon);
+        return false;
+      }
       SlotSig oss;
       oss.mValue = sig;
-      oss.mSource = mytapidx;
+      oss.mSource = srcidx;
       return trySendSig(axon,oss);
     }
 
+    mD&&pR("TSSVTPI15");
     // no axon
     MinXPick emppick;
     Random random;
     for (SN sn = 1u; sn < 41u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
-      if (sn <= 8u && ew[sn] is Empty) emppick.update(sn);
+      if (sn <= 28u && ew[sn] is Empty) {
+        C2D c = ew.getCoord(sn);
+        Unsigned sqd = c.euclideanSquaredLength();
+        emppick.update(sn,sqd);
+      }
       if (ew[sn] is FloodFind) 
         return false;          // Flooding in progress
     }
+    mD&&pR("TSSVTPI16");
     if (emppick.hasPick()) {
       SN empsn = emppick.getIdxSN();
       FloodFindTAPIdx fix;
       fix.mBranchOK = true;      // XXXX TESTING DENDRITIC TREES
       fix.mMaxRadius = 20u;
-      fix.mLocal = mytapidx;
-      fix.mRemote = themtapidx;
-      mD&&pR("TOPHSH17")&&pR(fix);
+      fix.mLocal = srcidx;
+      fix.mRemote = destidx;
+      mD&&pR("TSSVTPI17")&&pR(fix);
       ew[empsn] = fix.atomof;
     }
+    mD&&pR("TSSVTPI18");
     return false;
   }  
   
-  /*
-  Bool scanAxons() {
+  Bool consumeInboundSig() { // consume *properly*, with switching
     EventWindow ew;
-    for (SN sn = 0u; sn <= 12u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      Atom & a = ew[sn];
-      if (a as AxonEnd) {
-        if (considerAxonEnd(a)) 
-          return true;
+
+    //// FIND OUR XBLOCK
+    SN xbsn = findXBlockSN();
+    if (!ew.isAccessible(xbsn)) return false;
+    Atom & a = ew[xbsn];
+    if (!(a is XBlock) || !(a is FourWaySlots)) return false;
+    XBlock & xb = (XBlock&) a;
+
+    //// GET CURRENT GRIP ROUTER
+    Unsigned gripnum = xb.getGripNumber();
+    BeeveeGrips gripmap;
+    Atom gripa = gripmap.getGripRoutingInstance(gripnum);
+    mD&&pR("CISRTXBLTS12")&&pR(gripnum)&&pR(gripa);
+
+    if (!(gripa is GripRouting)) return false;
+    GripRouting & gr = (GripRouting&) gripa;
+
+    //// CHECK FOR SIGNALING
+    FourWaySlots & fwx = (FourWaySlots&) a;
+
+    AxialDir adout = sn2AxialDir(xbsn);
+    AxialDir adin = oppositeAxialDir(adout);
+    if (xb.forkSignalIfPossible(gr,adin)) {
+      SlotSig & iss = fwx.getSlotSig(adin);
+      if (iss.isOccupied()) {  // all that, just to..
+        iss.reset();           // ..toss it
+        return true;
       }
     }
     return false;
   }
-  */
+
+  SN findXBlockSN() {
+    EventWindow ew;
+    MinXPick xblpick;
+    mD&&pR("FXBLSN10")&&pR(self);
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      mD&&pR("FXBLSN1010")&&pR(sn)&&pR(a);
+      if (a as XBlock) {
+        AxialDir ad = sn2AxialDir(oppositeSN(sn));
+        mD&&pR("FXBLSN11")&&pR(ad)&&pR(a);
+        if (a.isTAPDir(ad))
+          xblpick.update(sn);
+      }
+    }
+    mD&&pR("FXBLSN12")&&pR(xblpick);
+    if (xblpick.hasPick())
+      return xblpick.getIdxSN();
+
+    mD&&pR("FXBLSN13");
+    return SN.maxof;
+  }
+
+  SN findGripSourceSN() {
+    EventWindow ew;
+    MinXPick xblpick;
+    MinXPick xbapick;
+    mD&&pR("FGSSN10")&&pR(self);
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      mD&&pR("FGSSN1010")&&pR(sn)&&pR(a);
+      if (a as XBlock) {
+        if (sn <= 4u) {
+          AxialDir ad = sn2AxialDir(oppositeSN(sn));
+          mD&&pR("FGSSN11")&&pR(ad)&&pR(a);
+          if (a.isTAPDir(ad))
+            xblpick.update(sn);
+        }
+      } else if (a as XBarSpace2D) {
+        C2D c = a.getPos2D();
+        Unsigned len = c.length();
+        mD&&pR("FGSSN1011")&&pR(sn)&&pR(c)&&pR(a);
+        xbapick.update(sn,len);
+      }
+    }
+    mD&&pR("FGSSN12")&&pR(xbapick)&&pR(xblpick);
+    if (xbapick.hasPick())
+      return xbapick.getIdxSN();
+
+    if (xblpick.hasPick())
+      return xblpick.getIdxSN();
+
+    mD&&pR("FGSSN13");
+    return SN.maxof;
+  }
 }
 
 quark TermHiddenIO : TAP + QDebugUtils { // Place holder for internal nodes
@@ -178,73 +286,70 @@ quark TermHiddenIO : TAP + QDebugUtils { // Place holder for internal nodes
   constant RouteDir cXBAR_TO_AXON = 1u;
   constant RouteDir cAXON_TO_XBAR = 2u;
 
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) ; /*{
+  virtual RouteDir getHiddenRouteDir(XBlock & gs) ; /*{
     return cNONE_TO_NONE;
     }*/
+
+  virtual TapIdx getAxonTapIdx(SlotSig & forsig) {
+    return cTAPIDX_NONE;
+  }
   
   /** \return true if (possibly modified) signal should be
     transhipped; \return false if signal should be dropped
    */
-  virtual Bool transshipSigHook(SlotSig & iss, GripSource & gripsrc) {
+  virtual Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
     return false;
   }
 
   @Override
   Void behave() {
-    BeeveeBIM bvb;
+    BeeveeBIMXBlock bvb;
     Unsigned tapidx = bvb.getTapIdx(self);
 
-    MinXPick grippick;          // least lhops
-    for (SN sn = 1u; sn <= 8u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      Atom & a = ew[sn];
-      if (a as GripSource) {
-        mD&&pR("THIO12");
-        mD&&pR(a);
-        grippick.update(sn,a.getLHops(),1u,a.getGripNumber()); // Pick from closest-to-root ngb
-        mD&&pR(grippick);
-      }
-    }
-    mD&&pR("THION1210");
-    if (!grippick.hasPick()) return; // no grip source?
+    SN xbsn = findXBlockSN();
+    if (!ew.isAccessible(xbsn)) return;
+    Atom & a = ew[xbsn];
+    if (!(a is XBlock) || !(a is FourWaySlots)) return;
+    XBlock & xb = (XBlock&) a;
+    FourWaySlots & fws = (FourWaySlots&) a;
 
     Bool tookSig = false;
-    Unsigned gripnum = grippick.getArg();
+    Unsigned gripnum = xb.getGripNumber();
     setGripNumber(gripnum);
 
     mD&&pR("THION1210")&&pR(gripnum);
 
-    GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
-    if (!gs.hasSymmetry()) return; // grip source not ready?
-
-    RouteDir rd = getHiddenRouteDir(gs);
+    RouteDir rd = getHiddenRouteDir(xb);
     if (rd == cXBAR_TO_AXON) {
-      SlotSig & iss = gs.getSlotSig(false); // check incoming
+      FourWaySlots & fws = (FourWaySlots&) xb.atomof;
+      SN opsn = oppositeSN(xbsn);
+      AxialDir iad = sn2AxialDir(opsn);
+      SlotSig & iss = fws.getSlotSig(iad); // check incoming
       mD&&pR("X2ATHION1211")&&pR(iss);
       if (iss.isOccupied()) { // 
         mD&&pR("X2ATHION1212")&&pR(self);
-        if (transshipSigHook(iss,gs)) {
-          SN axonsn = findMatchingAxonEnd();
-          mD&&pR("X2AXTHIO13")&&pR(axonsn);
-          if (axonsn != SN.maxof) {
-            AxonEnd & axon = (AxonEnd&) ew[axonsn];
-            mD&&pR("X2ATHIO14")&&pR(axonsn);
-            trySendSig(axon, iss); // Don't care return value
-          }
+        if (transshipSigHook(iss,xb)) {
+          TapIdx axonidx = getAxonTapIdx(iss);
+          TapIdx ouridx = bvb.getTapIdx(self);
+          mD&&pR("X2AXTHIO13")&&pR(axonidx)&&pR(ouridx);
+          Bool b = trySendSigViaTAPIdxs(iss.mValue, ouridx, axonidx); // Don't care return value
+          mD&&pR("X2ATHIO14")&&pR(b);
         }
         iss.reset();          // no matter what
       }
     } else if (rd == cAXON_TO_XBAR) {
-      SN axonsn = findMatchingAxonEnd();
+      SN axonsn = findMatchingAxonEnd(true);
       mD&&pR("A2XXTHIO13")&&pR(axonsn);
       if (axonsn != SN.maxof) {
         AxonEnd & axon = (AxonEnd&) ew[axonsn];
+        FourWaySlots & fws = (FourWaySlots&) xb.atomof;
+        AxialDir oad = sn2AxialDir(xbsn);
         SlotSig & iss = axon.getEndSlotSig(true); // check incoming on axon
         mD&&pR("A2XTHION1211")&&pR(iss);
         if (iss.isOccupied()) { //
           mD&&pR("A2XTHION1212")&&pR(self);
-          if (transshipSigHook(iss,gs)) {
-            SlotSig & oss = gs.getSlotSig(true); // check outbound slot
+          if (transshipSigHook(iss,xb)) {
+            SlotSig & oss = fws.getSlotSig(oad); // check outbound slot
             if (!oss.isOccupied()) {             // transship if room
               oss = iss;
               oss.mSource = (TapIdx) tapidx; // relabeling sig as from us..
@@ -266,8 +371,10 @@ quark TermSensor : TAP + QDebugUtils {
 
   Void behave() {
     mD&&pR("TMSNBV10");
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx tapidx = bim.getTapIdx(self);
+
+    self.consumeInboundSig();   // i'm a sensor dammit
 
     String name = bim.getTAPNameFromTapIdx(tapidx);
     if (!(Bool) name) return;
@@ -289,38 +396,44 @@ quark TermSensor : TAP + QDebugUtils {
     }
     */
 
-    mD&&pR("TMSNBV13");
-    MinXPick grippick;          // least lhops
-
-    for (SN sn = 1u; sn <= 8u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      C2D c = ew.getCoord(sn);
-      Atom & a = ew[sn];
-      if (a as GripSource) { //NB: whether or not it has a symmetry
-        mD&&pR("TMSNS12");
-        mD&&pR(a);
-        grippick.update(sn,1u,1u,a.getGripNumber()); 
-        mD&&pR(grippick);
-      }
-    }
-
-    mD&&pR("TMSNBV14");
-    mD&&pR(grippick);
-    if (grippick.hasPick()) {
-      Unsigned gripnum = grippick.getArg();
+    SN gripsn = findGripSourceSN();
+    mD&&pR("TMSNBV13")&&pR(gripsn);
+    if (!ew.isAccessible(gripsn)) return;
+    mD&&pR("TMSNBV1310")&&pR(ew[gripsn]);
+    Atom & a = ew[gripsn];
+    if (a as Grip) {
+      Unsigned gripnum = a.getGripNumber();
       setGripNumber(gripnum);
+      mD&&pR("TMSNBV1311")&&pR(ew[gripsn])&&pR(gripnum);
+    } else return;
+      
+    //// CHECK FOR SIGNALING
+    mD&&pR("TMSNBV15");
+    SN xbsn = findXBlockSN();
+    if (ew.isAccessible(xbsn)) {
+      Atom & axb = ew[xbsn];
+      XBlock & xb = (XBlock&) axb;
+      FourWaySlots & fws = (FourWaySlots&) axb;
 
-      mD&&pR("TMSNBV15");
-      GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
-      if (gs.hasSymmetry()) {            // but can't getslotsig without symmetry
-        SlotSig & oss = gs.getSlotSig(true); // check outgoing
-        if (!oss.isOccupied()) {
-          ASCII val = sterm.getValueUnsigned();
-          oss.setOccupied(val,tapidx);
-          //mBS.writeTerm(sterm);
-          mD&&pR("TMSNBV15INJ10");
-          mD&&pR(oss);
+      AxialDir ad = sn2AxialDir(xbsn);
+      SlotSig & oss = fws.getSlotSig(ad);
+      if (!oss.isOccupied()) {
+        ASCII val = sterm.getValueUnsigned();
+        if (false && val == 25) { // WE THINK WE KILLED THE 25x3 BUG
+          DebugUtils du;
+          du.print("GSV25vvvv");
+          //mBS.dump();           // LET'S TRY TO RUN THIS DOWN SOMEHOW
+
+          //du.print(val);
+          du.print(name);
+          //du.print(sterm);
+          //du.print(self);
+          du.print("GSV25^^^^");
         }
+        oss.setOccupied(val,tapidx);
+        //mBS.writeTerm(sterm);
+        mD&&pR("TMSNBV15INJ10");
+        mD&&pR(oss);
       }
     }
     mD&&pR("TMSNBV16");
@@ -336,76 +449,92 @@ quark TermMotor : TAP + QDebugUtils {
   /** \return true if signal handled; \return false if signal should
     be shipped to spinal motor
    */
-  virtual Bool handleSigHook(SlotSig & iss, GripSource & gripsrc) {
+  virtual Bool handleSigHook(SlotSig & iss, XBlock & xb) {
     return false;
   }
 
-  @Override
-  Void behave() {
-    BeeveeBIM bim;
+  @Override Void behave() {
+    BeeveeBIMXBlock bim;
     Unsigned tapidx = bim.getTapIdx(self);
     String name = bim.getTAPNameFromTapIdx(tapidx);
     if (!(Bool) name) return;
     if (!mBS.open()) return;
 
-    MinXPick grippick;          // least lhops
-    for (SN sn = 1u; sn <= 8u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      Atom & a = ew[sn];
-      if (a as GripSource) {
-        mD&&pR("TMTOR12");
-        mD&&pR(a);
-        grippick.update(sn,a.getLHops(),1u,a.getGripNumber()); // Pick from closest-to-root ngb
-        mD&&pR(grippick);
-      }
-    }
-    mD&&pR("TMTORN1210");
-    if (grippick.hasPick()) {
-      Bool tookSig = false;
-      Unsigned gripnum = grippick.getArg();
+    SN gripsn = findGripSourceSN();
+    mD&&pR("TMTORBV10")&&pR(gripsn);
+    if (!ew.isAccessible(gripsn)) return;
+    mD&&pR("TMTORVBV11")&&pR(ew[gripsn]);
+    Unsigned gripnum;
+    if (ew[gripsn] is Grip) {
+      Grip & g = (Grip&) ew[gripsn];
+      gripnum = g.getGripNumber();
       setGripNumber(gripnum);
+      mD&&pR("TMTORBV12")&&pR(g)&&pR(gripnum);
+    } else return;
 
-      GripSource & gs = (GripSource&) ew[grippick.getIdxSN()];
-      if (gs.hasSymmetry()) {
-        SlotSig & iss = gs.getSlotSig(false); // check incoming
-        mD&&pR("TMTORN1211")&&pR(iss);
-        if (iss.isOccupied()) {
-          mD&&pR("TMTORN1212")&&pR(self);
-          if (!handleSigHook(iss,gs)) {
-            SMTerm sterm = mBS.readTermByName(name); // if it exists
-            Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
-            mD&&pR("TMTORN1213")&&pR(signedval);
-            iss.reset();
-            sterm.setValueSigned(signedval);
-            mBS.writeTerm(sterm);
-            tookSig = true;
-          }
+    Bool tookSig = false;
+    BeeveeGrips gripmap;
+    Atom gripa = gripmap.getGripRoutingInstance(gripnum);
+    mD&&pR("TMBHRTXBLTS12")&&pR(gripnum)&&pR(gripa);
+
+    if (!(gripa is GripRouting)) return;
+    GripRouting & gr = (GripRouting&) gripa;
+
+    //// CHECK FOR SIGNALING
+    SN xbsn = findXBlockSN();
+    if (!ew.isAccessible(xbsn)) return;
+    Atom & a = ew[xbsn];
+    mD&&pR("TMBHRTXBLTS1210")&&pR(xbsn)&&pR(a);
+    if (!(a is XBlock) || !(a is FourWaySlots)) return;
+    XBlock & xb = (XBlock&) a;
+    FourWaySlots & fwx = (FourWaySlots&) a;
+
+    AxialDir adout = sn2AxialDir(xbsn);
+    AxialDir adin = oppositeAxialDir(adout);
+    mD&&pR("TMBHRTXBLTS1211")&&pR(fwx)&&pR(adout)&&pR(adin);
+    if (xb.forkSignalIfPossible(gr,adin)) {
+      SlotSig & iss = fwx.getSlotSig(adin);
+      mD&&pR("TMBHRTXBLTS1212")&&pR(iss);
+      if (!handleSigHook(iss,xb)) {
+        SMTerm sterm = mBS.readTermByName(name); // if it exists
+        mD&&pR("TMBHRTXBLTS1213")&&pR(sterm);
+        if (sterm.isValid()) {
+          Int signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+          mD&&pR("TMTORN1213")&&pR(signedval);
+          iss.reset();
+          sterm.setValueSigned(signedval);
+          mBS.writeTerm(sterm);
+          tookSig = true;
         }
       }
+      mD&&pR("TMTORN1214")&&pR(tookSig);
+    }
 
-      if (!tookSig) {
-        mD&&pR("TMTOR13");
-        SN axonsn = findMatchingAxonEnd();
-        mD&&pR("XTMTOR13")&&pR(axonsn);
-        if (axonsn != SN.maxof) {
-          AxonEnd & axon = (AxonEnd&) ew[axonsn];
-          mD&&pR("TMTOR14")&&pR(axonsn);
-          SlotSig iss;
-          if (tryRecvSig(axon, iss)) {
-            mD&&pR("TMTOR15")&&pR(iss);
-            if (!handleSigHook(iss,gs)) {
-              SMTerm sterm = mBS.readTermByName(name); // if it exists
-              Int(8) signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+    if (!tookSig) {
+      mD&&pR("TMTOR13");
+      SN axonsn = findMatchingAxonEnd(true);
+      mD&&pR("XTMTOR13")&&pR(axonsn);
+      if (axonsn != SN.maxof) {
+        AxonEnd & axon = (AxonEnd&) ew[axonsn];
+        mD&&pR("TMTOR14")&&pR(axonsn);
+        SlotSig iss;
+        if (tryRecvSig(axon, iss)) {
+          mD&&pR("TMTOR15")&&pR(iss);
+          if (!handleSigHook(iss,xb)) {
+            SMTerm sterm = mBS.readTermByName(name); // if it exists
+            if (sterm.isValid()) {
+              Int signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
               mD&&pR("TMTORN16")&&pR(signedval)&&pR(name)&&pR(sterm);
               iss.reset();
               sterm.setValueSigned(signedval);
               mBS.writeTerm(sterm);
             }
           }
-          mD&&pR("TMTORN17");
         }
+        mD&&pR("TMTORN17");
       }
     }
+      
     mD&&pR("TMTOR210");
     mBS.close();
   }
@@ -415,7 +544,7 @@ quark TermMotor : TAP + QDebugUtils {
 ///// HIDDEN UNITS
 element HALT : TermHiddenIO {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cNONE_TO_NONE;
   }
 }
@@ -546,28 +675,28 @@ element BVROLL :  TermSensor {
 
 /** SLLR Left Left-side Red Detector
     \symbol LL
-    \color #aaa
+    \color #a33
 */
 element SLLR :  TermSensor {
 }
 
 /** SLRR Left Right-side Red Detector
     \symbol LR
-    \color #aaa
+    \color #a33
 */
 element SLRR :  TermSensor {
 }
 
 /** SRLR Right Left-side Red Detector
     \symbol RL
-    \color #aaa
+    \color #a33
 */
 element SRLR :  TermSensor {
 }
 
 /** SRRR Right Right-side Red Detector
     \symbol RR
-    \color #aaa
+    \color #a33
 */
 element SRRR :  TermSensor {
 }
@@ -622,7 +751,7 @@ quark TermEyeStalk : TermMotor {
 
   //// TERMMOTOR API
   @Override
-  virtual Bool handleSigHook(SlotSig & iss,GripSource & gs) {
+  virtual Bool handleSigHook(SlotSig & iss,XBlock & xb) {
     ASCII val = iss.mValue; // pick up value (ignoring source tapidx)
     Int ival = signedAsciiToInt(val);
     mD&&pR("TEYS10")&&pR(iss)&&pR(ival)&&pR(mStalkAngle);

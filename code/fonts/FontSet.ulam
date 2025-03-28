@@ -1,0 +1,18 @@
+transient FontSet {
+  typedef Unsigned(3) FontNumber;
+  Font10RadonX mFont0;
+  Font11Inconsolata14 mFont1;
+  Font12Cursive mFont2;
+  //  Font13Dagger mFont3;
+  FontHGR224 mFont3;
+  Font & getFont(FontNumber i) {
+    if (i == 0) return mFont0;
+    if (i == 1) return mFont1;
+    if (i == 2) return mFont2;
+    if (i == 3) return mFont3;
+
+    // Default
+    return mFont0;
+  }
+}
+

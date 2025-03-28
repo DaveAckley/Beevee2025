@@ -1,0 +1,359 @@
+
+transient XBlockState : Intention {
+}
+
+@Concrete
+transient DefaultXBlockState : XBlockState {
+  @Override
+  virtual Bool observe(Intender &in) {
+    if (super.observe(in)) return true;
+    if (in as XBlock)
+      return in.observe(self);
+    return false;
+  }
+  @Override
+  virtual Bool stabilize(Intender &in) {
+    if (super.stabilize(in)) return true;
+    if (in as XBlock)
+      return in.stabilize(self);
+    return false;
+  }
+  @Override
+  virtual Bool act(Intender &in) {
+    if (super.act(in)) return true;
+    if (in as XBlock)
+      return in.act(self);
+    return false;
+  }
+}
+
+quark XBlock : Intender + XBInfo + GripStgT(XBarSpace2D.cGRIPBITS) + DTU + Fail {
+  //// XBLOCK API
+  constant Unsigned cGRIPBITS = XBarSpace2D.cGRIPBITS;
+
+  virtual Unsigned getXBlockIndex() ; //< position in BeeveeBIMXBlock.cXBClassIds
+
+  virtual C2D getXBlockSize() ; //< (width,height) in xblock space
+
+  virtual C2D getXBlockStride() ; //< (sites per col,sites per row) xblock -> ew scale factors
+
+  virtual C2D getXBlockOrigin() ;  //< origin in HC3 external space
+
+  virtual SN getOriginSN() ; //< relative to origin HC3 in ew space
+
+  virtual C2D getXBlockPos() ;  //< our position in xblock internal space
+
+  virtual C2D getNeighborC2D(C2D pos) ; //< pos in xblock space, return in ew space
+
+  virtual Atom createXBlock(C2D pos) ; //< "same" as self except at pos in xblock space
+
+  //// XBLOCK SERVICES
+  SN getNeighbor(AxialDir ad) { //< in ew space
+    C2D c = getNeighborC2D(axialDir2C2D(ad));
+    MDist md;
+    return md.getSiteNumber(c);
+  }
+
+  Bool getDie() { return mDie; }
+  Void setDie() { mDie = true; }
+  Bool mDie;
+
+  Bool moreOuter(C2D pos1, C2D pos2) {
+    C2D ctr = getXBlockSize()/2;
+    return
+      pos1.euclideanSquaredDistance(ctr) >
+      pos2.euclideanSquaredDistance(ctr);
+  }
+
+  Bool observe(XBlockState & intention) {
+    MinXPick nonselfgrippick;
+    MinXPick selfgrippick;
+    EventWindow ew;
+    mD&&pR("XBLOB10")&&pR(self);
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as Self) {
+        mD&&pR("XBLOB11")&&pR(a);
+        if (moreOuter(a.getXBlockPos(),getXBlockPos()))
+          selfgrippick.update(sn,1u,1u,a.getGripNumber());
+      } else if (a as XBarSpace2D) {
+        mD&&pR("XBLOB12")&&pR(a);
+        nonselfgrippick.update(sn,1u,1u,a.getGripNumber());
+      }
+    }
+
+    mD&&pR("XBLOB13")&&pR(nonselfgrippick)&&pR(selfgrippick);
+    Unsigned theirgrip;
+    if (nonselfgrippick.hasPick())
+      theirgrip = nonselfgrippick.getArg();
+    else if (selfgrippick.hasPick()) 
+      theirgrip = selfgrippick.getArg();
+    else return false;
+
+    mD&&pR("XBLOB14")&&pR(theirgrip);
+    return setGripNumber(theirgrip);
+  }
+
+  Bool stabilize(XBlockState & intention) {
+    Bool ret = false;
+    MDist md;
+    C2D siz = getXBlockSize();
+    C2D pos = getXBlockPos();
+    mD&&pR("XBLST10")&&pR(siz)&&pR(pos);
+    EventWindow ew;
+    Bool die = getDie();
+    for (SN sn = 1u; sn <= 4u; ++sn) {
+      C2D dpos = md.getSiteCoord(sn); // dpos in xblock distance
+      C2D c = pos+dpos;               // c in xblock space
+      mD&&pR("XBLST11")&&pR(dpos)&&pR(c);
+      if (!siz.contains(c)) continue; // not in xblock
+      C2D ec = getNeighborC2D(dpos);  // ec in ew space
+      SN esn = md.getSiteNumber(ec);  
+      mD&&pR("XBLST12")&&pR(ec)&&pR(esn);
+      if (esn == SN.maxof) continue;  // out of ew
+      Atom & a = ew[esn];
+      mD&&pR("XBLST13")&&pR(a);
+      if (a as Self) {
+        mD&&pR("XBLST14")&&pR(a)&&pR(c);
+        if (die) a.setDie();
+        if (a.getXBlockPos() != c) {
+          mD = true;
+          mD&&pR("XBLST14FAILING")&&pR(a)&&pR(c);
+          fail(__FILE__,__LINE__,"WRITEME");
+        }
+        mD&&pR("XBLST15")&&pR(a)&&pR(c);
+      } else if (!die && (a is Empty || a is XBarSpace2D)) {
+        Atom na = createXBlock(c);
+        Self & ns = (Self&) na;
+        FourWaySlots & fws = (FourWaySlots&) na;
+        fws.reset();            // Don't dupe our signals!
+        ew[esn] = na;
+        mD&&pR("XBLST16")&&pR(esn)&&pR(ew[esn]);
+        ret = true;
+      }
+    }
+    if (die) {
+      ret = true;
+      ew[0] = Empty.instanceof;
+    } else if (checkForTAPs(intention))
+      ret = true;
+    return ret;
+  }
+
+  Bool act(XBlockState & intention) {
+    Bool ret = false;
+    MDist md;
+    mD&&pR("XBLAC10")&&pR(self)&&pR(intention);
+    EventWindow ew;
+    RouterXBlock xbr;
+    xbr.takeDebug(self);
+    if (xbr.propagateAndSwitchSomething(self,intention))
+      return true;
+    return false;
+  }
+
+  Bool isTAPDir(AxialDir ad) {
+    C2D siz = getXBlockSize();
+    C2D pos = getXBlockPos();
+
+    which (ad) {
+    case cW: { return pos.getX() == 0; }
+    case cN: { return pos.getY() == 0; }
+    case cS: { return pos.getY() == siz.getY()-1; }
+    case cE: { return pos.getX() == siz.getX()-1; }
+    }
+    // NOT REACHED
+    return false;
+  }
+
+  Bool checkForTAPs(XBlockState & intention) {
+    EventWindow ew;
+    Bool ret = false;
+    C2D siz = getXBlockSize();
+    C2D pos = getXBlockPos();
+    mD&&pR("XBLC4T10")&&pR(siz)&&pR(pos);
+    for (AxialDir ad = cW, lad = cE; ad != lad; lad = ad++) { // tricky full power-of-two iteration?
+      // only want border xblocks
+      if (!isTAPDir(ad)) continue;
+
+      TapIdx tapidx = getXBInfoSideTAP(pos, ad);
+      mD&&pR("XBLC4T11")&&pR(ad)&&pR(pos)&&pR(tapidx);
+
+      if (tapidx == cTAPIDX_NONE)  // Fill unassigned slots with hidden empties
+        tapidx = BeeveeBIMXBlock.cTAPIDX_HEMP;
+
+      { // Want TAP ih ad
+        MDist md;
+        C2D tappos = axialDir2C2D(ad);
+        SN tapsn = md.getSiteNumber(tappos);
+        mD&&pR("XBLC4T12")&&pR(tappos)&&pR(tapsn);
+        if (!ew.isAccessible(tapsn)) continue;
+        mD&&pR("XBLC4T13")&&pR(ew[tapsn]);
+        if (!(ew[tapsn] is TAP)) { // WAS is Empty but want to stomp e.g. XBars..
+          mD&&pR("XBLC4T1310");
+          BeeveeBIMXBlock bimx;
+          ClassId tapclassid = bimx.getTAPClassIdFromTapIdx(tapidx);
+
+          ClassUtils cu;
+          Int etype = cu.getElementType(tapclassid);
+          mD&&pR("XBLC4T1311")&&pR(etype)&&pR(tapclassid);
+          if (etype >= 0) {
+            AtomUtils au;
+            Atom a = au.new(etype);
+            ew[tapsn] = a;
+            mD&&pR("XBLC4T14")&&pR(ew[tapsn]);
+            ret = true;
+          } 
+        }
+      }
+    }
+    mD&&pR("XBLC4T15")&&pR(ret);
+    return ret;
+  }
+
+  Bool forkSignalIfPossible(GripRouting & gr, AxialDir heading) {
+    XBlock & xb = self;
+    if (!xb is FourWaySlots) return false;
+    FourWaySlots & fws = (FourWaySlots&) xb.atomof;
+    SlotSig & ss = fws.getSlotSig(heading);
+    mD&&pR("XBFSIP10")&&pR(heading)&&pR(ss);
+    if (!ss.isOccupied()) return false;
+    TapIdx srcidx = ss.mSource;
+
+    C2D xbpos = xb.getXBlockPos(); // xblock internal coord
+    XBInfo.TAPIdxMap taps = xb.getXBInfoTAPs(xbpos); // tap endpoints as TapIdx[] here
+
+    mD&&pR("XBFSIP11")&&pR(xbpos);
+    // Does any other direction want it?
+    Bool wantit[4] = { false, };
+    Unsigned wantcount = 0u;
+    Unsigned blockedcount = 0u;
+    for (Unsigned i = cW; i <= cE; ++i) {
+      AxialDir ad = (AxialDir) i;
+      if (ad==heading) continue;
+      mD&&pR("XBFSIP12")&&pR(ad);
+      if (gr.switchSig(srcidx,taps[ad])) {
+        wantcount++;
+        wantit[ad] = true;      // this dir wants it
+        SlotSig & tss = fws.getSlotSig(ad);
+        if (tss.isOccupied()) ++blockedcount;
+        mD&&pR("XBFSIP13")&&pR(ad)&&pR(wantcount)&&pR(blockedcount)&&pR(tss);
+      }
+    }
+    mD&&pR("XBFSIP14")&&pR(blockedcount);
+    if (blockedcount > 0u) return false; // switching cannot complete now
+
+    // copy to all desired dests
+    if (wantcount > 0u) {
+      for (Unsigned i = cW; i <= cE; ++i) {
+        AxialDir ad = (AxialDir) i;
+        if (!wantit[ad]) continue;
+        SlotSig & tss = fws.getSlotSig(ad);
+        mD&&pR("XBFSIP15")&&pR(ad)&&pR(tss);
+        if (tss.isOccupied()) fail(__FILE__,__LINE__);
+        Int ival = ss.getValueSigned(); // LET'S SAY ALWAYS SIGNED
+        Int oval = ival;
+        mD&&pR("XBFSIP16")&&pR(ival);
+        if (gr.mapSig(ss.mSource, taps[ad], ival, oval)) {
+          tss = ss;
+          tss.setValueSigned(oval);   // LET'S SAY ALWAYS SIGNED
+          mD&&pR("XBFSIP16")&&pR(oval)&&pR(tss);
+        }
+      }
+    }
+    mD&&pR("XBFSIP17");
+    return true; // switching done!
+  }
+
+}
+
+quark XBlockStg : XBlock {
+
+  //// XBLOCK API
+  @Override
+  virtual Atom createXBlock(C2D pos) {
+    Atom na = self.atomof;
+    Self & ns = (Self&) na;
+    ns.setXBlockPos(pos);
+    return na;
+  }
+
+  //// XBLOCKSTG API
+  virtual Bool setXBlockPos(C2D newpos) ; //< xblock internal pos; true if newpos invalid or == old pos, else false
+}
+
+quark XBlockStgT(Unsigned(8u) cCOLS, Unsigned(8u) cROWS, Unary(3) cXSTRIDE, Unary(3) cYSTRIDE) : XBlockStg {
+  //// XBLOCK API
+  @Override C2D getXBlockSize() { return C2D.instanceof((C2D.Coord) cCOLS, (C2D.Coord) cROWS); }
+  @Override C2D getXBlockPos() { return C2D.instanceof((C2D.Coord) mXCoord, (C2D.Coord) mYCoord); }
+  @Override C2D getNeighborC2D(C2D delta) { return delta * cSTRIDE; } //< delta in xblock space, return in ew space
+
+  //// XBLOCKSTG API
+  @Override Bool setXBlockPos(C2D newpos) {
+    if (!getXBlockSize().contains(newpos) || newpos == getXBlockPos())
+      return true;
+    mXCoord = (XCoord) newpos.x;
+    mYCoord = (YCoord) newpos.y;
+    return false;
+  }
+
+  //// XBLOCKSTG SERVICES
+
+  constant C2D cSTRIDE = { .x = cXSTRIDE, .y = cYSTRIDE };
+  constant Unsigned cXBITS =
+    ((cCOLS <= 2u) ? 1u :
+     ((cCOLS <= 4u) ? 2u :
+      ((cCOLS <= 8u) ? 3u :
+       ((cCOLS <= 16u) ? 4u :
+        ((cCOLS <= 32u) ? 5u :
+         ((cCOLS <= 64u) ? 6u :
+          ((cCOLS <= 128u) ? 7u : 
+           8u)))))));
+  constant Unsigned cYBITS =
+    ((cROWS <= 2u) ? 1u :
+     ((cROWS <= 4u) ? 2u :
+      ((cROWS <= 8u) ? 3u :
+       ((cROWS <= 16u) ? 4u :
+        ((cROWS <= 32u) ? 5u :
+         ((cROWS <= 64u) ? 6u :
+          ((cROWS <= 128u) ? 7u : 
+           8u)))))));
+
+  typedef Unsigned(cXBITS) XCoord;
+  typedef Unsigned(cYBITS) YCoord;
+  XCoord mXCoord;
+  YCoord mYCoord;
+}
+
+/** \color #191
+   \symbol X1
+*/
+/*
+element SpikeXBlock10 : XBlockStgT(10u,6u,2u,2u) {
+  TapIdx mTaps[4] = { cTAPIDX_NONE }; // [AxialDir] -> [0] W, [1] N, [2] S, [3] E
+  SlotSig mSlotSigs[2];
+
+  //// INTENDER API
+  virtual ClassId getIntentionClass() { return XBlockState.classidof; }
+
+  //// URSELF API  
+  @Override
+  Void behave() { pursueIntention(); }
+}
+*/
+
+/** \color #231
+    \symbol K1
+*/
+element KillXBlock + DTU {
+  Void behave() {
+    EventWindow ew;
+    for (SN sn = 1u; sn <= 8u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a as XBlock) a.setDie();
+    }
+    ew[0] = Empty.instanceof;
+  }
+}

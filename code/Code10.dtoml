@@ -1,0 +1,238 @@
+# -*- mode: conf-toml; -*-
+# Wed Mar 26 11:53:16 2025 Move TRAKt definitions here
+# Mon Mar 24 01:05:16 2025 Try a wittle wanguage for code constants
+
+[Config]
+
+[trakt.cTRA_FIND_LINE_LEFT]
+  mSpeedLeft = 1 
+  mSpeedRight = 3
+  mDoneFunc = fCLOK_EDGE_FRONT
+  
+[trakt.cTRA_FIND_LINE_RIGHT]
+  mSpeedLeft = 3
+  mSpeedRight = 1
+  mDoneFunc = fCLOK_EDGE_FRONT
+
+[trakt.cTRA_TUNE_LINE]
+  mSpeedMin = 1
+  mSpeedMax = 2
+  mDoneFunc = fCLOK_EDGE_TUNED
+
+[trakt.cTRA_DRESS_LINE_FWD]
+  mSpeedMin = 1
+  mSpeedMax = 3
+  mDoneFunc = fSAME_EDGE
+
+[trakt.cTRA_DRESS_LINE_REV]
+  mSpeedMin = -3
+  mSpeedMax = -1
+  mDoneFunc = fDIFF_EDGE
+
+[trakt.cTRA_TURN_LEFT_TO_TICK]
+  mSpeedLeft = -2
+  mSpeedRight = 1
+  mDoneFunc = fCLOK_TICK_FRONT
+
+[trakt.cTRA_TURN_LEFT_TO_TOCK]
+  mSpeedLeft = -2
+  mSpeedRight = 1
+  mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.cTRA_TURN_RIGHT_TO_TICK]
+  mSpeedLeft = 1
+  mSpeedRight = -2
+  mDoneFunc = fCLOK_TICK_FRONT
+
+[trakt.cTRA_TURN_RIGHT_TO_TOCK]
+  mSpeedLeft = 1
+  mSpeedRight = -2
+  mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.cTRA_FULL_STOP]
+  mSpeedMin = 0
+  mSpeedMax = 0
+  mDoneFunc = fSTOPPED
+
+[trakt.cTRA_DRIVE_SLOW]
+  mSpeedMin = 8
+  mSpeedMax = 20
+  mDoneFunc = fSTOP_DRIVE_SLOW
+
+[trakt.cTRA_DRIVE_FAST]
+  mSpeedMin = 8
+  mSpeedMax = 50
+  mDoneFunc = fSTOP_DRIVE_FAST
+
+[trakt.cTRA_ROLLING_STOP]
+  mSpeedMin = 3
+  mSpeedMax = 4
+  mDoneFunc = fDIFF_EDGE
+
+[trakt.cTRA_EMERGENCY_STOP]
+  mSpeedMin = 0
+  mSpeedMax = 0
+  mDoneFunc = fSTOPPED
+
+
+[function.fTRUE]
+  doc="always true"
+  code = [ 1 ]
+
+[function.fFALSE]
+  doc="always false"
+  code = [ 0 ]
+
+[function.fOFFLINE_FRONT]
+  doc="true on front not tick and not tock"
+  code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_EQ ]
+
+[function.fHARD_OFFLINE_FRONT]
+  doc="true on front not tick and not tock for quite a consecutive while"
+  code = [ oHARD_OFFLINE_FRONT ]
+
+[function.fCLOK_TICK_FRONT]
+  doc="true on front tick"
+  code = [ oCLOK_FRONT, cCLOK_TICK, oCMP_EQ ]
+
+[function.fCLOK_TOCK_FRONT]
+  doc="true on front tock"
+  code = [ oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ ]
+
+[function.fCLOK_EDGE_FRONT]
+  doc="true on front tick or front tock"
+  code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_NE ]
+
+[function.fCLOK_EDGE_REAR]
+  doc="true on rear tick or rear tock"
+  code = [ oCLOK_REAR, cCLOK_NONE, oCMP_NE ]
+
+[function.fSMALL_GREY_DEV]
+  doc="true on small deviation, meaning 128+-25 == 103..153"
+  code = [ oGREY_FCTR, oDUP, 153, oCMP_LE, oSWAP, 103, oCMP_GE, oAND ]
+
+[function.fCLOK_EDGE_TUNED]
+  doc="true on front edge and small deviation"
+  code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oCALL, oAND ]
+
+[function.fSAME_EDGE]
+  doc="true if front and back on tick or tock"
+  code = [ fCLOK_EDGE_FRONT, oCALL, oCLOK_REAR, oCLOK_FRONT, oCMP_EQ, oAND ]
+
+[function.fDIFF_EDGE]
+  doc="true if front and back on tick and tock or tock and tick"
+  code = [ fCLOK_EDGE_FRONT, oCALL, fCLOK_EDGE_REAR, oCALL, oAND, oCLOK_REAR, oCLOK_FRONT, oCMP_NE, oAND ]
+
+[function.fSTOPPED]
+  doc="true if valid speed is 0"
+  code = [ oVALID_SPEED, oCUR_SPEED, 0, oCMP_EQ, oAND ]
+
+[function.fSTOP_DRIVE_SLOW]
+  doc="done if hard offline, or red warning"
+  code = [ oHARD_OFFLINE_FRONT, oRED_WARNING_TRACK, oOR ]
+
+[function.fSTOP_DRIVE_FAST]
+  doc="done if hard offline, or red prewarning, or red warning"
+  code = [ fSTOP_DRIVE_SLOW, oCALL, oRED_PRE_WARNING, oOR ]
+
+[constant.cTRUE] 
+  value = 1
+
+[constant.cFALSE]
+  value = 0
+
+[constant.cCLOK_NONE]
+  doc="clok val neither tick or tock"
+
+[constant.cCLOK_TICK]
+  doc="clok val tick"
+
+[constant.cCLOK_TOCK]
+  doc="clok val tock"
+
+[operator.oNOP]
+  impl='return true'                        
+[operator.oDUP]
+  impl='return s.pop(v[0]) && s.push(v[0]) && s.push(v[0])'
+[operator.oDROP]
+  impl='return s.pop(v[0])'
+[operator.oSWAP]
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[1]) && s.push(v[0])'
+[operator.oENTER]
+  impl='return true'
+[operator.oRETURN]
+  impl=''' // FUNCTION RETURN: stack is [RETVAL RETADDR ...]
+      return //s.pRStack("RET=") &&   // DEBUG
+             s.pop(v[0])            // v0 <- retval
+          && s.pop(v[1])            // v1 <- retaddr
+          && readRAM(v[1] - 1,v[2]) // v2 <- cRAM[retaddr-1]
+          && v[2] == oCALL          // [retaddr-1] is a call
+          && s.push(v[0])           // restash retval
+          && setPC(pc,v[1])         // jump to retaddr
+  '''
+[operator.oCALL]
+  impl=''' // FUNCTION CALL: stack is [FUNCADDR ...]
+      return s.pop(v[0])            // v0 <- funcaddr
+          //&& s.pRStack(nameOfFunction(v[0])) // DEBUG
+          && readRAM(v[0],v[1])     // v1 <- cRAM[funcaddr]
+          && v[1] == oENTER         // calladdr is func entry point
+          && s.push(pc)             // save retaddr
+          && setPC(pc,v[0] + 1)     // jump to funcaddr + 1
+  '''
+
+[operator.oHARD_OFFLINE_FRONT]
+  impl='return s.push(g.mHardOfflineFrontTimer.alarm() ? 1 : 0)'
+[operator.oCLOK_FRONT]           # : { outs[0] = g.mNewCloks[0]; return true; } // front newclok
+  impl='return s.push(g.mNewCloks[0])'
+[operator.oCLOK_REAR]           # : { outs[0] = g.mNewCloks[1]; return true; } // rear newclok
+  impl='return s.push(g.mNewCloks[1])'
+[operator.oGREY_FCTR]           # : { outs[0] = g.mCenterGrey; return true; } // front center grey
+  impl='return s.push(g.mCenterGrey)'
+[operator.oVALID_SPEED]           # : { outs[0] = l.mSpeed8Valid ? 1 : 0; return true; } // cur speed valid
+  impl='return s.push(l.mSpeed8Valid ? 1 : 0)'
+[operator.oCUR_SPEED]           # : { outs[0] = l.mSpeed8 - 8; return true; } // cur speed 
+  impl='return s.push(l.mSpeed8 - 8)'
+[operator.oVALID_HEAD]           # : { outs[0] = l.mHeadingValid ? 1 : 0; return true; } // heading valid
+  impl='return s.push(l.mHeadingValid ? 1 : 0)'
+[operator.oCUR_HEAD]           # : { outs[0] = l.mHeading; return true; } // cur heading
+  impl='return s.push(l.mHeading)'
+# Fri Mar 28 02:44:51 2025 Expose more LOCZ
+[operator.oRED_WARNING_TRACK]
+  impl='return s.push(l.mWarningTrack)'
+[operator.oRED_PRE_WARNING]
+  impl='return s.push(l.mPreWarning)'
+[operator.oGREEN_LEVEL]
+  impl='return s.push(l.mGreenLevel)'
+
+[operator.oCMP_EQ]           # : { outs[0] = ins[0] == ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] == v[1])'
+[operator.oCMP_NE]           # : { outs[0] = ins[0] != ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] != v[1])'
+[operator.oCMP_LT]           # : { outs[0] = ins[0] <  ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] < v[1])'
+[operator.oCMP_LE]           # : { outs[0] = ins[0] <= ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] <= v[1])'
+[operator.oCMP_GT]           # : { outs[0] = ins[0] >  ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] > v[1])'
+[operator.oCMP_GE]           # : { outs[0] = ins[0] >= ins[1] ? 1 : 0; return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] >= v[1])'
+[operator.oMAX]           # : { outs[0] = max(ins[0],ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(max(v[0],v[1]))'
+[operator.oMIN]           # : { outs[0] = min(ins[0],ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(min(v[0],v[1]))'
+[operator.oADD]           # : { outs[0] = s.clampImmed(ins[0]+ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(s.clampImmed(v[0]+v[1]))'
+[operator.oSUB]           # : { outs[0] = s.clampImmed(ins[0]-ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(s.clampImmed(v[0]-v[1]))'
+[operator.oMUL]           # : { outs[0] = s.clampImmed(ins[0]*ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(s.clampImmed(v[0]*v[1]))'
+[operator.oDIV]           # : {
+  impl='return s.pop(v[1]) && s.pop(v[0]) && v[1] != 0 &&s.push(s.clampImmed(v[0]/v[1]))'
+[operator.oAND]           # : { outs[0] = min(ins[0],ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) &&s.push(v[0] != 0 && v[1] != 0 ? 1 : 0)'
+[operator.oOR]           # : { outs[0] = max(ins[0],ins[1]); return true; }
+  impl='return s.pop(v[1]) && s.pop(v[0]) &&s.push(v[0] != 0 || v[1] != 0 ? 1 : 0)'
+[operator.oNOT]           # : { outs[0] = ins[0] == 0 ? 1 : 0; return true; }
+  impl='return s.pop(v[0]) && s.push(v[0] == 0 ? 1 : 0)'
+[operator.oNEG]           # : { outs[0] = -ins[0]; return true; }
+  impl='return s.pop(v[0]) && s.push(s.clampImmed(-v[0]))'

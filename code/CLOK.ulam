@@ -30,8 +30,7 @@ element CLOK : HOpNullary + Fail {
   }
 
   //// TermHOp API
-  @Override
-  virtual Bool isEnabled(Unsigned gripnum) { return true; } // (same as TermHOp but for doc here)
+  @Override Bool isEnabled(Unsigned gripnum) { return true; } // (same as TermHOp but for doc here)
 
   //// HOpArgsT/HOpNullary API
   @Override
@@ -42,7 +41,7 @@ element CLOK : HOpNullary + Fail {
     if (!isEnabled(gripnum)) return 0; // toss it if not enabled in grip
     mD&&pR("S2SCLOK12")&&pR(self);
 
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx idx = sig.mSource;
     if (idx == bim.getTapIdxFromClassId(SFLG.classidof)) // front left grey
       return mCLOKs[0].updateClokSig(0,sig.mValue);             
@@ -59,23 +58,20 @@ element CLOK : HOpNullary + Fail {
 
   //// CLOK SERVICES
 
-  constant Unsigned cGRIPBITS = XBarSpace2D.cGRIPBITS;
+  constant Unsigned cGRIPBITS = XBlock.cGRIPBITS;
   typedef Unsigned(cGRIPBITS) GripStg;
 
   //// TermHOp API
-  @Override
-    virtual Bool execute(SlotSig & result) {
+  @Override Bool execute(SlotSig & result) {
     mD&&pR("CLOKX10")&&pR(self);
 
     /// REFRESH GRIPNUM
-    SN sn = 2u;
+    SN sn = findXBlockSN();
     if (!ew.isAccessible(sn)) return false;
-    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
-    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+    if (!(ew[sn] is XBlock)) { die(); return false; }
+    XBlock & xb = (XBlock&) ew[sn];
    
     mD&&pR("CLOKX11")&&pR(xb);
-
-    if (!xb.hasSymmetry()) return false; // too soon?
 
     Unsigned gripnum = getGripNumber(); // our current grip
     if (gripnum != xb.getGripNumber()) {
@@ -104,45 +100,6 @@ element CLOK : HOpNullary + Fail {
     return false; // NOT REACHED
   }
 
-  Bool trySendSigOLD(ASCII sig, ClassId toclassid) {
-    BeeveeBIM bim;
-    TapIdx mytapidx = bim.getTapIdx(self);
-    Unsigned themt = bim.getTapIdxFromClassId(toclassid);
-    if (themt == Unsigned.maxof)
-      fail(__FILE__,__LINE__);
-    TapIdx themtapidx = (TapIdx) themt;
-    SN axonsn = findMatchingAxonEndWithClassId(toclassid);
-    if (axonsn != SN.maxof) {
-      AxonEnd & axon = (AxonEnd&) ew[axonsn];
-      mD&&pR("TMTOR14")&&pR(axonsn);
-      SlotSig oss;
-      oss.mValue = sig;
-      oss.mSource = mytapidx;
-      return trySendSig(axon,oss);
-    }
-    // no axon
-    MinXPick emppick;
-    Random random;
-    EventWindow ew;
-    for (SN sn = 1u; sn < 41u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      if (sn <= 8u && ew[sn] is Empty) emppick.update(sn);
-      if (ew[sn] is FloodFind) 
-        return false;          // Flooding in progress
-    }
-    if (emppick.hasPick()) {
-      SN empsn = emppick.getIdxSN();
-      FloodFindTAPIdx fix;
-      fix.mBranchOK = true;      // XXXX TESTING DENDRITIC TREES
-      fix.mMaxRadius = 20u;
-      fix.mLocal = mytapidx;
-      fix.mRemote = themtapidx;
-      mD&&pR("TOPHSH17")&&pR(fix);
-      ew[empsn] = fix.atomof;
-    }
-    return false;
-  }
-
   Unsigned getGreen(Bool wantLeft) {
     SlotSig & iss = getSlotSig(wantLeft ? 0u : 1u);
     if (!iss.isOccupied()) return Unsigned.maxof;
@@ -166,72 +123,11 @@ element CLOK : HOpNullary + Fail {
     return leftg + rightg;
   }
 
-  /*
-  constant Int cLEFT_ROTATION_SPEED = -7; // slower backwards
-  constant Int cRIGHT_ROTATION_SPEED = 20; // faster forwards
-  Void sitAndRotate() {
-    getSlotSig(0u).reset();      // discard any
-    getSlotSig(1u).reset();      // leftover signals
-    ASCII psb = intToSignedAscii(cRIGHT_ROTATION_SPEED);
-    ASCII nsb = intToSignedAscii(cLEFT_ROTATION_SPEED);
-    trySendSig(nsb,MLRF.classidof);
-    trySendSig(psb,MRRF.classidof);
-  }
-  */
-
-  Bool mapioOLD(Int vl, Int vc, Int vr, Int & trackingError) {
-    Bool old = mD;
-    //mD = true;
-
-    mD&&pR("TKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
-
-    Unsigned dd = abs(vl-vr);    // dist btwn left and right
-    Unsigned ld = abs(vl-vc);    // dist btwn left and center
-    Unsigned rd = abs(vr-vc);    // dist btwn right and center
-
-    mD&&pR("TKMPO11")&&pR(dd)&&pR(ld)&&pR(rd);
-
-    Int c = (Int) rd - (Int) ld; // >0 center too left (rd too big), <0 center too right (ld too big)
-    Unsigned ac = abs(c);
-    Bool valid;
-   
-    mD&&pR("TKMPO12")&&pR(c)&&pR(ac)&&pR(valid);
-
-    constant Unsigned cTHRESH = 25u;
-    constant Int cMAXERR = 2;
-    if (dd < cTHRESH) {          // CASE: L+R are similar (so not tracking)
-      trackingError = (true /*vl < cTHRESH*/) ? 1 : -1; // note: terr set even if !valid
-      valid = false;
-      mD&&pR("TKMPO13")&&pR(trackingError)&&pR(valid);
-    } else if (c == 0) {         // CASE: we're dead on
-      trackingError = 0;
-      valid = true;
-      mD&&pR("TKMPO14")&&pR(trackingError)&&pR(valid);
-    } else if (ac < cTHRESH) {   // CASE: we're close
-      Random random;
-      if (random.oneIn(3))          // only correct rarely if close
-        trackingError = c/(Int) ac; //   err = +- 1
-      else
-        trackingError = 0;
-      valid = true;
-      mD&&pR("TKMPO15")&&pR(trackingError)&&pR(valid);
-    } else {
-      trackingError = max(-cMAXERR,min(cMAXERR,c/(3*cTHRESH))); // CASE: we're not so close
-      valid = true;
-      mD&&pR("TKMPO16")&&pR(trackingError)&&pR(valid);
-    }
-   
-    mD&&pR("TKMPO17")&&pR(trackingError)&&pR(valid);
-    mD = old;
-
-    return valid;
-  }
-
   Bool mapio(Int vl, Int vc, Int vr, Int & trackingError) {  //< trackingError set in -32..32 (now) I think
     Bool old = mD;
     //mD = true;
 
-    mD&&pR("TKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
+    mD&&pR("CLOKTKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
 
     Unsigned dd = abs(vl-vr);    // dist btwn left and right
     Unsigned ld = abs(vl-vc);    // dist btwn left and center

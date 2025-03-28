@@ -36,6 +36,16 @@ namespace MFM{
     return ret;
   } // Uf_4open
 
+  // Bool dump() native;
+  template<class EC>
+  Ui_Ut_10111b<EC> Uq_10109211BVBrainStem10<EC>::Uf_4dump(const UlamContext<EC>& uc, UlamRef<EC>& ur) const
+  {
+    BrainStemSupport & bss = getBrainStemSupportSingleton<EC>();
+    bool b = bss.dump();
+    Ui_Ut_10111b<EC> ret(b); 
+    return ret;
+  } // Uf_4open
+
   // Bool close() native;
   template<class EC>
   Ui_Ut_10111b<EC> Uq_10109211BVBrainStem10<EC>::Uf_5close(const UlamContext<EC>& uc, UlamRef<EC>& ur) const
@@ -103,26 +113,27 @@ namespace MFM{
     return ret;
   } // Uf_9212getTermRange
   
-//! BVBrainStem.ulam:131:   ASCII getTermValueUnsigned(TermCount index) native; 
+//! BVBrainStem.ulam:158:   Unsigned getTermValueUnsigned(TermCount index) native; //< 0..255 good get, >255, not found 
   template<class EC>
-  Ui_Ut_10181u<EC> Uq_10109211BVBrainStem10<EC>::Uf_9220getTermValueUnsigned(const UlamContext<EC>& uc, UlamRef<EC>& ur, Ui_Ut_10181u<EC>& Uv_5index) const
+  Ui_Ut_102321u<EC> Uq_10109211BVBrainStem10<EC>::Uf_9220getTermValueUnsigned(const UlamContext<EC>& uc, UlamRef<EC>& ur, Ui_Ut_10181u<EC>& Uv_5index) const
   {
     BrainStemSupport & bss = getBrainStemSupportSingleton<EC>();
     const u32 index = Uv_5index.read();
     int val = bss.getTermValue(index); //illegal returns NOTERMVALUE
-    Ui_Ut_10181u<EC> ret((u32) val);
+    if (val < 0 || val > 255) val = 999; // just has to be >255
+    Ui_Ut_102321u<EC> ret((u32) val);
     return ret;
   } // Uf_9220getTermValueUnsigned
 
-//! BVBrainStem.ulam:132:   Int(8) getTermValueSigned(TermCount index) native;
+//! BVBrainStem.ulam:160:   Int getTermValueSigned(TermCount index) native;  //< -128..127 good get; >127, not found
   template<class EC>
-  Ui_Ut_10181i<EC> Uq_10109211BVBrainStem10<EC>::Uf_9218getTermValueSigned(const UlamContext<EC>& uc, UlamRef<EC>& ur, Ui_Ut_10181u<EC>& Uv_5index) const
+  Ui_Ut_102321i<EC> Uq_10109211BVBrainStem10<EC>::Uf_9218getTermValueSigned(const UlamContext<EC>& uc, UlamRef<EC>& ur, Ui_Ut_10181u<EC>& Uv_5index) const
   {
     BrainStemSupport & bss = getBrainStemSupportSingleton<EC>();
     const u32 index = Uv_5index.read();
     int val = bss.getTermValue(index); //illegal returns NOTERMVALUE
-
-    Ui_Ut_10181i<EC> ret(val);
+    if (val < -128) val = 999;         // just has to be >127
+    Ui_Ut_102321i<EC> ret(val);
     return ret;
   } // Uf_9218getTermValueSigned
 

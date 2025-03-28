@@ -15,6 +15,8 @@
 #define CTAGSFILE (CIODIR "/tags.dat")
 #define CONFIGFILE (CIODIR "/config.dat")
 
+#define DUMPFILE ("braindumps.dat")
+
 #define SNAPSHOTDIRKEYWORD "snapshotdir"
 
 #define USLEEPTIME 20000u  // 20ms, 50Hz
@@ -36,6 +38,8 @@ inline BrainStemSupport::BrainStemSupport()
   , _bvcodeVal(0u)
   , _sensesRead(false)
 {
+  MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
+  
   if (fstat(0,&_istat) < 0) fdie("stating","stdin"); // just to have something
   _rstat = _istat;
   _tstat = _istat;
@@ -46,16 +50,39 @@ inline bool BrainStemSupport::open()
 {
   if (!tryLoadConfig() ||
       !tryLoadTags() ||
-      !readInputFile())
+      !readInputFileEX())
     return false;
+
   if (_sensesRead)
     requestSnapshot();
   return true;
 }
 
+inline bool BrainStemSupport::dump()
+{
+  int fd = ::open(DUMPFILE, O_WRONLY|O_APPEND|O_CREAT, 0660);
+  if (fd < 0) return false;
+  const MFM::u8 * ptr = (const MFM::u8 *) this;
+  unsigned len = sizeof(*this);
+  char buf[3];
+  ssize_t wrote;
+  for (unsigned i = 0; i < len; ++i) {
+    sprintf(buf,"%02x",(unsigned) ptr[i]);
+    wrote = write(fd,buf, 2);
+    if (wrote != 2)
+      fprintf(stderr,"Incomplete write of %s %ld vs %ld\n",
+              DUMPFILE,
+              (long int) 2,
+              (long int) wrote);
+  }
+  wrote = write(fd,"\n",1);
+  ::close(fd);
+  return true;
+}
+
 inline bool BrainStemSupport::close()
 {
-  writeOutputFile();
+  writeOutputFileEX();
   return true;
 }
 
@@ -71,7 +98,7 @@ inline bool BrainStemSupport::tryLoadConfig() { //< true if config.dat loaded ok
   if (fstat(fd,&nowstat) < 0) fdie("stating",CONFIGFILE);
     
   if (_cfgCount == 0u || diffMTime(nowstat,_cstat)) { // if no or new config, load
-    readConfig(fd);
+    readConfigEX(fd);
     _cstat = nowstat;
   }
 
@@ -105,7 +132,9 @@ inline int BrainStemSupport::readThrough(int fd, char delim, char * dest, unsign
   return ret;
 }
 
-inline bool BrainStemSupport::readConfig(int fd) {
+inline bool BrainStemSupport::readConfigEX(int fd) {
+  MFM::Mutex::ScopeLock lock(_access);
+
   memset(&_cfgInfo,0,sizeof(CfgInfo));
     
   _cfgCount = 0u;
@@ -150,7 +179,7 @@ inline bool BrainStemSupport::tryLoadTags() { //< true if tags loaded okay (now 
   if (fstat(fd,&nowstat) < 0) fdie("stating",CTAGSFILE);
     
   if (_tagCount == 0u || diffMTime(nowstat,_tstat)) { // if no or new tags, load
-    readTags(fd);
+    readTagsEX(fd);
     _tstat = nowstat;
   }
 
@@ -182,7 +211,6 @@ inline void BrainStemSupport::requestSnapshot() {
     clearSnapshotDirIfAny();    // quick out in the future
     return;
   }
-
 
   int idx = getTermIndex("CADENCE");
   unsigned cadence = 5u;
@@ -216,12 +244,18 @@ inline void BrainStemSupport::requestSnapshot() {
   pos = snprintf(buf,LEN,"%s/",dirp);
   if (pos >= 0 && pos < (int) LEN) {
     strftime(&buf[pos],LEN-pos,"%Y%m%d/%Y%m%d%H%M%S.png",&ltime); 
-    MFM::GlobalHooks & hooks = MFM::GlobalHooks::getSingleton();
-    hooks.runHook("RequestSnapshot",(void*) buf);
+    runRequestSnapshotHookEX(buf);
   }
 }
 
-inline bool BrainStemSupport::readInputFile() { // true if file exists and was read if new
+inline void BrainStemSupport::runRequestSnapshotHookEX(char * buf) {
+  MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
+
+  MFM::GlobalHooks & hooks = MFM::GlobalHooks::getSingleton();
+  hooks.runHook("RequestSnapshot",(void*) buf);
+}
+
+inline bool BrainStemSupport::readInputFileEX() { // true if file exists and was read if new
   int fd;
   bool ret = false;
   fd = ::open(CINPUTFILE, O_RDONLY);
@@ -231,6 +265,8 @@ inline bool BrainStemSupport::readInputFile() { // true if file exists and was r
   if (fstat(fd,&nowstat) < 0) fdie("stating",CINPUTFILE);
     
   if (diffMTime(nowstat,_istat)) {
+
+    MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
     _istat = nowstat;
     _bufferLen = read(fd,_buffer, sizeof _buffer);
     if (_bufferLen < 0) fdie("reading",CINPUTFILE);
@@ -242,7 +278,9 @@ inline bool BrainStemSupport::readInputFile() { // true if file exists and was r
   return ret;
 }
 
-inline bool BrainStemSupport::writeOutputFile() {
+inline bool BrainStemSupport::writeOutputFileEX() {
+  MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
+
   int fd;
   fd = ::open(COUTPUTFILE, O_WRONLY|O_CREAT|O_TRUNC, 0644);
   if (fd < 0) {
@@ -428,9 +466,9 @@ inline void BrainStemSupport::tryRouting() {
 inline int BrainStemSupport::run() {
   while (1) {
     tryLoadTags();
-    if (readInputFile())
+    if (readInputFileEX())
       tryRouting();
-    writeOutputFile();
+    writeOutputFileEX();
     usleep(USLEEPTIME);
     if (!(_updates % 1000))
       printf("Updates %lu, %lu routed, code %u\n",
@@ -442,7 +480,9 @@ inline int BrainStemSupport::run() {
   return 0;
 }
 
-inline void BrainStemSupport::readTags(int fd) {
+inline void BrainStemSupport::readTagsEX(int fd) {
+  MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
+
   memset(&_tags,0,sizeof(_tags));
     
   _tagCount = 0u;
@@ -495,7 +535,7 @@ inline bool BrainStemSupport::readTagsFile() {
   if (diffMTime(nowstat,_tstat)) {
     ret = true;
     _tstat = nowstat;
-    readTags(fd);
+    readTagsEX(fd);
   }
   ::close(fd);
   return ret;

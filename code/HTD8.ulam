@@ -1,0 +1,106 @@
+/** spike traktor driver test: CW border patrol
+   \symbol D8
+   \color #0d8
+ */
+@Concrete
+element HTD8 : TermHiddenIO + TRAKtorDriver {
+  Bool mTurnInProgress = false;
+
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cNONE_TO_NONE;
+  }
+
+  @Override Void notify(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+    TRAKtor.TRAKtorState tstate = t.mTRAKtorState;
+    pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
+    which (tstate) {
+      case TRAKtor.cTKST_RESET: { return; } // not our business
+      case TRAKtor.cTKST_READY: { return notifyReady(g,l,t,te); } 
+      case TRAKtor.cTKST_RUN:   { return notifyRun(g,l,t,te); } 
+      case TRAKtor.cTKST_FAIL:  {
+        pR("D8NTFY11FAIL")&&pR(nameOfTRAKtorEvent(te));
+        t.reset();
+        return;
+      } 
+    }
+    pR("D8NTFY12NOTREACHED")&&pR(self);
+  }
+
+  Void notifyReady(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+    l.mPosValid[0] = false;     // XXX SPIKE
+
+    // Square up, then decide what to do
+    pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te));
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) {
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+    }
+
+    pR("D8NTFYRDY11");
+    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
+      l.mPosValid[0] = false;      // XXX SPIKE
+      l.mPosValid[1] = false;      // XXX SPIKE
+      l.mSpeed8Valid = false; 
+      return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+    }
+
+    pR("D8NTFYRDY1110");
+    if (!mTurnInProgress) {
+      pR("D8NTFYRDY12>>DRIVE_SLOW");
+      t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
+      l.mPos[0] = 0u;             // XXX SPIKE
+      l.mPosValid[0] = true;      // XXX SPIKE
+      return;
+    } else { // mTurnInProgess: Do what? READY while turninprogress?
+      pR("D8NTFYRDY14")&&pR(g);
+      if (t.isThisTRAKtDone(g, l, TRAKtor.cTRA_DRESS_LINE_FWD)) {
+        /// Are we on tick or tock now?
+        TRAKtor.TRAKt trakt =
+          g.mNewCloks[0] == GreyClok.cCLOK_TICK ?
+          TRAKtor.cTRA_TURN_LEFT_TO_TOCK :
+          TRAKtor.cTRA_TURN_LEFT_TO_TICK;
+        // per esa request, WAS:
+        //          TRAKtor.cTRA_TURN_RIGHT_TO_TOCK :
+        //          TRAKtor.cTRA_TURN_RIGHT_TO_TICK;
+        t.startTRAKt(trakt);
+        mTurnInProgress = true;
+        l.mSpeed8Valid = false; 
+        pR("D8NTFYRDY15>>TURN_LEFT")&&pR(t)&&pR(trakt);
+      } else {
+        pR("D8NTFYRDY16")&&pR("XXX NOW WHAT?")&&pR(">>> DRIVE SLOW?");
+        pR("D8NTFYRDY17>>DRIVE_SLOW");
+        t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
+        l.mSpeed8Valid = false; 
+        mTurnInProgress = false;
+      }
+    }
+  }
+
+  Unsigned(6) mTileCountSpike;
+
+  Void notifyRun(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+    pR("D8NFRUN10")&&pR(nameOfTRAKtorEvent(te));
+    if (te == cTKTR_FRONT_TICK || te == cTKTR_FRONT_TOCK) {
+      l.mPos[0]++;     // XXX SPIKE
+    }
+
+    if (te == cTKTR_RED_PREWARN_SET) {
+      pR("D8NFRUN11");
+      if (t.switchTRAKt(TRAKtor.cTRA_DRIVE_FAST,TRAKtor.cTRA_DRIVE_SLOW))
+        return;
+      pR("D8NFRUN12");
+    } else if (te == cTKTR_RED_WARN_SET) {
+      pR("D8NFRUN13");
+      if (!mTurnInProgress) {
+        pR("D8NFRUN14");
+        mTurnInProgress = true;
+        t.switchTRAKt(TRAKtor.cTRA_DRIVE_SLOW,TRAKtor.cTRA_DRESS_LINE_FWD);
+        return;
+      } //else ignore
+      pR("D8NFRUN15");
+    }
+    pR("D8NFRUN16");
+  }
+}

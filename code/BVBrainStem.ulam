@@ -9,23 +9,25 @@ quark SMTerm + Fail {
   ASCII mUnsignedValue;
   Int(8) mSignedValue;
   Bool mIsNew;
+  Bool mIsValid;
 
-  Bool newValue() { return mIsNew; }
+  Bool isValid() { return mIsValid; }
+  Bool newValue() { return mIsValid && mIsNew; }
 
   ASCII getIndex() { return mIndex; }
   ASCII getValueUnsigned() {
-    if (mRange != 1u) fail(__FILE__,__LINE__);
+    if (!mIsValid || mRange != 1u) fail(__FILE__,__LINE__);
     return mUnsignedValue;
   }
 
   Int(8) getValueSigned() {
-    if (mRange != 2u) fail(__FILE__,__LINE__);
+    if (!mIsValid || mRange != 2u) fail(__FILE__,__LINE__);
     return mSignedValue;
   }
 
   Bool setValueUnsigned(ASCII value) {
     Bool ret = false;
-    if (mType >= 2u && mRange == 1u) {
+    if (mIsValid && mType >= 2u && mRange == 1u) {
       mUnsignedValue = value;
       mSignedValue = 0;
       ret = true;
@@ -33,9 +35,10 @@ quark SMTerm + Fail {
     return ret;
   }
 
-  Bool setValueSigned(Int(8) value) {
+  Bool setValueSigned(Int v) {
+    Int(8) value = (Int(8)) v;
     Bool ret = false;
-    if (mType >= 2u && mRange == 2u) {
+    if (mIsValid && mType >= 2u && mRange == 2u) {
       mSignedValue = value;
       mUnsignedValue = 0u;
       ret = true;
@@ -118,6 +121,8 @@ quark BVBrainStem {
 
   Bool close() native; //< write motor output
 
+  Bool dump() native;  //< append hexified internal state to braindumps.dat
+
   /* Deprecated; use newSense(idx)
      Bool newSenses() native; //< true iff first newSenses() call after open() actually read input.dat
   */
@@ -152,8 +157,9 @@ quark BVBrainStem {
 
   Unsigned(2) getTermType(TermCount index) native; // 0: illegal, 1:sensor, 2:motor, 3:reserved
   Unsigned(2) getTermRange(TermCount index) native; // 0: none, 1:unsigned, 2:signed, 3:reserved
-  ASCII getTermValueUnsigned(TermCount index) native; 
-  Int(8) getTermValueSigned(TermCount index) native;
+  Unsigned getTermValueUnsigned(TermCount index) native; //< 0..255 good get, >255, not found
+  //ASCII getTermValueUnsigned(TermCount index) native; 
+  Int getTermValueSigned(TermCount index) native; //< -128..127 good get; >127, not found
   //ASCII getTermValue(TermCount index) native; 
   Bool setTermValueUnsigned(TermCount index, ASCII value) native;
   Bool setTermValueSigned(TermCount index, Int(8) value) native;
@@ -165,11 +171,15 @@ quark BVBrainStem {
     Bool hasval = true;
     Unsigned(2) range = getTermRange(index);
 
-    if (range == SMTerm.cRANGE_UNSIGNED) 
-      ret.mUnsignedValue = getTermValueUnsigned(index);
-    else if (range == SMTerm.cRANGE_SIGNED) 
-      ret.mSignedValue = getTermValueSigned(index);
-    else
+    if (range == SMTerm.cRANGE_UNSIGNED) {
+      Unsigned v = getTermValueUnsigned(index);
+      if (v > ASCII.maxof) hasval = false;
+      else ret.mUnsignedValue = (ASCII) v;
+    } else if (range == SMTerm.cRANGE_SIGNED) {
+      Int v = getTermValueSigned(index);
+      if (v > Int(8).maxof) hasval = false;
+      else ret.mSignedValue = (Int(8)) v;
+    } else
       hasval = false;
 
     if (hasval) {
@@ -178,11 +188,14 @@ quark BVBrainStem {
       ret.mRange = range;
 
       ret.mIsNew = newSense(index);
+      ret.mIsValid = true;
     }
     return ret;
   }
 
   Bool writeTerm(SMTerm term) {
+    if (!term.mIsValid) return false;
+
     Bool ret = false;
     if (term.mRange == SMTerm.cRANGE_UNSIGNED) { //unsigned
       if (setTermValueUnsigned(term.mIndex,term.mUnsignedValue))

@@ -1,0 +1,182 @@
+transient CLOKPredicate + DTU { //< Default predicate is always false (that is: == NOTA)
+  Unsigned(1) mEQ = 0u;                  //< mClokState must be different than (0u) or equal to (1u) current
+  Unsigned(2) mCS = cXCLOK_NOTA;         //< cCLOK_TICK, cCLOK_TOCK, cCLOK_NONE, cXCLOK_NOTA
+  Bool isTrue(ClokState cs) {
+    return (mEQ == 0u && cs != mCS) || (mEQ == 1u && cs == mCS);
+  }
+}
+
+transient CLOKPredicates + DTU + QDebugUtils {
+  ASCII mXD = ASCII.maxof; //< maximum allowable abs front center grey deviation
+  CLOKPredicate mFP;            //< Front predicate
+  CLOKPredicate mRP;            //< Rear predicate
+
+  Bool isAcceptableDeviation(GTCC & gtcc) {
+    mD&&pR("CKPRISAD10")&&pR(gtcc);
+    ASCII xd;
+    if (!gtcc.getCenterGrey(xd)) return false;
+    mD&&pR("CKPRISAD11")&&pR(xd);
+    Unsigned dev = abs((Int) xd - 127);
+    Bool ret = dev < mXD;
+    mD&&pR("CKPRISAD12")&&pR(dev)&&pR(ret);
+    return ret;
+  }
+
+  Bool isTrue(GTCC & gtcc) {
+    takeDebug(gtcc);
+    mD&&pR("CKPRIST10")&&pR(self);
+    Bool ad = isAcceptableDeviation(gtcc);
+    mD&&pR("CKPRIST11")&&pR(ad);
+    Bool ret = ad &&
+      mFP.isTrue(gtcc.mNewCloks[0]) && 
+      mRP.isTrue(gtcc.mNewCloks[1]);
+    mD&&pR("CKPRIST12")&&pR(ret);
+    return ret;
+  }
+
+  Bool isFailed(GTCC & gtcc) { // XXXXX WRITEME
+    return false;
+  }
+}
+
+quark CLOKConstants + FunctionOpCodes {
+
+  ////// STANDARD CLOKPREDICATES
+  constant Unsigned cCLOKPRED_TRUE = 0u;           //< always true
+  constant Unsigned cCLOKPRED_FALSE = 1u;          //< always false
+  constant Unsigned cCLOKPRED_FRONT_EDGE = 2u;     //< true on front tick or front tock
+  constant Unsigned cCLOKPRED_REAR_EDGE = 3u;      //< ?
+  constant Unsigned cCLOKPRED_FRONT_INVALID = 4u;  //< ?
+  constant Unsigned cCLOKPRED_REAR_INVALID = 5u;   //< ?
+  constant Unsigned cCLOKPRED_EDGE_TUNED = 6u;     //< front edge + small dev
+  constant Unsigned cCLOKPRED_LINE_TUNED = 7u;     //< small dev
+  constant Unsigned cCLOKPRED_LINE_DRESSED_FWD = 8u; //< rear same as front + small dev
+  constant Unsigned cCLOKPRED_LINE_DRESSED_REV = 9u; //< rear diff than front + small dev
+
+  constant Unsigned cCLOKPRED_FIRST_UNUSED_INDEX = 10u;   //< available for other predicates
+  
+  constant CLOKPredicates cBASE_CLOK_PREDS[] = {
+
+    // 0: cCLOKPRED_TRUE - always true
+    {
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+    // 1: cCLOKPRED_FALSE - always false
+    {
+      .mFP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< never true
+      .mRP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< never true
+    },
+
+    // 2: cCLOKPRED_FRONT_EDGE - true on front tick or front tock
+    {
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+    // 3: cCLOKPRED_REAR_EDGE
+    {    
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+    },
+
+    // 4: cCLOKPRED_FRONT_INVALID
+    {    
+      .mFP = { .mEQ=1u, .mCS=cCLOK_NONE },  //< true on cCLOK_NONE
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+    // 5: cCLOKPRED_REAR_INVALID XXXX INVALID NOT GETTING DELIVERED
+    {    
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=1u, .mCS=cCLOK_NONE },  //< true on cCLOK_NONE
+    },
+
+    // 6: cCLOKPRED_EDGE_TUNED - front edge + small dev
+    {
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+    // 7: cCLOKPRED_LINE_TUNED - small dev
+    {
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+    // 8: cCLOKPRED_LINE_DRESSED_FWD - rear none + small dev
+    {
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=1u, .mCS=cCLOK_NONE },  //< true on cCLOK_NONE
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+    // 9: cCLOKPRED_LINE_DRESSED_REV - rear none + small dev
+    {
+      .mFP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mRP = { .mEQ=1u, .mCS=cCLOK_NONE },  //< true on cCLOK_NONE
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+  };
+
+  /*
+  typedef FunctionBlock(8u) CLOKFunction;
+  constant CLOKFunction cBASE_CLOK_FUNCTIONS[] = {
+
+    // 0: cCLOKPRED_TRUE - always true
+    {
+      .mOps = { 1, cFOC_DONE }            // immediate 1
+    },
+
+    // 1: cCLOKPRED_FALSE - always false
+    {
+      .mOps = { 0, cFOC_DONE, }            // immediate 0
+    },
+
+    // 2: cCLOKPRED_FRONT_EDGE - true on front tick or front tock
+    {
+      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_NE, cFOC_DONE } // front NE none
+    },
+
+    // 3: cCLOKPRED_REAR_EDGE
+    {    
+      .mOps = { cFOC_CLOK_REAR, cCLOK_NONE, cFOC_CMP_NE, cFOC_DONE } // rear NE none
+    },
+
+    // 4: cCLOKPRED_FRONT_INVALID
+    {    
+      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_EQ, cFOC_DONE } // front EQ none
+    },
+
+    // 5: cCLOKPRED_REAR_INVALID
+    {    
+      .mOps = { cFOC_CLOK_REAR, cCLOK_NONE, cFOC_CMP_EQ, cFOC_DONE } // rear EQ none
+    },
+
+    // 6: cCLOKPRED_EDGE_TUNED - front edge + small dev
+    {
+      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_NE, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE  } // front NE none & grey <= 25
+    },
+
+    // 7: cCLOKPRED_LINE_TUNED - small dev
+    {
+      .mOps = { cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_DONE  } //  grey <= 25
+    },
+
+    // 8: cCLOKPRED_LINE_DRESSED_FWD - rear eq front + small dev
+    {
+      .mOps = { cFOC_CLOK_REAR, cFOC_CLOK_FRONT, cFOC_CMP_EQ, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE } // rear EQ none & grey <= 25
+    },
+
+    // 9: cCLOKPRED_LINE_DRESSED_REV - rear ne front + small dev
+    {
+      .mOps = { cFOC_CLOK_REAR, cFOC_CLOK_FRONT, cFOC_CMP_NE, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE } // rear EQ none & grey <= 25
+    },
+
+  };
+  */
+}

@@ -58,7 +58,7 @@ transient XPick
     return update(idx,0u,1u);
   }
 
-  Bool update(Unsigned idx, Unsigned newx) { //< pick with weights all 1 
+  Bool update(Unsigned idx, Unsigned newx) { //< pick extremal newx with ties weighted all 1 
     return update(idx,newx,1u);
   }
 

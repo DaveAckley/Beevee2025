@@ -1,17 +1,38 @@
-/** description of an xbar
+/** description of an xbar^W xblock
  */
-transient XBInfo + DTU + Fail + QDebugUtils {
+quark XBInfo + DTU + Fail + QDebugUtils {
   //// XBInfo API
   virtual String getXBInfoName() ;
   virtual C2D getXBInfoPosition() ;
   virtual C2D getXBInfoSize() ;
   virtual PocketDir getXBInfoOrigin() ;
-  virtual ClassId getXBInfoTAP(C2D relc, Bool sensor) ;
-  virtual AxialDir getXBInfoTAPEdge(Bool sensor) ;
+  virtual ClassId getXBInfoXBlockClass() ;
+
+  virtual TapIdx getXBInfoSideTAP(C2D relc, AxialDir side) ;
+
+  // for now we can do isconnected, for everybody, like this -- ?
+  virtual Bool isConnected(TapIdx src, TapIdx dest, Unsigned gripnum) {
+    BeeveeGrips grips;
+    Atom a = grips.getGripRoutingInstance(gripnum);
+    if (a as GripRouting) 
+      return a.switchSig(src,dest);
+    return false;
+  }
+
+  //  virtual AxialDir getXBInfoTAPEdge(Bool sensor) ;
   virtual Bool getXBInfoFeedDir(C2D relc, AxialDir & feedad, Bool & isinput) ;
   virtual TapIdx getXBInfoAxonTarget(TapIdx tapidx) ; //< or cTAPIDX_NONE if none
 
   //// XBInfo SERVICES
+  typedef TapIdx TAPIdxMap[4]; //< [0] W, [1] N, [2] S, [3] E. (i.e., AxialDir) 
+
+  TAPIdxMap getXBInfoTAPs(C2D relc) {
+    TAPIdxMap ret;
+    for (Unsigned i = cW; i <= cE; ++i) 
+      ret[i] = getXBInfoSideTAP(relc, (AxialDir) i);
+    return ret;
+  }
+
   C2D absToRel(C2D absc) {
     return absc - getXBInfoPosition();
   }
@@ -20,9 +41,11 @@ transient XBInfo + DTU + Fail + QDebugUtils {
     return getXBInfoSize().contains(absToRel(absc));
   }
 
+  /*
   ClassId getXBInfoTAPAbs(C2D absc, Bool sensor) {
     return getXBInfoTAP(absToRel(absc),sensor);
   }
+  */
 
   Atom makeTAPInstance(ClassId tapid) {
     ClassUtils cu;
@@ -31,8 +54,9 @@ transient XBInfo + DTU + Fail + QDebugUtils {
     AtomUtils au;
     Atom a = au.new(etype);
     if (a as TAP) {
-      AxialDir sad = getXBInfoTAPEdge(true);
-      a.mSenseVert = (sad == cE || sad == cW);
+      //AxialDir sad = getXBInfoTAPEdge(true);
+      //a.mSenseVert = (sad == cE || sad == cW);
+      fail(__FILE__,__LINE__,"XXX DEIMPLEMENTED WHAT NOW?");
     }
     return a;
   }

@@ -1,4 +1,4 @@
-quark LocalSpaceRect2D : Intender + DTU + Fail {
+quark LocalSpaceRect2D : Intender + Grip + DTU + Fail {
   //// LOCALSPACERECT2D API
   virtual Bool legalCoord(Int c) ;
   virtual Bool isInitted() ;
@@ -6,6 +6,7 @@ quark LocalSpaceRect2D : Intender + DTU + Fail {
   virtual Unsigned getBits2D() ; //< Coord is Int(this)
   virtual C2D getPos2D() ; //< xpos,ypos expanded to C2D
   virtual Void setPos2D(C2D newpos) ; 
+  virtual Unsigned getGripBits() ;
   virtual Unsigned getGripNumber() ;
   virtual Bool setGripNumber(Unsigned newgrip) {
     fail(__FILE__,__LINE__);
@@ -95,6 +96,7 @@ quark LocalSpaceRect2DT(Unsigned cBITS,Unsigned cTAGBITS,Unsigned cGRIPBITS) : L
   }
 
   @Override Unsigned getGripNumber() { return mLocalSpaceRect2DGrip.getGripNumber(); }
+  @Override Unsigned getGripBits() { return mLocalSpaceRect2DGrip.getGripBits(); }
   @Override Bool setGripNumber(Unsigned newgrip) {
     return mLocalSpaceRect2DGrip.setGripNumber(newgrip);
   }

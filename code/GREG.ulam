@@ -54,7 +54,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
     mD&&pR("GREGS2S10")&&pR(self);
     if (!isEnabled(gripnum)) return 2; // toss it if not enabled in grip
 
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx idx = sig.mSource;
     if (idx == bim.getTapIdxFromClassId(SLFG.classidof))
       return 0;                 // want for left slot
@@ -95,14 +95,12 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
     mD&&pR("EGBV10")&&pR(self);
 
     /// REFRESH GRIPNUM
-    SN sn = 2u;
+    SN sn = findXBlockSN();
     if (!ew.isAccessible(sn)) return false;
-    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
-    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+    if (!(ew[sn] is XBlock)) { die(); return false; }
+    XBlock & xb = (XBlock&) ew[sn];
    
     mD&&pR("EGBV11")&&pR(xb);
-
-    if (!xb.hasSymmetry()) return false; // too soon?
 
     Unsigned gripnum = getGripNumber(); // our current grip
     if (gripnum != xb.getGripNumber()) {
@@ -117,8 +115,6 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
     AxialDir turnad = (AxialDir) (gripnum - gim.cGRIP_TURNW);
     ClassId giid = gim.getGripInfoClassId(gripnum); // of current grip
     GripInfo & gin = gim.getGripInfo(giid);
-
-    SlotSig & iss = xb.getSlotSig(false); // check incoming
 
    //// DISPATCH ON STATE
    which (mState) {
@@ -135,7 +131,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  Bool trySendSig(ASCII sig, ClassId toclassid) {
-   BeeveeBIM bim;
+   BeeveeBIMXBlock bim;
    TapIdx mytapidx = bim.getTapIdx(self);
    Unsigned themt = bim.getTapIdxFromClassId(toclassid);
    if (themt == Unsigned.maxof)
@@ -207,14 +203,14 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
    trySendSig(psb,MRRF.classidof);
  }
 
- Bool executeWAIT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeWAIT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    mEventCounter = 0u;
    mState = cSTATE_STOP;
    return false;
  }
 
  // advance to L+R 0
- Bool executeSTOP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeSTOP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false;
 
@@ -230,7 +226,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  // go from L+R=0 to L+R=0 while computing mMaxGreen
- Bool executeCLEAR(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeCLEAR(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false;
 
@@ -252,7 +248,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  // constant Unsigned cGREEN_GAP = 15u;
 
  // get to l+r max w/o spincounting, then back to l+r 0 w/spincounting
- Bool executeMARK1(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeMARK1(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false;
 
@@ -273,7 +269,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  // get to l+r 'max' while continuing to spincount, then compute orientation parms
- Bool executeSMALL(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeSMALL(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false;
 
@@ -300,7 +296,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  // count down til 'oriented as requested'
- Bool executeMARK2(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeMARK2(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false; // don't need it but to match delays
 
@@ -329,7 +325,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  // cool our jets
- Bool executeORIENT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeORIENT(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    Unsigned totg = getTotalGreen();
    if (totg == Unsigned.maxof) return false; // don't need it but to match delays
 
@@ -355,7 +351,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
  }
 
  // release the grip
- Bool executeREGRIP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb) {
+ Bool executeREGRIP(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb) {
    //XXX   tryChangeGripNumber(GripInfoMap.cGRIP_HUNTR);
    tryChangeGripNumber(GripInfoMap.cGRIP_TRACK);
    return true;

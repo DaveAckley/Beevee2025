@@ -1,0 +1,16 @@
+
+
+
+quark TwoPhaseCommand(Unary priorityBits, Unary horizonBits) {
+  typedef UMod(priorityBits) Priority;
+  typedef Int(horizonBits) Distance;
+
+  Priority mPrio;
+  Distance mNWClosest;
+
+  Void update() {
+    
+  }
+  
+
+}

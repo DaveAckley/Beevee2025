@@ -6,6 +6,7 @@
 #include <dirent.h>
 
 #include "UlamDefs.h"
+#include "Mutex.h"
 
 #define MAXPATHLEN (500)
 #define CBUFFERSIZE (2*256)
@@ -23,10 +24,11 @@ public:
   BrainStemSupport() ;
 
   const MFM::u32 getVersion() {
-    return 0x01000007; // { 1, 0, 0, 255 etc }
+    return 0x01000008; // { 1, 0, 0, 255 etc }
   }
 
   bool open() ;
+  bool dump() ;
   bool close() ;
 
   bool newRead(unsigned index) { // returns true if the index was new
@@ -59,9 +61,15 @@ public:
 
   void fdie(const char * op, const char * file) ;
 
-  bool readInputFile() ;
+  bool readInputFileEX() ;      // HOLDS LOCK
 
-  bool writeOutputFile() ;
+  bool writeOutputFileEX() ;    // HOLDS LOCK
+
+  void readTagsEX(int fd) ;     // HOLDS LOCK
+
+  bool readConfigEX(int fd) ;   // HOLDS LOCK
+
+  void runRequestSnapshotHookEX(char * buf) ; // HOLDS LOCK
 
   int getTermIndex(const char * name) ;
 
@@ -91,13 +99,9 @@ public:
 
   int run() ;
 
-  bool readConfig(int fd) ;
-
-  void readTags(int fd) ;
-
   bool readTagsFile() ;
 
-  /** \returns true if the last open() (actually readInputFile())
+  /** \returns true if the last open() (actually readInputFileEX())
       actually read the input file AND this is the first call to \c
       anyNewSenses() since then, otherwise \returns false.
    */
@@ -114,7 +118,9 @@ public:
   void requestSnapshot() ;
 
 private:
-  struct stat _cstat; // last stat time of config.dat load
+  MFM::Mutex _access;          // regulate access to BrainStemSupport
+
+  struct stat _cstat;           // last stat time of config.dat load
   struct CfgInfo {
     char _cfgName[MAXCFGNAMELEN];
     char _cfgValue[MAXCFGVALUELEN];

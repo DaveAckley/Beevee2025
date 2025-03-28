@@ -3,16 +3,17 @@
     \copyright 2025 LCF
     \license GPL-3
     \symbol S
-    \version 249
+    \version 259
  */
-element S + DTU {
+element S + DTU + QDebugUtils {
   EventWindow ew;
   Void behave() {
+    pR("S");
+    HelloWorld hw; // Pull in fonts/HellowWorld
     TileFinder t;
     ew[0] = t.atomof;
   }
 }
-
 
 
 /////

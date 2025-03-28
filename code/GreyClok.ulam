@@ -2,7 +2,7 @@ quark GreyClok + DTU {
   //// UrSelf API
   @Override virtual ARGB getColor(Unsigned selector) {
     ColorUtils cu;
-    if (mClokState == cCLOK_TICK) return cu.color(0xff3311dd);
+    if (mClokState == cCLOK_TICK) return cu.color(0xff8844ff); // lighter (= more visible?) blue
     if (mClokState == cCLOK_TOCK) return cu.color(0xff33dd11);
     return super.getColor(selector);
   } 

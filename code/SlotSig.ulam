@@ -1,9 +1,69 @@
+quark FourWaySlots + DTU + Fail {
+  constant Unsigned cSLOTSIG_COUNT = 4u;
+  SlotSig mSlotSigs[cSLOTSIG_COUNT] = { //< [0] W, [1] N, [2] S, [3] E
+    { .mSource = cTAPIDX_NONE },
+    { .mSource = cTAPIDX_NONE },
+    { .mSource = cTAPIDX_NONE },
+    { .mSource = cTAPIDX_NONE }
+  }; 
+  SlotSig & getSlotSig(Unsigned idx) {
+    if (idx >= cSLOTSIG_COUNT)
+      fail(__FILE__,__LINE__,"Bad SlotSigs index");
+    return mSlotSigs[idx];
+  }
+  Void reset() {
+    for (Unsigned i = 0u; i < cSLOTSIG_COUNT; ++i)
+      mSlotSigs[i].reset();
+  }
+
+  //// UrSelf API
+  @Override Void renderGraphics() {
+    Drawable drawable;
+    if (!drawable.canDraw()) return;
+
+    constant Unsigned cCOLS[] = {
+      0xff00ff00u, //< cW
+      0xff00ffffu, //< cN
+      0xffff0000u, //< cS
+      0xffffff00u, //< cE
+    };
+
+    ColorUtils cu;
+    for (Unsigned i = cW; i <= cE; ++i) {
+      AxialDir ad = (AxialDir) i;
+      SlotSig & ss = mSlotSigs[ad];
+      if (ss.isOccupied()) {
+        ss.renderSlot(ad,cu.color(cCOLS[ad]),drawable);
+      }
+    }
+  }
+}
+
 quark SlotSig + DTU {
+
+  Void renderSlot(AxialDir ad, ARGB color, Drawable drawable) {
+    if (!isOccupied()) return;
+    
+    Unsigned bsiz = 1024u*50u/100u;
+    C2D sideBoxSize((C2D.Coord) bsiz,(C2D.Coord) bsiz);
+    //    C2D sideShaftSize((C2D.Coord) bsiz/2u,(C2D.Coord) bsiz/2u);
+
+    MDist md;
+    C2D dst = md.getSiteCoord(axialDir2SN(ad))*1024u;
+    C2D sideBoxPos((dst*80u)/100u-sideBoxSize/2u);
+
+    ColorUtils cu;
+    drawable.fillRectangle(sideBoxPos,sideBoxSize,color);
+  }
+
   ASCII mValue;
   TapIdx mSource = cTAPIDX_NONE;
 
-  ASCII getValueUnsigned() { return mValue; }
-  Int(8) getValueSigned() { return (Int(8)) asciiToInt(mValue); }
+  ASCII getValueRaw() { return mValue; }
+  Int getValueSigned() { return asciiToInt(mValue); }
+
+  Void setValueRaw(Unsigned v) { mValue = (ASCII) v; }
+  Void setValueSigned(Int v) { mValue = intToASCII(v); }
 
   Bool isOccupied() { return mSource != cTAPIDX_NONE; }
 

@@ -1,0 +1,40 @@
+quark TRAKtorDriver + DTU + Fail + QDebugUtils {
+  //// TRAKtorDriver API
+  typedef Unsigned TRAKtorEvent;
+  constant TRAKtorEvent cTKTR_FAIL = 0u;
+  constant TRAKtorEvent cTKTR_READY = 1u;
+  constant TRAKtorEvent cTKTR_FRONT_TICK = 2u;
+  constant TRAKtorEvent cTKTR_FRONT_TOCK = 3u;
+  constant TRAKtorEvent cTKTR_FRONT_NONE = 4u;
+  constant TRAKtorEvent cTKTR_REAR_TICK = 5u;
+  constant TRAKtorEvent cTKTR_REAR_TOCK = 6u;
+  constant TRAKtorEvent cTKTR_REAR_NONE = 7u;
+  constant TRAKtorEvent cTKTR_RED_PREWARN_SET = 8u;
+  constant TRAKtorEvent cTKTR_RED_WARN_SET = 9u;
+  constant TRAKtorEvent cTKTR_RED_PREWARN_CLEAR = 10u;
+  constant TRAKtorEvent cTKTR_RED_WARN_CLEAR = 11u;
+
+  constant String cTKTR_EVT_NAMES[] = {
+    "FAIL",
+    "READY",
+    "FRONT_TICK",
+    "FRONT_TOCK",
+    "FRONT_NONE",
+    "REAR_TICK",
+    "REAR_TOCK",
+    "REAR_NONE",
+    "RED_PREWARN_SET",
+    "RED_WARN_SET",
+    "RED_PREWARN_CLEAR",
+    "RED_WARN_CLEAR",
+  };
+
+  virtual Void notify(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te ) ;
+
+  String nameOfTRAKtorEvent(TRAKtorEvent te) {
+    return cTKTR_EVT_NAMES[te];
+  }
+}
+
+
+

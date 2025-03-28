@@ -2,12 +2,19 @@
     functions useful for life on a diamond
  */
 quark DTU {
+  //// Function-related constants (see mainly BeeveeBIMXBlock.ulam)
+  typedef Int FOC; 
+
+  constant FOC cFOC_MAX_RESERVED = Int.minof/2; // (LAST_DEFINED..MAX_RESERVED] -> future ops ha
+  constant FOC cFOC_MIN_IMMEDIATE = cFOC_MAX_RESERVED + 1;
+  constant FOC cFOC_MAX_IMMEDIATE = Int.maxof/2 - 1; // for no reason but symmetry
 
   //// GreyClok and friends ClokState
   typedef Unary(2) ClokState;
   constant ClokState cCLOK_TICK = 0u; //< left high, right low
   constant ClokState cCLOK_TOCK = 1u; //< left low, right high
   constant ClokState cCLOK_NONE = 2u; //< unsettled state
+  constant Unsigned(2) cXCLOK_NOTA = 3u; //< None Of The Above
 
   //// Axon end marking
   typedef Unsigned(1) AxonIdx;
@@ -53,6 +60,10 @@ quark DTU {
     Unsigned newfix = (Unsigned) (((Bits) newvalue)<<cFIX_BITS);
     FixMax ret = (FixMax) ((fm*pct + (100u-pct)*newfix)/100u);
     return ret;
+  }
+  Unsigned truncateFixMax(FixMax fm) {
+    Unsigned n = (Unsigned) (((Bits) fm)>>cFIX_BITS);
+    return n;
   }
 
   //typedef Int(8) SignedByte;
@@ -176,6 +187,21 @@ quark DTU {
   constant AxialDir cN = 1u;
   constant AxialDir cS = 2u;
   constant AxialDir cE = 3u;
+
+  ASCII axialDir2ASCII(AxialDir ad) { return "WNSE"[ad]; }
+
+  SN axialDir2SN(AxialDir ad) { return ad + 1u; }
+  AxialDir sn2AxialDir(SN sn) {
+    if (sn < 1u || sn > 4u) { Fail f; f.fail(__FILE__,__LINE__,"SN not AxialDir"); }
+    return (AxialDir) (sn-1u);
+  }
+  Bool sn2AxialDir(SN sn, AxialDir & ad) {
+    if (sn >= 1u && sn <= 4u) {
+      ad = (AxialDir) (sn-1u);
+      return true;
+    }
+    return false;
+  }
 
   //// QUADRANT NAMES (FOR BOTH POCKETS WRT AN HC3 AND HC3S WRT A POCKET)
   typedef Unsigned(2) PocketDir;

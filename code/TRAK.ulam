@@ -52,7 +52,7 @@ element TRAK : HOpTernary + Grip + Fail {
     mD&&pR("TRAKS2S10")&&pR(self);
     if (isEnabled(gripnum)) {
 
-      BeeveeBIM bim;
+      BeeveeBIMXBlock bim;
       TapIdx idx = sig.mSource;
       if (idx == bim.getTapIdxFromClassId(SFLG.classidof)) // front left grey
         return 0;             
@@ -62,16 +62,6 @@ element TRAK : HOpTernary + Grip + Fail {
         mDoUpdate = true;
         return 2;
       }
-      /*** move to trakpd
-      if (idx == bim.getTapIdxFromClassId(GTCC.classidof)) { // insns bound for TRAKPD
-        Bool mdold = mD;
-        mD = true;
-        mD&&pR("TRAKS2D/insn");
-        mD&&pR(sig);
-        mD = mdold;
-        return 3;               // don't want
-      }
-      ***/
     }
 
     return 3;                   // or don't want
@@ -108,14 +98,12 @@ element TRAK : HOpTernary + Grip + Fail {
     mD&&pR("TRKX10")&&pR(self);
 
     /// REFRESH GRIPNUM
-    SN sn = 2u;
+    SN sn = findXBlockSN();
     if (!ew.isAccessible(sn)) return false;
-    if (!(ew[sn] is XBarSpace2D)) { die(); return false; }
-    XBarSpace2D & xb = (XBarSpace2D&) ew[sn];
+    if (!(ew[sn] is XBlock)) { die(); return false; }
+    XBlock & xb = (XBlock&) ew[sn];
    
     mD&&pR("TRKX11")&&pR(xb);
-
-    if (!xb.hasSymmetry()) return false; // too soon?
 
     Unsigned gripnum = getGripNumber(); // our current grip
     if (gripnum != xb.getGripNumber()) {
@@ -124,6 +112,7 @@ element TRAK : HOpTernary + Grip + Fail {
       mD&&pR("TRKX12")&&pR(self);
     }
 
+    mD&&pR("TRKX13")&&pR(self);
     GripInfoMap gim(self);
     if (gripnum != gim.cGRIP_TRACK)
       return false;
@@ -142,6 +131,7 @@ element TRAK : HOpTernary + Grip + Fail {
       //empsn = sn;
     }
     Bool havePD = statesn != SN.maxof;
+    mD&&pR("TRKX14")&&pR(statesn);
 
     if (!mDoUpdate) return false;
     mDoUpdate = false;
@@ -159,12 +149,14 @@ XXX NO PD..i get it
     newpd.mLastError = newpd.mLastError.getMin(); // and no last error
 
     TRAKPD & pd = havePD ? (TRAKPD&) ew[statesn] : (TRAKPD&) newpd;
+    mD&&pR("TRKX15")&&pR(pd)&&pR(havePD);
 
     ClassId giid = gim.getGripInfoClassId(gripnum); // of current grip
     GripInfo & gin = gim.getGripInfo(giid);
 
     //// DISPATCH ON STATE
     Bool wheelmode = pd.isWheelMode(); // are we zombie?
+    mD&&pR("TRKX16")&&pR(gin)&&pR(wheelmode);
     if (wheelmode) {                   // yes we are
       // 2* here to counteract the /2 in wheel speed processing ? 
       ASCII lsb = intToSignedAscii(2*pd.mTargetMinSpeed.randomRound());
@@ -173,6 +165,7 @@ XXX NO PD..i get it
       return true;
     }
 
+    mD&&pR("TRKX17")&&pR(mState)&&pR(mSpeed);
     which (mState) {
     case cSTATE_TRACK: { return executeTRACK(gripnum,gim,gin,xb,pd); }
     otherwise: { fail(__FILE__,__LINE__); }
@@ -181,7 +174,7 @@ XXX NO PD..i get it
   }
 
   Bool trySendSig(ASCII sig, ClassId toclassid) {
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx mytapidx = bim.getTapIdx(self);
     Unsigned themt = bim.getTapIdxFromClassId(toclassid);
     if (themt == Unsigned.maxof)
@@ -202,7 +195,7 @@ XXX NO PD..i get it
     EventWindow ew;
     for (SN sn = 1u; sn < 41u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
-      if (sn <= 8u && ew[sn] is Empty) emppick.update(sn);
+      if (sn <= 24u && ew[sn] is Empty) emppick.update(sn);
       if (ew[sn] is FloodFind) 
         return false;          // Flooding in progress
     }
@@ -253,11 +246,12 @@ XXX NO PD..i get it
     trySendSig(psb,MRRF.classidof);
   }
 
+  /*
   Bool mapioOLD(Int vl, Int vc, Int vr, Int & trackingError) {
     Bool old = mD;
     //mD = true;
 
-    mD&&pR("TKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
+    mD&&pR("oldTRAKTKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
 
     Unsigned dd = abs(vl-vr);    // dist btwn left and right
     Unsigned ld = abs(vl-vc);    // dist btwn left and center
@@ -274,7 +268,7 @@ XXX NO PD..i get it
     constant Unsigned cTHRESH = 25u;
     constant Int cMAXERR = 2;
     if (dd < cTHRESH) {          // CASE: L+R are similar (so not tracking)
-      trackingError = (true /*vl < cTHRESH*/) ? 1 : -1; // note: terr set even if !valid
+      trackingError = (true) ? 1 : -1; // note: terr set even if !valid ( was vl < cTHRESH )
       valid = false;
       mD&&pR("TKMPO13")&&pR(trackingError)&&pR(valid);
     } else if (c == 0) {         // CASE: we're dead on
@@ -299,13 +293,13 @@ XXX NO PD..i get it
     mD = old;
 
     return valid;
-  }
+  }*/
 
   Bool mapio(Int vl, Int vc, Int vr, Int & trackingError) {  //< trackingError set in -32..32 (now) I think
     Bool old = mD;
     //mD = true;
 
-    mD&&pR("TKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
+    mD&&pR("TRAKTKMPO10")&&pR(vl)&&pR(vc)&&pR(vr);
 
     Unsigned dd = abs(vl-vr);    // dist btwn left and right
     Unsigned ld = abs(vl-vc);    // dist btwn left and center
@@ -336,69 +330,91 @@ XXX NO PD..i get it
     return valid;
   }
 
-  Bool executeTRACK(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBarSpace2D & xb, TRAKPD & pd) {
+  Bool executeTRACK(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb, TRAKPD & pd) {
     SlotSig & sl = getSlotSig(0u);
     SlotSig & sc = getSlotSig(1u);
     SlotSig & sr = getSlotSig(2u);
+    mD&&pR("EXTRCK10")&&pR(self);
+
     if (!sl.isOccupied() || !sc.isOccupied() || !sr.isOccupied())
       return false; // ??
 
-    Int vl = (Int) sl.getValueUnsigned();
-    Int vc = (Int) sc.getValueUnsigned();
-    Int vr = (Int) sr.getValueUnsigned();
+    Int vl = (Int) sl.getValueRaw();
+    Int vc = (Int) sc.getValueRaw();
+    Int vr = (Int) sr.getValueRaw();
 
-    Random random;
-
-    if (vl == 255 &&             // desperate times: if it
-        vc == 255 &&             // looks like we might be 
-        vr == 255 &&             // on red (which reads as 255)
-        random.oneIn(20u)) {
-      tryChangeGripNumber(GripInfoMap.cGRIP_NORED);
-      return false;
-    }
+    mD&&pR("EXTRCK11");
 
     constant Int cMAX_ERR = 2*32; // let's say full +- range, not abs(err)..
     //Sat Feb  1 12:13:56 2025     constant Int cMAX_CAL_SPEED = 3;  // max for calibration purposes
-    constant Int cMAX_CAL_SPEED = 4;  // bigger for harder corrections
-    FPErr maxerror(cMAX_ERR);
-    FPErr maxcalspeed(cMAX_CAL_SPEED);
+    //Sat Mar  1 22:02:34 2025 constant Int cMAX_CAL_SPEED = 4;  // bigger for harder corrections
+    // constant Int cMAX_CAL_SPEED = 5;  // bigger for harder corrections
+    //FPErr maxerror(cMAX_ERR);
+    //FPErr maxcalspeed(9,2); // ==4.5 Sun Mar  2 00:43:51 2025 Let's split the difference. 
 
-    FPErr minfp500 = maxerror.getMin(); // used as a flag only
+    FPErr minfp500 = FPErr.instanceof(0).getMin(); // used as a flag only
 
-    FPErr kP = pd.getKP(maxcalspeed,maxerror);
-    FPErr kI = pd.getKI(maxcalspeed,maxerror);
-    FPErr kD = pd.getKD(maxcalspeed,maxerror);
+    // Sun Mar  2 12:27:54 2025 Tuning attempt #1,000,000,000,004
+    //    FPErr kP( 6,128);           // ~.047
+    FPErr kP( 5,128);           // ~.039
+    FPErr kI( 1,128);           // ~.008
+    //    FPErr kD(24,128);           // ~.188
+    FPErr kD(50,128);           // ~.391
 
     Int trackingError = 0;
     Bool inputsValid = mapio(vl,vc,vr,trackingError);
+
+    if (inputsValid) pd.maybeForwardGrey(vl,vc,vr);
+
     FPErr rawerr(trackingError);     // -32..32
     FPErr abserr(rawerr.abs());      // abserr in sensor error space
+    mD&&pR("EXTRCK12")&&pR(trackingError)&&pR(inputsValid)&&pR(rawerr)&&pR(abserr);
 
     FPErr lasterr = pd.getLastError();
     FPErr integralerr = pd.getIntegralError();
 
+    mD&&pR("EXTRCK13")&&pR(lasterr)&&pR(integralerr);
     if (inputsValid) {
-      if (lasterr == minfp500) {     // if 'previously invalid' flag
+      if (lasterr == minfp500) {   // if 'previously invalid' flag
         lasterr = rawerr;          // just use current error now
         pd.setLastError(rawerr);   // and remember that for next time
+        mD&&pR("EXTRCK14")&&pR(pd);
         //pd.setIntegralError(FPErr.instanceof(0)); // and leave the integral alone
       } else {
         pd.updateError(rawerr,100u); // update last error for next time when running valid
         FPErr scalederr(rawerr);
-        scalederr /= FPErr.instanceof(10);      // make error integration range -3.2 -> 3.2
+        // Sat Mar  1 22:50:31 2025 let's drive harder.. vs:
+        // Sun Mar  2 14:39:42 2025 nah let's not
+        scalederr /= FPErr.instanceof(32);      // make error integration range -1 -> 1
+        //        scalederr /= FPErr.instanceof(64);      // make error integration range -0.5 -> 0.5
+        //scalederr /= FPErr.instanceof(10);      // make error integration range -3.2 -> 3.2
+        // scalederr /= FPErr.instanceof(8);      // make error integration range -4 -> 4
+        // scalederr /= FPErr.instanceof(6);      // make error integration range -5.3 -> 5.3
         integralerr = integralerr + scalederr;
-        FPErr maxIntErr(32), minIntErr(-32);
+        // FPErr maxIntErr(32), minIntErr(-32); let's way reduce windup
+        // FPErr maxIntErr(10), minIntErr(-10);
+        constant Int cINTEGRAL_ERROR_RANGE = 5;
+        FPErr maxIntErr(cINTEGRAL_ERROR_RANGE), minIntErr(-cINTEGRAL_ERROR_RANGE);
         if (integralerr > maxIntErr) integralerr = maxIntErr;
         else if (integralerr < minIntErr) integralerr = minIntErr;
 
         pd.setIntegralError(integralerr);
+        mD&&pR("EXTRCK15")&&pR(pd)&&pR(scalederr)&&pR(integralerr);
       }
     } else {
       pd.setLastError(minfp500);   // flag invalid inputs for next time
       lasterr = rawerr;          // and use current error for now
+      mD&&pR("EXTRCK16")&&pR(pd);
     }
     
-    FPErr adj = kP*rawerr - kI*integralerr + kD*(rawerr - lasterr); // adj in motor speed space
+    mD&&pR("EXTRCK17")&&pR(lasterr);
+    FPErr adj = kP*rawerr + kI*integralerr + kD*(rawerr - lasterr); // adj in motor speed space
+    constant Int cMAX_ADJ_NUM = 25;
+    constant Int cMAX_ADJ_DEN = 10;  // 2.5  -> +-5 max swing
+
+    FPErr maxAdj(cMAX_ADJ_NUM,cMAX_ADJ_DEN), minAdj(-cMAX_ADJ_NUM,cMAX_ADJ_DEN);
+    if (adj > maxAdj) adj = maxAdj;
+    else if (adj < minAdj) adj = minAdj;
 
     Int curMinTargetSpeed = pd.mTargetMinSpeed.randomRound();
     Int curMaxTargetSpeed = max(curMinTargetSpeed,pd.mTargetMaxSpeed.randomRound());
@@ -406,28 +422,36 @@ XXX NO PD..i get it
     //   else if (curTargetSpeed < targetSpeed) --targetSpeed;
    
     FPErr curspeed(mSpeed);
+    mD&&pR("EXTRCK18")&&pR(curMinTargetSpeed)&&pR(curMaxTargetSpeed)&&pR(pd);
+
     //   FPErr curtarget(targetSpeed);
 
     if (true) {
       ByteStreamLogger log;
-      log.print("IV:"); log.print(inputsValid); log.print(" ");
-      log.print("kP:"); kP.printTo(log); log.print(" ");
-      log.print("kI:"); kI.printTo(log); log.print(" ");
-      //log.print("kD:"); kD.printTo(log); log.print(" ");
-      log.print("CS:"); curspeed.printTo(log); log.print(" ");
-      //   log.print("TS:"); curtarget.printTo(log); log.print(" ");
-      log.print("RE:"); rawerr.printTo(log); log.print(" ");
-      log.print("IE:"); integralerr.printTo(log); log.print(" ");
-      log.print("LE:"); lasterr.printTo(log); log.print(" ");
+      log.print("IV"); log.print(inputsValid); log.print(" ");
+      if (inputsValid) {
+        log.print("kP:"); kP.printTo(log); log.print(" ");
+        log.print("kI:"); kI.printTo(log); log.print(" ");
+        log.print("kD:"); kD.printTo(log); log.print(" ");
+        //   log.print("TS:"); curtarget.printTo(log); log.print(" ");
+        log.print("RE:"); rawerr.printTo(log); log.print(" ");
+        log.print("IE:"); integralerr.printTo(log); log.print(" ");
+        log.print("LE:"); lasterr.printTo(log); log.print(" ");
+      }
       log.print("AJ:"); adj.printTo(log); log.print(" ");
+      log.print("CS:"); curspeed.printTo(log); log.print(" ");
+      log.print("CG:"); log.print(vc); log.print(" ");
       log.print("\n");
     }
 
     FPErr target[2];
     Bool smallErr = inputsValid && (abserr < FPErr.instanceof(12));
 
+    mD&&pR("EXTRCK19")&&pR(smallErr);
+
     Bool goright = false;
     if (mTurnState == cTURN_STATE_LEFT || (goright = (mTurnState == cTURN_STATE_RIGHT))) {
+      mD&&pR("EXTRCK210")&&pR(mTurnCounter);
       if (--mTurnCounter == mTurnCounter.minof) {
         mTurnState = cTURN_STATE_WAIT;
         mTurnCounter = mTurnCounter.maxof;
@@ -437,24 +461,34 @@ XXX NO PD..i get it
       curspeed = 4;
       target[0] = curspeed + adj;
       target[1] = curspeed - adj;
+      mD&&pR("EXTRCK211")&&pR(target[0])&&pR(target[1]);
     } else {
       Bool doRandom = true;
+      mD&&pR("EXTRCK212")&&pR(mTurnState);
       if (mTurnState == cTURN_STATE_WAIT) {
         doRandom = false;
         if (random.oneIn(3u) &&  // slow the count..
             --mTurnCounter == mTurnCounter.minof) 
           mTurnState = cTURN_STATE_IDLE;
       }
+      mD&&pR("EXTRCK213")&&pR(mTurnState);
       
       // stay in bounds whether inputs valid or not
+      mD&&pR("EXTRCK214")&&pR(mSpeed)&&pR(curMaxTargetSpeed)&&pR(curMinTargetSpeed);
       if (mSpeed > curMaxTargetSpeed) --mSpeed;
       else if (mSpeed < curMinTargetSpeed) ++mSpeed;
 
+      mD&&pR("EXTRCK215")&&pR(mSpeed);
+      constant Unsigned cSPEED_UP_ODDS = 10u;
+      constant Unsigned cSLOW_DOWN_ODDS = cSPEED_UP_ODDS/2u; // twice as quick to slow down vs speed up
+      
       if (inputsValid) {
         //       if (mSpeed < cTRACKING_SPEED && smallErr && random.oneIn(30u)) ++mSpeed;
-        if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(5u)) ++mSpeed;
+        // if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(5u)) ++mSpeed;
+        if (mSpeed < curMaxTargetSpeed && smallErr && random.oneIn(cSPEED_UP_ODDS)) ++mSpeed; // don't speed up too fast or wheels won't stick
         target[0] = curspeed + adj;
         target[1] = curspeed - adj;
+        mD&&pR("EXTRCK216")&&pR(mSpeed)&&pR(curspeed)&&pR(adj);
       } else {
         // XXX DO NOT GET DISTRACTED FOR NOW..
         if (false && doRandom && random.oneIn(15u)) { // maybe get distracted when not tracking
@@ -467,18 +501,22 @@ XXX NO PD..i get it
             mTurnCounter = mTurnCounter.maxof;
             mTurnState = (choice > 0) ? cTURN_STATE_LEFT : cTURN_STATE_RIGHT;
           }
+          mD&&pR("EXTRCK217")&&pR(mTurnCounter)&&pR(mTurnState);
           return false;
         } else {
-          if (!smallErr && random.oneIn(2u))
+          if (!smallErr && random.oneIn(cSLOW_DOWN_ODDS)) 
             mSpeed  = (MySpeed) max(curMinTargetSpeed,mSpeed-1u);
+          mD&&pR("EXTRCK218")&&pR(mSpeed)&&pR(curMinTargetSpeed);
           FPErr amt(curMinTargetSpeed,2); // half min?
           target[0] = curspeed+amt;
           target[1] = curspeed-amt;
+          mD&&pR("EXTRCK219")&&pR(amt)&&pR(target[0])&&pR(target[1]);
         }
       }
     }
     ASCII lsb = intToSignedAscii(target[0].randomRound());
     ASCII rsb = intToSignedAscii(target[1].randomRound());
+    mD&&pR("EXTRCK220")&&pR(lsb)&&pR(rsb);
 
     {
       Bool old = mD;
@@ -491,7 +529,7 @@ XXX NO PD..i get it
     driveBothMotors(lsb, rsb);
 
     //mSpeed = (MySpeed) curtarget.randomRound(); // XXX
-
+    mD&&pR("EXTRCK221")&&pR(self);
     return false;
   }
 
@@ -509,8 +547,16 @@ XXX NO PD..i get it
     }
     trySendSig(left,MLRF.classidof);
     trySendSig(right,MRRF.classidof);
+    trySendSig(makeSpeedSig(),LOCZ.classidof);
   }
-  
+
+  ASCII makeSpeedSig() {
+    LOCZPacket p;
+    p.mSignal.mSigFmt = LOCZSignal.cSIGFMT_CSP8;
+    p.mSignal.mSigData.mData = (LOCZSigData.Data) (mSpeed+8);
+    return p.mData;
+  }
+
   Void tryChangeGripNumber(Unsigned newgripnum) {
     EventWindow ew;
     MinXPick emptypick;         // Look for an empty

@@ -1,0 +1,71 @@
+
+
+/**
+ */
+quark ConstantLabel(String fstring) : Label {
+  virtual ASCII aref(Unsigned idx) 
+  {
+    return fstring[idx];  // Fails ARRAY_INDEX_OUT_OF_BOUNDS if necessary
+  }
+
+  virtual Unsigned alengthof() 
+  {
+    return fstring.lengthof;
+  }
+}
+
+quark ConstantLabelWithFont(String fstring, Unsigned dfn) : ConstantLabel(fstring)
+{
+  typedef FontSet.FontNumber FontNumber;
+  FontNumber mFont = dfn;  
+
+  virtual Bool gossipWith(Label& newer, C2D at) {
+    DebugUtils du;
+    //    du.print("CLWF gossiping"); du.print(newer.atomof);
+    if (newer as Self) {
+      if (newer.mLabelIndex == mLabelIndex) {
+        //du.print("CLWF is same labelIndex");
+        setFontNumber(newer.getFontNumber(newer.mLabelIndex));
+        // And no coordinate adjustment is needed
+        return true;
+      }
+
+      // newer is across (at least one) glyph boundary
+      if (at.euclideanSquaredLength() <= 2u) // If they're nice and close
+        suicide();             // let them grow into here if they want
+      return false;            // 
+      /*
+      if (at.euclideanSquaredLength() > 2) // Don't handle possible multiglyph differences
+        return false;
+
+      // accept their font claim
+      setFontNumber(newer.getFontNumber(newer.mLabelIndex));
+
+      // hunt for our offset wrt them
+      Unsigned oLabelIndex;
+      C2D oGloc;
+      Font.SiteGlyphStatus fgs = newer.mapToLabelCoords(at.negate(), oLabelIndex, oGloc);
+      if (fgs == Font.cOUT) {
+        suicide();
+        return false;
+      }
+      setLoc(oGloc);
+      return true;
+      */
+    }
+    else {
+      du.print("CLWF 'newer as Self' failed, but newer & self ==");
+      du.print(newer.atomof);
+      du.print(self.atomof);
+    }
+    return false;
+  }
+
+  Void setFontNumber(FontNumber fn) { mFont = fn; }
+
+  virtual FontNumber getFontNumber(LabelIndex idx) 
+  { 
+    return mFont;
+  }
+}
+

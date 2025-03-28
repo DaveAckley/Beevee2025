@@ -1,0 +1,456 @@
+transient TRAKtorState : Intention + DTU + QDebugUtils + Fail {
+  SN mTRAKtorDriverSN = SN.maxof;
+}
+
+/** Simple-but-compound TRAK-grip action driver.
+ */
+quark TRAKtor + DTU + CodeConstants /* + CLOKConstants*/ + Fail + QDebugUtils {
+
+  //// TRAKtor AYNCHRONOUS EXTERNAL SERVICES
+
+  Void step(GTCC & gtcc) {      // main entry point for single ew processing
+    EventWindow ew;
+    SN locsn, tdsn;
+    if (!findOtherSNs(locsn,tdsn)) return; // not today
+    LOCZ & locz = (LOCZ&) ew[locsn];
+    TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
+    update(gtcc, td, locz);
+  }
+
+  typedef Unsigned(5) TRAKt; //< traktor act codes
+  /** FIND_LINE_(LEFT|RIGHT)
+      GOAL: Go (left|right) to front clok valid
+      PRE: On grid
+      POST: abs(SFLG-SFRG) > 128
+      FAIL:
+      METHOD: Turn (left|right)
+  */
+  constant TRAKt cTRA_FIND_LINE_LEFT = 0u;
+  constant TRAKt cTRA_FIND_LINE_RIGHT = 1u;
+
+  /** TUNE_LINE
+      GOAL: Get approximately centered on line
+      PRE: FIND_LINE_(LEFT|RIGHT) succeeded
+      POST: abs(SFCG-128) < 32
+      FAIL:
+      METHOD: PID FWD SLOW
+  */
+  constant TRAKt cTRA_TUNE_LINE = 2u;
+
+  /** DRESS_LINE (FORWARD|REVERSE)
+      GOAL: Go (forward|backward) until rear wheels interedge
+      PRE: TUNE_LINE succeeded
+      POST: SRLG and SRRG are invalid (<<<<LIES)
+      FAIL:
+      METHOD: PID FWD SLOW
+  */
+  constant TRAKt cTRA_DRESS_LINE_FWD = 3u;
+  constant TRAKt cTRA_DRESS_LINE_REV = 4u;
+
+  /** TURN_(LEFT|RIGHT) to (TICK|TOCK)
+      GOAL: Find (TICK|TOCK) line to (left|right) of current line
+      PRE: DRESS_LINE succeeded,
+      STATE: mStartTick = gtcc.onTick
+      POST: abs(SFLG-SFRG) > 128 && front (TICK|TOCK)
+      FAIL:
+      METHOD: PID ASYM ROTATE (LEFT|RIGHT) SLOW
+  */
+  constant TRAKt cTRA_TURN_LEFT_TO_TICK = 5u;
+  constant TRAKt cTRA_TURN_LEFT_TO_TOCK = 6u;
+  constant TRAKt cTRA_TURN_RIGHT_TO_TICK = 7u;
+  constant TRAKt cTRA_TURN_RIGHT_TO_TOCK = 8u;
+
+  /** FULL STOP
+      GOAL: Stop the wheels
+      PRE: on the line
+      STATE: 
+      POST: Wheel speeds are heading towards (0,0)
+      FAIL:
+  */
+  constant TRAKt cTRA_FULL_STOP = 9u;
+
+  /** DRIVE SLOW
+      GOAL: Follow line at safely stoppable speed
+      PRE: on the line
+      STATE: 
+      POST: Wheel speeds are in (8,20)
+      FAIL:
+  */
+  constant TRAKt cTRA_DRIVE_SLOW = 10u;
+
+  /** DRIVE FAST
+      GOAL: Follow line as fast as possible
+      PRE: on the line
+      STATE: 
+      POST: Wheel speeds are in (8,50)
+      FAIL:
+  */
+  constant TRAKt cTRA_DRIVE_FAST = 11u;
+
+  /** EMERGENCY STOP
+      GOAL: Stop the wheels
+      PRE: Panic
+      STATE: Unsettled
+      POST: Wheels are (0,0)
+      FAIL:
+  */
+  constant TRAKt cTRA_EMERGENCY_STOP = 12u; // MUST BE LAST/HIGHEST # DEFINED
+
+  // BASE MOTOR COMMANDS PER TRAKT
+  /*
+  constant MotorCmd cBASE_MOTOR_CMDS[TRAKt.maxof + 1u] = {
+    {                           //< 0: cTRA_FIND_LINE_LEFT
+      .mTRAKtName = "0: cTRA_FIND_LINE_LEFT",
+      .mSpeedNotWheel = false,
+      .mSpeed1 = 1,     // left
+      .mSpeed2 = 3,     // right
+      .mDoneFunc = fCLOK_EDGE_FRONT, // cCLOKPRED_FRONT_EDGE,
+    },
+    {                           //< 1: cTRA_FIND_LINE_RIGHT
+      .mTRAKtName = "1: cTRA_FIND_LINE_RIGHT",
+      .mSpeedNotWheel = false,  
+      .mSpeed1 = 3,     // left
+      .mSpeed2 = 1,     // right
+      .mDoneFunc = fCLOK_EDGE_FRONT, // cCLOKPRED_FRONT_EDGE,
+    },
+    {                           //< 2: cTRA_TUNE_LINE
+      .mTRAKtName = "2: cTRA_TUNE_LINE",
+      .mSpeedNotWheel = true, 
+      .mSpeed1 = 2,     // min
+      .mSpeed2 = 4,     // max
+      .mDoneFunc = fCLOK_EDGE_TUNED, // cCLOKPRED_LINE_TUNED,
+    },
+    {                           //< 3: cTRA_DRESS_LINE_FWD
+      .mTRAKtName = "3: cTRA_DRESS_LINE_FWD",
+      .mSpeedNotWheel = true,  
+      .mSpeed1 = 1,    // min
+      .mSpeed2 = 2,    // max
+      .mDoneFunc = fSAME_EDGE, // cCLOKPRED_LINE_DRESSED_FWD,
+    },
+    {                           //< 4: cTRA_DRESS_LINE_REV
+      .mTRAKtName = "4: cTRA_DRESS_LINE_REV",
+      .mSpeedNotWheel = true,  
+      .mSpeed1 = -2,    // min
+      .mSpeed2 = -1,     // max
+      .mDoneFunc = fDIFF_EDGE, // cCLOKPRED_LINE_DRESSED_REV,
+    },
+    {                           //< 5: cTRA_TURN_LEFT_TO_TICK
+      .mTRAKtName = "5: cTRA_TURN_LEFT_TO_TICK",
+      .mSpeedNotWheel = false,
+      .mSpeed1 = -2,    // left
+      .mSpeed2 = 1,     // right
+      .mDoneFunc = fCLOK_TICK_FRONT,
+    },
+    {                           //< 6: cTRA_TURN_LEFT_TO_TOCK
+      .mTRAKtName = "6: cTRA_TURN_LEFT_TO_TOCK",
+      .mSpeedNotWheel = false,
+      .mSpeed1 = -2,    // left
+      .mSpeed2 = 1,     // right
+      .mDoneFunc = fCLOK_TOCK_FRONT,
+    },
+    {                           //< 7: cTRA_TURN_RIGHT_TO_TICK
+      .mTRAKtName = "7: cTRA_TURN_RIGHT_TO_TICK",
+      .mSpeedNotWheel = false,  
+      .mSpeed1 = 1,     // left
+      .mSpeed2 = -2,    // right
+      .mDoneFunc = fCLOK_TICK_FRONT,
+    },
+    {                           //< 8: cTRA_TURN_RIGHT_TO_TOCK
+      .mTRAKtName = "8: cTRA_TURN_RIGHT_TO_TOCK",
+      .mSpeedNotWheel = false,  
+      .mSpeed1 = 1,     // left
+      .mSpeed2 = -2,    // right
+      .mDoneFunc = fCLOK_TOCK_FRONT,
+    },
+    {                           //< 9: cTRA_FULL_STOP
+      .mTRAKtName = "9: cTRA_FULL_STOP",
+      .mSpeedNotWheel = true, 
+      .mSpeed1 = 0,     // min
+      .mSpeed2 = 0,     // max
+      .mDoneFunc = fSTOPPED,
+    },
+    {                           //< 10: cTRA_DRIVE_SLOW
+      .mTRAKtName = "10: cTRA_DRIVE_SLOW",
+      .mSpeedNotWheel = true, 
+      .mSpeed1 = 8,     // min
+      .mSpeed2 = 20,    // max
+      .mDoneOp = oHARD_OFFLINE_FRONT, // go til interrupted or fall off line
+    },
+    {                           //< 11: cTRA_DRIVE_FAST
+      .mTRAKtName = "11: cTRA_DRIVE_FAST",
+      .mSpeedNotWheel = true, 
+      .mSpeed1 = 8,     // min
+      .mSpeed2 = 50,    // max
+      .mDoneOp = oHARD_OFFLINE_FRONT, // ditto
+    },
+
+    ///// MUST BE LAST
+    {                           //< lastdefined+1..maxof: cTRA_EMERGENCY_STOP
+      .mTRAKtName = "last: cTRA_EMERGENCY_STOP",
+      .mSpeedNotWheel = false,
+      .mSpeed1 = 0,     // left
+      .mSpeed2 = 0,     // right
+      .mDoneOp = cFALSE,        // never done; go til interrupted
+    },
+  };
+
+  String nameOfThisTRAKt(TRAKt trakt) {
+    return cBASE_MOTOR_CMDS[trakt].mTRAKtName;
+  }
+  */
+
+  String nameOfCurrentTRAKt() {
+    return nameOfTRAKt(mTRAKt);
+  }
+
+  /** FIX ME
+  constant Function cCLOK_PRED_FUNCS[] = {
+    { .mOpIndex = FunctionOps.cPROP_CMP_NE,
+      .mArgIndices = { 
+  };
+  */
+  /*
+  // BASE COMPLETENESS PREDICATES PER TRAKT
+  constant CLOKPredicates cBASE_CLOK_PREDS[TRAKt.maxof + 1u] = {
+
+    {                                //< 0: cTRA_FIND_LINE_LEFT
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+    {                                //< 1: cTRA_FIND_LINE_RIGHT
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+    },
+
+    {                                //< 2: cTRA_TUNE_LINE
+      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
+      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
+      .mXD = 25u,                           // Center within +-25 of 127
+    },
+
+    ///// MUST BE LAST
+    {                           //< lastdefined+1..maxof: cTRA_EMERGENCY_STOP
+      .mFP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
+      .mRP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
+    },
+  };
+  */
+
+  MotorCmd makeCurrentMotorCmd() {
+    MotorCmd mc = makeMotorCmdForTRAKt(mTRAKt);
+    mc.takeDebug(self);
+    return mc;
+  }
+
+  Bool isTRAKtDone(GTCC & g, LOCZ & l) {
+    return isThisTRAKtDone(g,l,mTRAKt);
+  }
+
+  Bool isThisTRAKtDone(GTCC & g, LOCZ & l, TRAKt trakt) {
+    TRAKtor & t = self;
+    MotorCmd mc = makeMotorCmdForTRAKt(trakt);
+    mc.takeDebug(self);
+    Int result;
+    if (mc.evalDoneCode(result,g,l,t)) return result != 0;
+    fail(__FILE__,__LINE__);
+    return false; // NOT REACHED
+  }
+
+  /*
+  Bool isThisTRAKtDoneNEW(GTCC& gtcc, TRAKt trakt) {
+    CLOKConstants.CLOKFunction funcblock = CLOKConstants.cBASE_CLOK_FUNCTIONS[trakt];
+    Function stack;
+    Bool ok = stack.evalFunctionBlock
+    return pred.isTrue(gtcc);
+  }
+  */
+
+  /*
+  Bool isTRAKtFailed(GTCC& gtcc) {
+    return isThisTRAKtFailed(gtcc,mTRAKt);
+  }
+
+  Bool isThisTRAKtFailed(GTCC& gtcc, TRAKt trakt) {
+    CLOKPredicates pred = cBASE_CLOK_PREDS[trakt];
+    return pred.isFailed(gtcc);
+  }
+  */
+
+  Bool pR(Self & s) {
+    return pR(nameOfTRAKtorState(mTRAKtorState));
+  }
+
+  Bool reset() {
+    if (mTRAKtorState != cTKST_FAIL)
+      pR("TRAKtion reset from")&&pR(self);
+    mTRAKtorState = cTKST_RESET;
+    return true;
+  }
+
+  Bool takeTRAKt(TRAKt act) {
+    if (mTRAKtorState != cTKST_READY) return false;
+    mTRAKt = act;
+    mTRAKtorState = cTKST_RUN;
+    return true;
+  }
+
+  Bool isReset() { return mTRAKtorState == cTKST_RESET; }
+  Bool isReady() { return mTRAKtorState == cTKST_READY; }
+  Bool isRunning() { return mTRAKtorState == cTKST_RUN; }
+  Bool isFailed() { return mTRAKtorState == cTKST_FAIL; }
+
+  Bool clockEdge(GTCC & gtcc, Bool frontNotBack, ClokState newstate) { //< incoming clock edge
+    EventWindow ew;
+    SN locsn, tdsn;
+    if (!findOtherSNs(locsn,tdsn)) return false; // not today
+    LOCZ & locz = (LOCZ&) ew[locsn];
+    TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
+    TRAKtorDriver.TRAKtorEvent te;
+    which (newstate) {
+    case cCLOK_TICK: { te = frontNotBack ? TRAKtorDriver.cTKTR_FRONT_TICK : TRAKtorDriver.cTKTR_REAR_TICK; }
+    case cCLOK_TOCK: { te = frontNotBack ? TRAKtorDriver.cTKTR_FRONT_TOCK : TRAKtorDriver.cTKTR_REAR_TOCK; }
+    case cCLOK_NONE: { te = frontNotBack ? TRAKtorDriver.cTKTR_FRONT_NONE : TRAKtorDriver.cTKTR_REAR_NONE; }
+    otherwise: { fail(__FILE__,__LINE__,"'NOT REACHED'"); }
+    }
+    td.notify(gtcc, locz, self, te);
+    return true;
+  }
+
+  ASCII makeSig() {
+    mD&&pR("TKTRMSIG10");
+    MotorCmd cmd = makeCurrentMotorCmd();
+    mD&&pR("TKTRMSIG11")&&pR(cmd);
+    SpeedO spo;
+    SpeedO.SpeedOp op = cmd.mSpeedNotWheel ?
+      (mSecondSignal ? SpeedO.cSO_SET_MAX : SpeedO.cSO_SET_MIN) : // want a speed
+      (mSecondSignal ? SpeedO.cSO_SET_RIGHT : SpeedO.cSO_SET_LEFT); // want a wheel
+    SpeedO.SpeedCode sc =
+      spo.getNoLarger( mSecondSignal ? cmd.mSpeed2 : cmd.mSpeed1 );
+    mD&&pR("TKTRMSIG12")&&pR(op)&&pR(sc)&&pR(mSecondSignal);
+    ASCII a = spo.packSpeedO(op,sc);
+    mD&&pR("TKTRMSIG13")&&pR(a);
+    return a;
+  }
+  Void recordSigSent() {
+    mSecondSignal = !mSecondSignal;
+  }
+
+  //// TRAKtor INTERNAL EVENT SERVICES
+  Bool isFrontInputValid(GTCC & gtcc) { return isGreyClockSettled(gtcc,0u); }
+  Bool isRearInputValid(GTCC & gtcc) { return isGreyClockSettled(gtcc,1u); }
+  Bool isGreyClockSettled(GTCC & gtcc, Unsigned idx) { return gtcc.mLastCloks[idx] != cCLOK_NONE; }
+  Bool isGreyClockUnsettled(GTCC & gtcc, Unsigned idx) { return gtcc.mLastCloks[idx] == cCLOK_NONE; }
+
+  typedef Unsigned(2) TRAKtorState;
+  TRAKtorState mTRAKtorState;
+
+  constant TRAKtorState cTKST_RESET = 0u; //< clear internal state and go to READY
+  constant TRAKtorState cTKST_READY = 1u; //< ready to do a TRAKt
+  constant TRAKtorState cTKST_RUN = 2u; //< a TRAKt is in progress
+  constant TRAKtorState cTKST_FAIL = 3u; //< current TRAKt failed, RESET needed
+  constant String cTKST_NAMES[] = { "RESET", "READY", "RUN", "FAIL" };
+
+  String nameOfTRAKtorState(TRAKtorState stn) {
+    return cTKST_NAMES[stn];
+  }
+
+  Bool findOtherSNs(SN &locsn, SN &tdsn) {
+    EventWindow ew;
+    MinXPick locpick;
+    MinXPick tdpick;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      if (ew[sn] is LOCZ) 
+        locpick.update(sn,sn);
+      if (ew[sn] is TRAKtorDriver)
+        tdpick.update(sn,sn);
+    }
+    if (locpick.hasPick() && tdpick.hasPick()) {
+      locsn = locpick.getIdxSN();
+      tdsn = tdpick.getIdxSN();
+      return true;
+    }
+    return false;
+  }
+
+  Void update(GTCC& gtcc, TRAKtorDriver & td, LOCZ & lz) {
+    takeDebug(gtcc);
+    which (mTRAKtorState) {
+    case cTKST_RESET: { return updateReset(gtcc,td,lz); }
+    case cTKST_READY: { return updateReady(gtcc,td,lz); }
+    case cTKST_RUN:   { return updateRun(gtcc,td,lz); }
+    case cTKST_FAIL:  { return updateFail(gtcc,td,lz); }
+    }
+  }
+
+  Void updateReset(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+    mStartTick = false; // really: don't know, but just to settle it
+    mSecondSignal = false;
+    setTRAKtState(mTRAKt, cTKST_READY, __FILE__,__LINE__);
+  }
+
+  Void updateReady(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+    // TOO NOISY & MISLEADING: setTRAKtState(cTRA_FULL_STOP, cTKST_READY, __FILE__,__LINE__); // if needed / unless overridden
+    td.notify(gtcc, lz, self, TRAKtorDriver.cTKTR_READY);
+  }
+
+  Bool setTRAKtState(TRAKt t, TRAKtorState ts, String f, Unsigned l) {
+    Bool ret = false;
+    TRAKt oldt = mTRAKt;
+    TRAKtorState oldts = mTRAKtorState;
+    if (mTRAKt != t) {
+      mTRAKt = t;
+      ret = true;
+    }
+    if (mTRAKtorState != ts) {
+      mTRAKtorState = ts;
+      ret = true;
+    }
+    if (ret) {
+      ByteStreamLogger log;
+      log.printf("%s:%d: %s/%s => %s/%s\n",
+                 f,l,
+                 nameOfTRAKtorState(oldts),
+                 nameOfTRAKt(oldt),
+                 nameOfTRAKtorState(mTRAKtorState),
+                 nameOfTRAKt(t)
+                 );
+    }
+    return ret;
+  }
+
+  Bool startTRAKt(TRAKt t) {
+    if (mTRAKtorState != cTKST_READY) return false;
+    setTRAKtState(t, cTKST_RUN, __FILE__, __LINE__);
+    return true;
+  }
+
+  Bool switchTRAKt(TRAKt fromt, TRAKt to) {
+    mD&&pR("SWTCTKt10")&&pR(nameOfCurrentTRAKt());
+    if (mTRAKt == fromt) {
+      mD&&pR("SWTCTKt11")&&pR(nameOfTRAKt(fromt))&&pR(nameOfTRAKt(to))&&pR("&RUN");
+      setTRAKtState(to, cTKST_RUN, __FILE__, __LINE__);
+      return true;
+    }
+    mD&&pR("SWTCTKt12")&&pR(nameOfTRAKt(fromt))&&pR(nameOfTRAKt(to));
+    return false;
+  }
+
+  Void updateRun(GTCC &g, TRAKtorDriver & td, LOCZ & l) {
+    if (isTRAKtDone(g,l)) {
+      mD&&pR("TKUR11")&&pR(nameOfCurrentTRAKt());
+      setTRAKtState(mTRAKt, cTKST_READY, __FILE__, __LINE__);
+    }
+    else if (false /*isTRAKtFailed(gtcc)*/)
+      setTRAKtState(mTRAKt, cTKST_FAIL, __FILE__, __LINE__);
+  }
+
+  Void updateFail(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+    // Just wait?
+  }
+
+  TRAKt mTRAKt;                 //< current TRAKt if _RUN or _FAIL
+  Bool mStartTick;              //< what we started this action on
+  Bool mSecondSignal;           //< what signal we're due to send
+}

@@ -1,0 +1,76 @@
+# -*- mode: conf-toml; -*-
+# Sun Mar  9 00:11:22 2025 try moving TILES to an intertile zone..
+# Thu Feb 13 09:12:13 2025 try an XBlock version
+# Wed Jan 22 14:01:02 2025 move CTLGREY and GTCC
+# Sun Jan 19 07:49:20 2025 move CLOK ahead of shipping its values
+# Fri Jan  3 13:59:41 2025 re-laying out to shorten TRAK->motor paths
+# Sat Nov  2 00:22:20 2024 spread out the xbs hoping to make serloop tile numbering clearer
+# Tue Sep 10 09:16:34 2024 try right before left S & M to see if affects Beevee bias
+[Config]
+
+[xblock.HOTBOX]
+  intentionClass=DefaultXBlockState    # default value if not specified
+  stride=[2,3]
+  pos=[-5,0]  # always NW corner?
+  originSN=18  # default value if not specified is 5
+  color='#f40'
+  taps.N=[SRFR, SRFY, SLFR, SLFY, TOCK, SRLR, SLRR]
+  taps.S=[SLRY, SLLY, SRRY, SRLY, SRRR, SLLR]
+  taps.W=[MRRF, MLRF, WNTK, _]  # Dead spot at end for TAP sig pull BUG
+  taps.E=[_, MREY, MLEY, GRIP]
+  axons=[[WNTK,LOCZ]]
+
+[xblock.TILES]
+  stride=[2,1]
+  pos=[-5,-1]
+  originSN=8
+  color='#04f'
+  taps.N=[GTCC, HTD8]  # get a TRAKtorDriver into GTCC-LOCZ metro area
+  taps.E=[LOCZ]
+  axons=[[GTCC,TRAKPD],
+         [LOCZ,LZRV]]
+
+[xblock.GREEN]
+  stride=[3,1]
+  pos=[-1,-1]
+  originSN=8
+  color='#4f0'
+  taps.S=[SLFG, SRFG]
+  taps.W=[GRLN, GREG]
+  axons=[[GREG,MRRF],
+         [GREG,MLRF],
+         [GRLN,LOCZ]]
+
+[xblock.GREYS]
+  stride=[2,2]
+  pos=[-14,0]
+  color='#777'
+  taps.N=[   SFLG,   SFCG, SFRG, SRRG, SRLG ]
+  taps.W=[   HFLG,   HFRG, HRRG, HRLG,    _ ] # _s to keep HxxGs from facing CLOK
+  taps.E=[      _, TRAKPD, TRAK,    _, CLOK ] # TRAKPD and TRAK must stay adjacent!
+  axons=[[HFLG,IFLG],
+         [HFRG,IFRG],
+         [HRRG,IRRG],
+         [HRLG,IRLG],
+         [TRAK,MRRF],
+         [TRAK,MLRF],
+         [TRAK,LOCZ],
+         [CLOK,GTCC]
+         ]        
+
+[xblock.CTLGREY]
+  stride=[3,2]
+  pos=[-19,1]
+  originSN=5
+  color='#999'
+  taps.E=[IFLG, IFRG, IRRG, IRLG]
+  taps.S=[HFQA, HPDF, HPDR]
+  axons=[[HPDF, MLRF],
+         [HPDR, MRRF]]
+  
+[xblock.LOCZLABEL]
+  stride=[2,2]
+  pos=[-5,-6]
+  #originSN=7
+  taps.N=[LZRV]
+  taps.E=[_]

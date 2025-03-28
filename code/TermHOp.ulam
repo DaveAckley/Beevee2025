@@ -10,15 +10,15 @@ quark TermHOp : TermMotor {
 
   //// TERMMOTOR API
   @Override
-  virtual Bool handleSigHook(SlotSig & iss, GripSource & gs) {
-    Unsigned gripnum = gs.getGripNumber();
+  virtual Bool handleSigHook(SlotSig & iss, XBlock & xb) {
+    Unsigned gripnum = xb.getGripNumber();
     mD&&pR("TOPHSH10")&&pR(iss);
     Bool ret = accept(iss,gripnum); // (always true since iss occupied)
     SlotSig result;
     if (updateHOp(result)) {    // have op result to ship
       mD&&pR("TOPHSH11")&&pR(result)&&pR(iss);
       DebugUtils du;
-      BeeveeBIM bvb;
+      BeeveeBIMXBlock bvb;
 
       TapIdx myTapIdx = bvb.getTapIdx(self);
       if (result.mSource == cTAPIDX_NONE) {
@@ -27,40 +27,35 @@ quark TermHOp : TermMotor {
         mD&&pR("TOPHSH12")&&pR(result)&&pR(iss);
       }
       if (isEnabled(gripnum)) {
-        SN axonsn = findMatchingAxonEnd();
+        SN axonsn = findMatchingAxonEnd(false);
         mD&&pR("TOPHSH13")&&pR(gripnum)&&pR(axonsn);
         if (axonsn != SN.maxof) {
           AxonEnd & axon = (AxonEnd&) ew[axonsn];
           Bool sent = trySendSig(axon, result);
           mD&&pR("TOPHSH14")&&pR(axon)&&pR(sent);
-        } else {
-          C2D gsc = gs.getPos2D();
-          Unsigned xbidx = bvb.getContainingXBIndex(gsc);
-          if (xbidx != Unsigned.maxof) {
-            BrainInfoMap.XBInfoBuffer xbib;
-            XBInfo & xbi = bvb.getXBInfo(xbidx, xbib);
-            TapIdx axondest = xbi.getXBInfoAxonTarget(myTapIdx);
+        } else { // get info from associated xblock
+          XBInfo & xbi = xb;
+          TapIdx axondest = xbi.getXBInfoAxonTarget(myTapIdx);
 
-            mD&&pR("TOPHSH15")&&pR(axondest);
-            if (axondest != cTAPIDX_NONE) {
-              Random random;
-              if (random.oneIn(25u)) {
-                EventWindow ew;
-                MinXPick emppick;
-                for (SN sn = 1u; sn <= 8u; ++sn) {
-                  if (!ew.isAccessible(sn)) continue;
-                  if (ew[sn] is Empty) emppick.update(sn);
-                }
-                mD&&pR("TOPHSH16")&&pR(emppick);
-                if (emppick.hasPick()) {
-                  SN empsn = emppick.getIdxSN();
-                  FloodFindTAPIdx fix;
-                  fix.mMaxRadius = 20u;
-                  fix.mLocal = myTapIdx;
-                  fix.mRemote = axondest;
-                  mD&&pR("TOPHSH17")&&pR(fix);
-                  ew[empsn] = fix.atomof;
-                }
+          mD&&pR("TOPHSH15")&&pR(axondest);
+          if (axondest != cTAPIDX_NONE) {
+            Random random;
+            if (random.oneIn(25u)) {
+              EventWindow ew;
+              MinXPick emppick;
+              for (SN sn = 1u; sn <= 8u; ++sn) {
+                if (!ew.isAccessible(sn)) continue;
+                if (ew[sn] is Empty) emppick.update(sn);
+              }
+              mD&&pR("TOPHSH16")&&pR(emppick);
+              if (emppick.hasPick()) {
+                SN empsn = emppick.getIdxSN();
+                FloodFindTAPIdx fix;
+                fix.mMaxRadius = 20u;
+                fix.mLocal = myTapIdx;
+                fix.mRemote = axondest;
+                mD&&pR("TOPHSH17")&&pR(fix);
+                ew[empsn] = fix.atomof;
               }
             }
           }
@@ -132,7 +127,7 @@ quark HOpUnaryDupe : TermHiddenIO {
   /** \return true if (possibly modified) signal should be
     transhipped; \return false if signal should be dropped
    */
-  virtual Bool transshipSigHook(SlotSig & iss, GripSource & gripsrc) {
+  virtual Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
     return true;
   }
 
@@ -187,7 +182,7 @@ quark HOpPLL10 : HOpNullary + Fail {
   Bool mCurrentState;    // true: light, false: dark
 
   //// HOpPLL10 API
-  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) ;
+  virtual Unsigned getSourceTAPIdx(BeeveeBIMXBlock & bim) ;
 
   //// TermHOp API
   @Override
@@ -203,7 +198,7 @@ quark HOpPLL10 : HOpNullary + Fail {
     mD&&pR("S2SPLL1010")&&pR(self);
     if (!isEnabled(gripnum)) return 1; // toss it if not enabled in grip
 
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     TapIdx idx = sig.mSource;
     TapIdx needed = (TapIdx) getSourceTAPIdx(bim);
     mD&&pR("S2SPLL1011")&&pR(idx)&&pR(needed);
@@ -254,7 +249,7 @@ quark HOpPLL10 : HOpNullary + Fail {
 element HFLG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+  virtual Unsigned getSourceTAPIdx(BeeveeBIMXBlock & bim) {
     return bim.getTapIdxFromClassId(SFLG.classidof);
   }
 }
@@ -271,7 +266,7 @@ element HFLG : HOpPLL10 {
 element HFRG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+  virtual Unsigned getSourceTAPIdx(BeeveeBIMXBlock & bim) {
     return bim.getTapIdxFromClassId(SFRG.classidof);
   }
 
@@ -285,7 +280,7 @@ element HFRG : HOpPLL10 {
 element HRRG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+  virtual Unsigned getSourceTAPIdx(BeeveeBIMXBlock & bim) {
     return bim.getTapIdxFromClassId(SRRG.classidof);
   }
 
@@ -298,7 +293,7 @@ element HRRG : HOpPLL10 {
 element HRLG : HOpPLL10 {
   //// HOpPLL10 API
   @Override
-  virtual Unsigned getSourceTAPIdx(BeeveeBIM & bim) {
+  virtual Unsigned getSourceTAPIdx(BeeveeBIMXBlock & bim) {
     return bim.getTapIdxFromClassId(SRLG.classidof);
   }
 
@@ -310,7 +305,7 @@ element HRLG : HOpPLL10 {
  */
 element IFLG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -321,7 +316,7 @@ element IFLG : HOpUnaryDupe {
  */
 element IFRG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -332,7 +327,7 @@ element IFRG : HOpUnaryDupe {
  */
 element IFCG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -343,7 +338,7 @@ element IFCG : HOpUnaryDupe {
  */
 element IRRG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -355,7 +350,7 @@ element IRRG : HOpUnaryDupe {
  */
 element IRLG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -366,7 +361,7 @@ element IRLG : HOpUnaryDupe {
  */
 element OCLK : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cXBAR_TO_AXON;
   }
 }
@@ -409,7 +404,7 @@ quark HOpPhaseDiff : HOpBinary {
     mD&&pR("HPDS2SPLL1011");
 
     TapIdx idx = sig.mSource;
-    BeeveeBIM bvb;
+    BeeveeBIMXBlock bvb;
     //    if (idx == bvb.getTapIdxFromClassId(IFLG.classidof))
     if (idx == bvb.getTapIdxFromClassId(getOpSlotClassId(0)))
       return 0;
@@ -503,7 +498,7 @@ element HPDR : HOpPhaseDiff {
  */
 element HFQA : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
@@ -522,7 +517,7 @@ element HDFG : HOpDiffNZ {
     mD&&pR("HDFG3SPLL1011");
 
     TapIdx idx = sig.mSource;
-    BeeveeBIM bvb;
+    BeeveeBIMXBlock bvb;
     if (idx == bvb.getTapIdxFromClassId(SLFG.classidof))
       return 0;
     mD&&pR("HDFG3SPLL1012");
@@ -539,9 +534,26 @@ element HDFG : HOpDiffNZ {
  */
 element IDFG : HOpUnaryDupe {
   @Override
-  virtual RouteDir getHiddenRouteDir(GripSource & gs) {
+  virtual RouteDir getHiddenRouteDir(XBlock & xb) {
     return cAXON_TO_XBAR;
   }
 }
 
+
+element HEMP : HOpNullary + Fail {
+  //// TermHOp API
+  @Override Bool isEnabled(Unsigned gripnum) {
+    return true;                // Always enabled
+  }
+
+  @Override Int sigToSlot(SlotSig sig, Unsigned gripnum) {
+    mD&&pR("HEMPS2S10")&&pR(self);
+    return 1;                   // toss everything
+  }
+
+  @Override Bool execute(SlotSig & result) {
+    return false;               // "executed"
+  }
+
+}
 

@@ -1,0 +1,45 @@
+transient BrainInfoMapXBlock + DTU + QDebugUtils + Fail {
+  constant Unsigned cMAX_RECAST_SIZE = 4096u;
+  typedef BitStorageT(cMAX_RECAST_SIZE) XBInfoBuffer;
+
+  //// BrainInfoMapXBlock API
+  virtual Unsigned getXBCount() ;
+  virtual Unsigned getXBlockIndexAtOrigin(C2D absc) ;
+  //virtual XBInfo & getXBInfo(Unsigned idx, XBInfoBuffer buf) ;
+  virtual Unsigned getTapIdxFromClassId(ClassId cid) ;
+  virtual ClassId getXBlockClassIdFromIndex(Unsigned xblockidx) ;
+
+  virtual Unsigned getTAPCount() ;  
+  virtual ClassId getTAPClassIdFromTapIdx(Unsigned tapidx) ;  
+  virtual String getTAPNameFromTapIdx(Unsigned tapidx) ;  
+
+  //// BrainInfoMap SERVICES
+  Atom getXBlockInstance(Unsigned xblockIdx) {
+    Unsigned cnt = getXBCount();
+    if (xblockIdx >= cnt) fail(__FILE__,__LINE__);
+    ClassUtils cu;
+    ClassId cid = getXBlockClassIdFromIndex(xblockIdx);
+    if (!cu.isBase(cid, XBlock.classidof)) 
+      fail(__FILE__,__LINE__);
+    Int etype = cu.getElementType(cid);
+    if (etype < 0)
+      fail(__FILE__,__LINE__);
+    AtomUtils au;
+    Atom a = au.new(etype);
+    return a;
+  }
+
+  TapIdx getTapIdx(TAP & tap) {
+    ClassUtils cu;
+    ClassId cid = cu.getClassId(tap);
+    Unsigned idx = getTapIdxFromClassId(cid);
+    mD&&pR("BIMXGTI10")&&pR(cid)&&pR(idx)&&pR(tap);
+    if (idx == idx.maxof) {
+      mD=true;
+      mD&&pR("BIMXGTI11")&&pR(self)&&pR(tap)&&pR(idx);
+      fail(__FILE__,__LINE__);
+    }
+    return (TapIdx) idx;
+  }
+
+}

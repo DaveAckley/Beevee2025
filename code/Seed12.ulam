@@ -29,7 +29,7 @@ element Seed12 + DTU {
     if (mDeployStep++ < mDeployStep.maxof) // delay before starting deliveries
       return;
 
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     if (true) {
       /// DECAY DECAY DECAY
       ew[0] = Empty.instanceof;

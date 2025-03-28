@@ -29,7 +29,7 @@ element SDBG10 : SDBG {
         AxonTail & at = (AxonTail&) ew[atsn];
         SlotSig & ss = at.getAxonSig(cAXON_TAIL_IDX); // send up from tail
         if (!ss.isOccupied()) {
-          BeeveeBIM bim;
+          BeeveeBIMXBlock bim;
           Unsigned usidx = bim.getTapIdxFromClassId(SDBG10.classidof);
 
           if (mId == 0u) mId = (ASCII) random.between(1,255);
@@ -43,7 +43,7 @@ element SDBG10 : SDBG {
     if (!emptypick.hasPick())
       return;
 
-    BeeveeBIM bvb;
+    BeeveeBIMXBlock bvb;
     Unsigned ltapidx = bvb.getTapIdx(self);
     Unsigned rtapidx = bvb.getTapIdxFromClassId(MDBG10.classidof);
     if (ltapidx == Unsigned.maxof) fail(__FILE__,__LINE__); // can't happen?

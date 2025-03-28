@@ -59,7 +59,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
     if (mFloodState != cFS_FLOOD) return false;
 
     EventWindow ew;
-    if (ew.isAccessible(mParentSN)) {
+    if (mParentSN != 0u && ew.isAccessible(mParentSN)) {
       Atom & a = ew[mParentSN];
       if (a as Self) 
         if (a.mCurMaxRadius > mCurMaxRadius)
@@ -69,7 +69,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
     if (mMyRadius > mCurMaxRadius) return dieTrue();
     if (mMyRadius == mCurMaxRadius) return false;
     Unsigned growdist = mCurMaxRadius - mMyRadius;
-    Unsigned growodds = growdist*growdist + 1u;
+    Unsigned growodds = growdist*growdist/2u + 1u;
     mD&&pR("FFTF11")&&pR(growdist)&&pR(growodds);
 
     Unsigned ngbs = 0u;
@@ -351,7 +351,7 @@ element FloodFindTAPIdx : FloodFind {
 
   @Override
   virtual Bool isGoal(Atom & a) {
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     if (a as TAP) {
       TapIdx ax = bim.getTapIdx(a);
       if (mRemote == ax) return true;
@@ -382,6 +382,7 @@ element FloodFindTAPIdx : FloodFind {
     /// find 'the' kid
     SN kidsn = SN.maxof;
     SN revsn;
+    SN goalsn = SN.maxof;
     for (SN sn = 1u; sn < 41u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
@@ -392,8 +393,32 @@ element FloodFindTAPIdx : FloodFind {
           kidsn = sn;
           break;
         }
+      } else if (isGoal(a)) { // Root might have immediate path to goal
+        goalsn = sn;
       }
     }
+    if (kidsn == SN.maxof && goalsn != SN.maxof) {
+      // Special handling if root can see goal
+      MinXPick emppick;
+      C2D goalc = ew.getCoord(goalsn);
+      for (SN sn = 1u; sn < 41u; ++sn) {
+        if (!ew.isAccessible(sn)) continue;
+        if (ew[sn] is Empty) {
+          C2D ac = ew.getCoord(sn);
+          Unsigned goaldist = ac.manhattanDistance(goalc);
+          if (goaldist <= 4u)            // if goal can see it, pick
+            emppick.update(sn,goaldist,sn,ew.getSiteNumber(-ac)); // closest to goal (with ties closest to us)
+        }
+      }
+      if (emppick.hasPick()) {
+        kidsn = emppick.getIdxSN(); // declare the empty is the 'kid'
+        revsn = (SN) emppick.getArg(); // pick up its 'reverse sn' to us
+        du.print("!!ROOT SAW GOAL, DRAFTED EMPTY!!");
+        du.print(kidsn);
+      }
+      /* else die below if no empty found */
+    }
+
     if (kidsn != SN.maxof) {
       // We can build in 0 and kidsn
 
@@ -419,7 +444,7 @@ element FloodFindTAPIdx : FloodFind {
 element AxSpike10 + DTU {
   Void behave() {
     FloodFindTAPIdx fix;
-    BeeveeBIM bim;
+    BeeveeBIMXBlock bim;
     //    fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HDGF.classidof);
     fix.mLocal = (TapIdx) bim.getTapIdxFromClassId(HFRG.classidof);
     fix.mRemote = (TapIdx) bim.getTapIdxFromClassId(MLRF.classidof);

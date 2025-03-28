@@ -1,0 +1,161 @@
+transient RouterXBlock + DTU + QDebugUtils {
+  EventWindow ew;
+
+  Self(QDebugUtils & du) { takeDebug(du); }
+
+  /** \return true to request switching the sig (modifying \c slot to
+     the result of the mapping if needed), false to reject switching
+     to this \c out
+   */
+  Bool mapSig(SlotSig & slot, TapIdx out, TapIdx in, XBlock &xb, XBlockState & xbs) {
+    mD&&pR("RTRXBMSG10")&&pR(out)&&pR(in);
+    Unsigned gripnum = xb.getGripNumber();
+    GripInfoMap gim;
+    ClassId giid = gim.getGripInfoClassId(gripnum);
+    if (giid == 0u) return false;
+    
+    GripInfo & gi = gim.getGripInfo(giid);
+
+    BeeveeBIMXBlock bim;
+    ClassId outid = bim.getTAPClassIdFromTapIdx(out); // sensor
+    ClassId inid = bim.getTAPClassIdFromTapIdx(in);   // motor
+
+    mD&&pR("RTRXBMSG11")&&pR(gi)&&pR(outid)&&pR(inid);
+
+    // Scan sd's (for now) to see if signal wanted..
+    typedef GripInfo.SenseDests SenseDests;
+    SenseDests sd = gi.getDestinations(outid);
+    for (Unsigned i = 0u; i < sd.lengthof; ++i) {
+      ClassId dest = sd[i];
+      mD&&pR("RTRXBMSG12")&&pR(i)&&pR(dest)&&pR(inid);
+      SlotSig hold = slot;
+      if (dest == inid && gi.mapSourceSignalValue(outid,inid,slot.mValue)) { // remapping mValue if true        
+        mD&&pR("RTRXBMSG1210")&&pR(dest)&&pR(hold)&&pR(slot);
+        return true;
+      }
+    }
+    mD&&pR("RTRXBMSG13");
+    return false;
+  }
+
+  Bool propagateAndSwitchSomething(XBlock &xb, XBlockState & xbs) {
+    //// (0) Init shared stuff
+    if (!(xb is FourWaySlots)) return false;
+    Atom & xba = xb.atomof;
+    FourWaySlots & fws = (FourWaySlots&) xba;
+
+    mD&&pR("RTXBLTS11")&&pR(xb);
+    if (!(xb is Grip)) return false;
+
+    Grip & grip = (Grip&) xb;
+    Unsigned gripnum = grip.getGripNumber();
+    BeeveeGrips gripmap;
+    mD&&pR("RTXBLTS1110")&&pR(gripnum);
+
+    Atom a = gripmap.getGripRoutingInstance(gripnum);
+    mD&&pR("PASSRTXBLTS12")&&pR(gripnum)&&pR(a);
+
+    if (!(a is GripRouting)) return false;
+    GripRouting & gr = (GripRouting&) a;
+
+    mD&&pR("PASSRTXBLTS13")&&pR(gr);
+    //// (1) Shuffle dirs
+    Random random;
+    AxialDir ad[4] = { cW, cN, cS, cE };
+    for (Unsigned i = 0u; i<4u; ++i) {
+      Unsigned j = (Unsigned) random.between(0u,3u);
+      AxialDir tmp = ad[i];
+      ad[i] = ad[j];
+      ad[j] = tmp;
+    }
+
+    //// (2) Consider each shuffled dir
+    for (Unsigned i = 0u; i<4u; ++i) {
+      mD&&pR("PASSRTXBLTS14")&&pR(i)&&pR(ad[i]);
+      if (tryPropagateAndSwitch(xb,fws,gr,ad[i]))
+        return true;            // quit after first success
+    }
+    mD&&pR("PASSRTXBLTS15")&&pR(self);
+    return false;
+  }
+
+  Bool tryPropagateAndSwitch(XBlock & xb, FourWaySlots & fws,
+                             GripRouting & gr, AxialDir dir) {
+
+    mD&&pR("RXTPAS10")&&pR(dir)&&pR(xb);
+    if (xb.isTAPDir(dir)) return false; // don't push here; wait for TAP to pull
+
+    SlotSig & ss = fws.getSlotSig(dir);
+    mD&&pR("RXTPAS11")&&pR(ss);
+    if (!ss.isOccupied()) return false; // Nothing to propagate here
+
+    //// We have a signal
+    TapIdx srcidx = ss.mSource; // get where the signal's coming from
+
+    //// Could it propagate?
+    EventWindow ew;
+    SN ngbsn = xb.getNeighbor(dir);
+    mD&&pR("RXTPAS12")&&pR(srcidx)&&pR(ngbsn);
+    if (!ew.isAccessible(ngbsn)) return false; // no
+
+    Atom & a = ew[ngbsn];
+    mD&&pR("RXTPAS13")&&pR(ew[ngbsn]);
+    if (!(a is XBlock) || !(a is FourWaySlots)) return false;
+    FourWaySlots & nfws = (FourWaySlots&) a;
+
+    SlotSig & oss = nfws.getSlotSig(dir); // propagation destination
+    mD&&pR("RXTPAS14")&&pR(oss)&&pR(dir);
+    if (oss.isOccupied()) return false;   // no room at the outt
+
+    // WE HAVE ROOM TO PROPAGATE
+    mD&&pR("RXTPAS15");
+    if (!xb.forkSignalIfPossible(gr, dir)) return false; // but can't switch first..
+
+    // SWITCHING COMPLETED SUCCESSFULLY!
+    oss = ss;                   // PROPAGATE!
+    ss.reset();                 // PROPAGATED!
+    mD&&pR("RXTPAS16")&&pR(oss);
+    return true;
+  }
+
+  /** Switch an outgoing (column) signal to an incoming (row) signal
+      if the conditions are all favorable 
+
+      \returns true if a signal was switched, or false if nothing
+      happened due to lack of signal or blocked row
+  */
+
+
+  Bool maybeDiscard(SlotSig & fromsig, Bool discard, Bool ret) {
+    if (discard) fromsig.reset();
+    return ret;
+  }
+
+  /*
+  Bool trySwapAD(Bool orDiscard, AxialDir ad, SlotSig & fromss, Bool outbound, XBarSpace2D &xb, XBarSpace2DState & xbs) {
+
+    SN colngbsn = xbs.mGrid[ad]; 
+    mD&&pR("RTRXBTSAD10")&&pR(colngbsn);
+    if (!ew.isAccessible(colngbsn)) return maybeDiscard(fromss, orDiscard, false);
+
+    Atom & a = ew[colngbsn];
+    mD&&pR("RTRXBTSAD11")&&pR(a);
+    if (!(a is XBarSpace2D)) return maybeDiscard(fromss, orDiscard, false);
+
+    XBarSpace2D & dxb = (XBarSpace2D&) a;
+    mD&&pR("RTRXBTSAD12");
+    if (!dxb.hasSymmetry()) return maybeDiscard(fromss, orDiscard, false);
+
+    SlotSig & dss = dxb.getSlotSig(outbound);
+    mD&&pR("RTRXBTSAD13")&&pR(dss);
+
+    // PROPAGATE OVER OCCUPIED "FOR FRESHNASS":    if (dss.isOccupied()) return false;
+    
+    // WE CAN PROPAGATE
+    dss = fromss;               // Now it's your problem
+    fromss.reset();             // And our sigslot is open
+    mD&&pR("RTRXBTSAD14")&&pR(xb)&&pR(dxb);
+    return true;
+  }
+  */
+}

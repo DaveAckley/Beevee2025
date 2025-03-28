@@ -14,103 +14,91 @@ quark QDebugUtils {
   }
 
   Bool pRContext() {
-    if (mD) {
-      DebugUtils du;
-      du.printContext();
-    }
-    return mD;
+    DebugUtils du;
+    du.printContext();
+    return true;
+  }
+
+  Bool pRContextV() {
+    DebugUtils du;
+    du.printContext(DebugUtils.cPRINT_ALL_MEMBERS);
+    return true;
   }
 
   Bool pRContext(Bits flags) {
-    if (mD) {
-      DebugUtils du;
-      du.printContext(flags);
-    }
-    return mD;
+    DebugUtils du;
+    du.printContext(flags);
+    return true;
   }
 
   Bool pR(UrSelf & ur) {
-    if (mD) {
-      DebugUtils du;
-      du.print(ur);
-    }
-    return mD;
+    DebugUtils du;
+    du.print(ur);
+    return true;
   }
+
   Bool pR(String s) {
-    if (mD) {
-      DebugUtils du;
-      du.print(s);
-    }
-    return mD;
+    DebugUtils du;
+    du.print(s);
+    return true;
   }
+
   Bool pR(String file, Unsigned line) {
-    if (mD) {
-      ByteStreamArray1K bsa;
-      bsa.printf("LOCATION TAG:\n%s:%d:<HERE>", file, line);
-      DebugUtils du;
-      du.print((ByteStreamReader&) bsa);
-    }
-    return mD;
+    ByteStreamArray1K bsa;
+    bsa.printf("LOCATION TAG:\n%s:%d:<HERE>", file, line);
+    DebugUtils du;
+    du.print((ByteStreamReader&) bsa);
+    return true;
   }
+
   Bool pR(String file, Unsigned line, String message) {
-    if (mD) {
-      ByteStreamArray1K bsa;
-      bsa.printf("LOCATION TAG:\n%s:%d:%s", file, line, message);
-      DebugUtils du;
-      du.print((ByteStreamReader&) bsa);
-    }
-    return mD;
+    ByteStreamArray1K bsa;
+    bsa.printf("LOCATION TAG:\n%s:%d:%s", file, line, message);
+    DebugUtils du;
+    du.print((ByteStreamReader&) bsa);
+    return true;
   }
+
   Bool pR(Int s) {
-    if (mD) {
-      DebugUtils du;
-      du.print(s);
-    }
-    return mD;
+    DebugUtils du;
+    du.print(s);
+    return true;
   }
+
   Bool pR(Unsigned s) {
-    if (mD) {
-      DebugUtils du;
-      du.print(s);
-    }
-    return mD;
+    DebugUtils du;
+    du.print(s);
+    return true;
   }
+  
   Bool pR(Bool s) {
-    if (mD) {
-      DebugUtils du;
-      du.print(s);
-    }
-    return mD;
+    DebugUtils du;
+    du.print(s);
+    return true;
   }
+
   Bool pR(Bits s) {
-    if (mD) {
-      DebugUtils du;
-      du.print((Unsigned) s);
-    }
-    return mD;    
+    DebugUtils du;
+    du.print((Unsigned) s);
+    return true;    
   }
+
   Bool pR(Atom & s) {
-    if (mD) {
-      DebugUtils du;
-      du.print(s);
-    }
-    return mD;        
+    DebugUtils du;
+    du.print(s);
+    return true;        
   }
 
   Bool pR(ByteStreamReader& a, Bool reread) {
-    if (mD) {
-      if (reread && a.canReread()) a.reread();
-      pR(a);
-    }
-    return mD;    
+    if (reread && a.canReread()) a.reread();
+    pR(a);
+    return true;    
   }
 
   Bool pR(ByteStreamReader & bs) {
-    if (mD) {
-      DebugUtils du;
-      du.print(bs);
-    }
-    return mD;    
+    DebugUtils du;
+    du.print(bs);
+    return true;    
   }
 
   Bool dieTrue(String msg) {
@@ -125,6 +113,7 @@ quark QDebugUtils {
   }
 
   Void die(String msg) { dieTrue(msg); }
+
   Void die() { dieTrue(); }
 
 }
