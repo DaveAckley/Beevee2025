@@ -1,4 +1,4 @@
-{440}  -*-  mode: text; fill-column: 50;  -*-
+{459}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -6025,3 +6025,318 @@ checkpoint of all this stuff..
 :429]
 :428]
 :427]
+[440:
+
+Sat Mar 29 09:44:07 2025 OK, so another giant last
+minute hack, but now we have abstract class 'NAFI'
+=> 'Not A Forth Interpreter', and also 'AtomNAFI',
+which implements NAFI with a six item stack and a
+ten bit program counter.
+
+And there's an instance of AtomNAFI sitting NW of
+HTD8, waiting for something to be done with it.
+
+How can we just no problem kinda like use that
+AtomNAFI to drive HTD8 sequencing? Like make a box
+in software or something.
+
+Well let's fantasize. Why not? There's still over
+72 hours to T2sday.
+
+Let's make a function, like
+
+[function.fDRIVE_BOX_SPIKE]
+  doc = "'infinite' loop making a clockwise box"
+  code = [ tDRESS_LINE_FWD, tFORWARD_TO_TICK, tTURN_RIGHT_TO_TOCK, fDRIVE_BOX_SPIKE, oPOP_PC ]
+  
+[441:
+
+Sat Mar 29 12:25:16 2025 OK well I did some stuff
+to get to that, but we have to decide how to
+execute those 't-codes' in NAFI. At the moment
+they are just small unsigned numbers representing
+indices into cTRAKT_MOTORCMDS. So if we were
+willing to write a new per-TRAKt operator, we
+could do it. But it's uglier:
+
+    [function.fDRIVE_BOX_SPIKE]
+      doc = "'infinite' loop making a clockwise box"
+      code = [ tDRESS_LINE_FWD, oRUN_TRAKT,
+               tFORWARD_TO_TICK, oRUN_TRAKT,
+               tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
+               fDRIVE_BOX_SPIKE, oPOP_PC ]
+
+which I suppose isn't really that horrible.
+
+Let's nap on it.
+
+:441]
+
+:440]
+[442:
+
+Sat Mar 29 16:02:18 2025 OK, so we have oRUN_TRAKT
+getting called now, and what the hell is it
+supposed to do?[443:
+
+Sat Mar 29 19:11:29 2025 I think the idea is we're
+supposed to have oRUN_TRAKT run the donecode for
+the given tract, and just keep failing until it
+reports done, at which point the oRUN_TRAKT pops
+the stack and succeeds.
+
+We shall see. Post-dinner nap first.[444:
+
+Sat Mar 29 23:12:57 2025 Let's give it a
+  shot.[445:
+
+Sat Mar 29 23:33:43 2025 Building up
+AtomNAFI.runCode(..)... So I guess a main issue
+here is what's oRUN_TRAKT actual implementation?
+How does it find the relevant donecode, for
+example?
+
+[446:
+
+Sat Mar 29 23:38:46 2025 Yikes, we can actually
+stick decls and shit inside an impl!? I'd thought
+I made it like just a canned return expression,
+but the 'return' is in the impl too.
+
+Urrrrgh.. So, something like? -- 
+
+[operator.oRUN_TRAKT]
+  special=true
+  impl=''' // RUN TRAKT: stack is [TRAKT_NUM ...]
+      if (!s.pop(v[0])) $fail;      // v0 <- TN# [ ... ]
+      if (v[0] < 0) $fail;          // TRAKt are >= 0u
+      MotorCmd mc = makeMotorCmdForTRAKt((TRAKt) v[0]); // or fail
+      
+   && ..
+
+[447:
+
+Sat Mar 29 23:56:04 2025 But come on.. I think we
+could do this.. but shouldn't we bite the bullet
+and move all this code elsewhere and make this
+just --
+
+  impl='''return runTRAKtImpl(s,g,l,t)'''
+
+??
+[448:
+
+Sun Mar 30 00:07:58 2025 or maybe
+
+  impl='''return           // [ TN# ... ]
+      s.pop(v[0])          // v0 <- TN#, [ ... ]
+   && g.isCurrentTRAKt(v[0]) // out if not
+   && s.push(v[0])         // [TN# ... ]
+   && g.isTRAKtDone((Unsigned) v[0])
+   && s.pop(v[0])
+'''
+
+or something like that - that's too tricky - but
+something like that, to get at three cases I
+guess?
+
+ (1) if the current trakt isn't us, do what?
+ (2) if we're current and done, do what?
+ (3) if we're current and not done, leave us on
+     the stack
+
+all of which is failing to deal with the fact that
+the PC already incremented before we got called,
+so if we want to go again next time, we have to
+decrement it, as well as leaving the stack alone..
+
+How do we externalize failure?
+
+(A) return false - but that's inband 
+(B) actually Fail.fail(..) - that's a big hammer
+(C) call fFAIL, let it deal with it?
+
+return false + PC de-incremented == fail?
+return false + PC incremented == op returned false?
+return true + PC de-incremented == go again?
+return true + PC incremented == move on?
+
+[449:
+
+Sun Mar 30 00:31:48 2025 Wait, again. 'op
+returning false' is represented by pushing 0 on
+the stack and returning true.. so returning false
+might not be an inband signal?
+
+ if current trakt isn't us, return false // 'fail'
+ if our trakt is done, return true // move on
+ if our trakt is not done, --pc, return true // go again
+
+[450:
+
+Sun Mar 30 00:38:15 2025 Is there any chance we
+want to say 'if the current trakt isn't us, just
+change the fucking current trakt to us'? Very
+top-down, sounds bad.. But who knows.
+
+Have to get something running first.
+[451:
+
+Sun Mar 30 00:57:37 2025 OK, so we made
+
+    [operator.oRUN_TRAKT]
+      special=true
+      impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff... ]
+          return s.getPC(v[0])          // v0 <- pc + 1 
+              && s.pop(v[1])            // v1 <- TN, stack [ stuff... ]
+              && t.isCurrentTRAKt(v[1]) // assert
+              && ( s.isTRAKtDone(v[1])  // move on, stack [ stuff... ]
+                || ( s.setPC(v[0] - 1)  // or back up PC
+                  && s.push(v[0])       // reset stack [TN stuff... ]
+                   )
+                 )
+      '''
+
+which is indeed too tricky, but seems vaguely
+plausible. To try it we need
+  Bool TRAKTor.isCurrentTRAKt(Int tn)
+and
+  Bool NAFI.isTRAKtDone(Int tn, GTCC & g, LOCZ & l, TRAKtor & t)
+
+[452:
+
+Sun Mar 30 01:59:06 2025 Running out of gas here
+again, but thinking oRUN_TRAKT should have two
+main functions:
+
+ (1) If the TRAKtor is READY, run the current TRAKt
+ (2) If the TRAKtor is RUN, check if the current
+ TRAKt is done...
+
+..but isn't that already happening? The MotorCmd
+done code already gets evaluated.. where?[453:
+
+Sun Mar 30 02:01:36 2025 In
+TRAKtor.isThisTRAKtDone(..), which is called by
+TRAKtor.isTRAKtDone(..), as well as three places in
+HTD8, like:
+
+        // Square up, then decide what to do
+        pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te));
+        if (!t.isThisTRAKtDone(g, l, tFIND_LINE_RIGHT)) {
+          l.mPosValid[0] = false;      // XXX SPIKE
+          l.mPosValid[1] = false;      // XXX SPIKE
+          l.mSpeed8Valid = false; 
+          return (Void) t.startTRAKt(tFIND_LINE_RIGHT);
+        }
+
+and I guess that idea, such as it was, is what I'm
+trying to recreate with oRUN_TRAKT and such.[454:
+
+Sun Mar 30 02:07:37 2025 But that kind of
+'convergent' sequencing - while great for
+maintaining hierarchical invariants - isn't
+sufficient for also taking the deliberate
+non-linear ACT, like turning right.
+
+Right? Or is it?
+
+If we can wrap up all the invariant violations
+under a single TRAKt, then when it's done we can
+just come back around to the invariants.
+
+But then after that dammit we have to do a
+different TRAKt, not just turn right again. And
+that's in fact where we are/were currently stuck
+using the old methodd.
+
+And the key change in the new method is that,
+after a little visit from Mr. State, we now have
+the PC (in AtomNAFI specifically), which will
+advance from trakt to trakt for us, over long long
+periods of time, if we can just figure out how.
+[455:
+
+Sun Mar 30 02:23:25 2025 So that might say that if
+the traktor is READY (, and the previous trakt was
+us,?) then we leave the trakt popped and succeed.
+But if the traktor is RUN (, and the current trakt
+is us) we check if it's done.. ugh no..
+
+Let's suppose we only come through here on ready.
+(Perhaps notifications could run some alternate
+function against the same stack?) Then the most
+basic idea is that 'foo oRUN_TRAKT' should just
+pop the stack, do startTRAKt(foo), and succeed,
+leaving the PC incremented: Move On.
+
+And I guess we could make it so that if the
+traktor is RUN, we leave the stack alone, back up
+the PC, and let ourselves be run again later.
+
+And that's it? Just that for starters? All we want
+from it is the sequencing?
+
+Maybe.
+[456:
+
+Sun Mar 30 02:49:02 2025 Keep thinking we want it
+to change trakts to us if RUN is not doing our
+current trakt.. because all this particular stuff
+is about making our dreams come true in an
+uncertain world.. trying to converge the world
+onto us, not the reverse.. we shall see.
+
+:456]
+
+:455]
+But I think we're looking at second sleep, here,
+first. 
+
+:454]
+
+:453]
+
+:452]
+:451]
+
+:450]
+
+:449]
+
+:448]
+:447]
+      
+
+:446]
+
+:445]
+
+:444]
+
+:443]
+
+:442]
+[457:
+
+Sun Mar 30 12:01:11 2025 OK now it seems like
+'the' problem is we need a way to tell the
+interpreter that we want to block for now, and try
+again later. That is neither a fail return nor a
+normal return.
+
+I guess the hack I'd been imagining was have the
+interpreter check if the PC had been backed up,
+and use that as a blocked signal. Which isn't
+really right but could handle the current case.
+
+At least, the AtomNAFI interpreter could think
+that. For the Function interpreter, I don't know.. 
+
+:457]
+[458:
+
+Wed Apr  2 02:33:32 2025 OK, past t2sup 3160.
+Doing a checkpoint commit.
+
+:458]
