@@ -203,40 +203,6 @@ quark TRAKtor + DTU + CodeMethods {
     return nameOfTRAKt(mTRAKt);
   }
 
-  /** FIX ME
-  constant Function cCLOK_PRED_FUNCS[] = {
-    { .mOpIndex = FunctionOps.cPROP_CMP_NE,
-      .mArgIndices = { 
-  };
-  */
-  /*
-  // BASE COMPLETENESS PREDICATES PER TRAKT
-  constant CLOKPredicates cBASE_CLOK_PREDS[TRAKt.maxof + 1u] = {
-
-    {                                //< 0: tFIND_LINE_LEFT
-      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
-      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
-    },
-
-    {                                //< 1: tFIND_LINE_RIGHT
-      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
-      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
-    },
-
-    {                                //< 2: tTUNE_LINE
-      .mFP = { .mEQ=0u, .mCS=cCLOK_NONE },  //< true on cCLOK_TICK or cCLOK_TOCK
-      .mRP = { .mEQ=0u, .mCS=cXCLOK_NOTA }, //< always true
-      .mXD = 25u,                           // Center within +-25 of 127
-    },
-
-    ///// MUST BE LAST
-    {                           //< lastdefined+1..maxof: tEMERGENCY_STOP
-      .mFP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
-      .mRP = { .mEQ=1u, .mCS=cXCLOK_NOTA }, //< always false
-    },
-  };
-  */
-
   MotorCmd makeCurrentMotorCmd() {
     MotorCmd mc = makeMotorCmdForTRAKt(mTRAKt);
     mc.takeDebug(self);
