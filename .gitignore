@@ -2,5 +2,6 @@
 *.mfz
 *.tgz
 *-hold
+*-hold[0-9]
 *ISH-BUILD*
 .gen
