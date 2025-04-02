@@ -2,6 +2,7 @@ all:	code
 
 code:	makescripts
 	make -C code
+	date
 
 clean:	FORCE
 	make -C code clean
