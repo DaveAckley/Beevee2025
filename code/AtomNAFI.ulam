@@ -1,0 +1,124 @@
+quark ItemZ(Unsigned cBITS_PER_ITEM,Unsigned cMAX_OPS) + CodeConstants {
+
+  typedef Int(cBITS_PER_ITEM) Item;
+  Item mItem;
+
+  constant Int cMAX_OP_VAL = cMIN_OP_VAL + cMAX_OPS;
+
+  Bool read(Int & result) {     // always succeeds
+    result = 
+      (mItem > cMAX_OP_VAL) ?
+      (Int) mItem :             // literal memory
+      cMIN_OP_VAL + mItem;      // value offset to op region
+    return true;
+  }
+
+  Bool write(Int newval) {      // fails if doesn't fit
+    if (newval > cMIN_OP_VAL && newval <= cMAX_OP_VAL) {
+      mItem = (Item) (newval - cMIN_OP_VAL);
+      return true;
+    }
+    if (newval > cMAX_OP_VAL && newval <= Item.maxof) {
+      mItem = (Item) newval;
+      return true;
+    }
+    return false;
+  }
+}
+
+quark IndexableSoftStack : NAFI {
+  //// IndexableSoftStack API
+  // Not ready for prime time: virtual Unsigned getStackFF() ;
+}
+
+quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8u) cSTACK_SIZE) : IndexableSoftStack {
+  constant Unsigned cSTACK_SIZE_BITS =
+    ((cSTACK_SIZE <= Unsigned(3u).maxof)  ? 3u :
+    ((cSTACK_SIZE <= Unsigned(4u).maxof)  ? 4u :
+    ((cSTACK_SIZE <= Unsigned(5u).maxof)  ? 5u :
+    ((cSTACK_SIZE <= Unsigned(6u).maxof)  ? 6u :
+    ((cSTACK_SIZE <= Unsigned(7u).maxof)  ? 7u :
+     8u
+     )))));
+    
+  typedef ItemZ(cBITS_PER_ITEM,cMAX_OPS) MyItem;
+  typedef Unsigned(cSTACK_SIZE_BITS) MyIndex;
+  MyItem mStack[cSTACK_SIZE];
+  MyIndex mStackFF = 0u;
+
+  //// NAFI API
+  @Override virtual Unsigned stackSize() { return cSTACK_SIZE; }
+  @Override virtual Bool isEmpty() { return mStackFF == 0u; }
+  @Override virtual Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
+  @Override virtual Bool push(FOC op) {
+    if (!isFull()) 
+      return mStack[mStackFF++].write(op);
+    return false;
+  }
+
+  @Override Bool pop(FOC & op) {
+    if (!isEmpty()) {
+      mStack[--mStackFF].read(op);
+      return true;
+    }
+    return false;
+  }
+
+  @Override Bool printStackTo(ByteStreamWriter & bsw) {
+    bsw.print(" <-");
+    Bool first = true;
+    for (Int i = (Int) mStackFF; --i >= 0; ) {
+      if (first) first = false;
+      else bsw.print(" ");
+      Int s;
+      mStack[i].read(s);
+      String n = nameOfOperatorOrNull(s); // try op first
+      //if (!(Bool) n) n = nameOfFunctionOrNull(s); // then try func
+      if ((Bool) n) {
+        bsw.print(n);
+      }
+      bsw.print("#");
+      bsw.print(s);             // include decimal anyway
+    }
+    bsw.print("<-");
+    return true;
+  }
+}
+
+@Concrete
+element AtomNAFI : IndexableSoftStackT(9u,100u,6u)
+                 + ProgramCounter {
+  typedef Unsigned(10) MyPC;
+  MyPC mPC;
+
+  //// PROGRAMCOUNTER API
+  @Override Bool getPC(Unsigned & curpc) {
+    curpc = mPC;
+    return true;
+  }
+
+  @Override Bool setPC(Unsigned newpc) {
+    if (newpc <= mPC.maxof) {
+      mPC = (MyPC) newpc;
+      return true;
+    }
+    return false;
+  }
+
+  //// ATOMNAFI SERVICES
+  Bool evalTilBlocked(GTCC & g, LOCZ & l, TRAKtor & t, SN empsn) {
+    Unsigned count = 0u;
+    while (true) {
+      Int lastpc;
+      if (!getPC(lastpc)) return false;
+      if (!evaluateOperator(self,g,l,t)) return false;
+      Int nextpc;
+      if (!getPC(nextpc)) return false;
+      if (lastpc == nextpc) break; // SPIKE: no pc change -> blocked
+      ++count;
+    }
+    if (count > 0u) pRStack("EVTIBL")&&pR(count);
+    return true;
+  }
+}
+

@@ -1,5 +1,7 @@
 quark TRAKtorDriver + DTU + Fail + QDebugUtils {
   //// TRAKtorDriver API
+  virtual Void resetTD() ;
+
   typedef Unsigned TRAKtorEvent;
   constant TRAKtorEvent cTKTR_FAIL = 0u;
   constant TRAKtorEvent cTKTR_READY = 1u;

@@ -62,7 +62,9 @@ element GTCC : HOpUnary + Grip + Fail {
     }
 
     /// RUN OFFLINE TIMER
-    if (mNewCloks[0] != GreyClok.cCLOK_NONE) mHardOfflineFrontTimer.reset();
+    MotorCmd mc = mStateMachine.makeCurrentMotorCmd();
+    if (!mc.mSpeedNotWheel || mLastCloks[0] != GreyClok.cCLOK_NONE) // if in wheel mode or on the line
+      mHardOfflineFrontTimer.reset();                               // then no offline count
     else {
       if (speed == Int.maxof || speed < 0) speed = 1; // WTF? Assume super slow?
       Random random;

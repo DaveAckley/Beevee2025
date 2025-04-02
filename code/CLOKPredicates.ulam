@@ -39,7 +39,8 @@ transient CLOKPredicates + DTU + QDebugUtils {
   }
 }
 
-quark CLOKConstants + FunctionOpCodes {
+/*
+quark CLOKConstants + DTU {
 
   ////// STANDARD CLOKPREDICATES
   constant Unsigned cCLOKPRED_TRUE = 0u;           //< always true
@@ -123,60 +124,6 @@ quark CLOKConstants + FunctionOpCodes {
 
   };
 
-  /*
-  typedef FunctionBlock(8u) CLOKFunction;
-  constant CLOKFunction cBASE_CLOK_FUNCTIONS[] = {
-
-    // 0: cCLOKPRED_TRUE - always true
-    {
-      .mOps = { 1, cFOC_DONE }            // immediate 1
-    },
-
-    // 1: cCLOKPRED_FALSE - always false
-    {
-      .mOps = { 0, cFOC_DONE, }            // immediate 0
-    },
-
-    // 2: cCLOKPRED_FRONT_EDGE - true on front tick or front tock
-    {
-      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_NE, cFOC_DONE } // front NE none
-    },
-
-    // 3: cCLOKPRED_REAR_EDGE
-    {    
-      .mOps = { cFOC_CLOK_REAR, cCLOK_NONE, cFOC_CMP_NE, cFOC_DONE } // rear NE none
-    },
-
-    // 4: cCLOKPRED_FRONT_INVALID
-    {    
-      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_EQ, cFOC_DONE } // front EQ none
-    },
-
-    // 5: cCLOKPRED_REAR_INVALID
-    {    
-      .mOps = { cFOC_CLOK_REAR, cCLOK_NONE, cFOC_CMP_EQ, cFOC_DONE } // rear EQ none
-    },
-
-    // 6: cCLOKPRED_EDGE_TUNED - front edge + small dev
-    {
-      .mOps = { cFOC_CLOK_FRONT, cCLOK_NONE, cFOC_CMP_NE, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE  } // front NE none & grey <= 25
-    },
-
-    // 7: cCLOKPRED_LINE_TUNED - small dev
-    {
-      .mOps = { cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_DONE  } //  grey <= 25
-    },
-
-    // 8: cCLOKPRED_LINE_DRESSED_FWD - rear eq front + small dev
-    {
-      .mOps = { cFOC_CLOK_REAR, cFOC_CLOK_FRONT, cFOC_CMP_EQ, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE } // rear EQ none & grey <= 25
-    },
-
-    // 9: cCLOKPRED_LINE_DRESSED_REV - rear ne front + small dev
-    {
-      .mOps = { cFOC_CLOK_REAR, cFOC_CLOK_FRONT, cFOC_CMP_NE, cFOC_GREY_CDEV, 25, cFOC_CMP_LE, cFOC_AND, cFOC_DONE } // rear EQ none & grey <= 25
-    },
-
-  };
-  */
 }
+*/
+

@@ -1,0 +1,118 @@
+quark ProgramCounter + Fail {
+  //// ProgramCounter API
+  virtual Bool getPC(Unsigned & curpc) ;
+  virtual Bool setPC(Unsigned newpc) ;
+
+  //// ProgramCounter SERVICES
+  Bool getPC(Int &intpc) {
+    Unsigned pc;
+    if (!getPC(pc)) return false;
+    if (pc > (Unsigned) Int.maxof) return false; // yeahright
+    intpc = (Int) pc;
+    return true;
+  }
+
+  Bool setPC(Int intpc) {
+    if (intpc < 0) fail(__FILE__,__LINE__,__FUNC__);
+    return setPC((Unsigned) intpc);
+  }
+  Unsigned getPCOrDie() {
+    Unsigned ret;
+    if (!getPC(ret)) fail(__FILE__,__LINE__,__FUNC__);
+    return ret;
+  }
+  Void setPCOrDie(Unsigned newpc) {
+    if (!setPC(newpc)) fail(__FILE__,__LINE__,__FUNC__);
+  }
+}
+
+quark PCUnsigned : ProgramCounter {
+  Unsigned mPC;
+  @Override Bool getPC(Unsigned & curpc) {
+    curpc = mPC;
+    return true;
+  }
+  @Override Bool setPC(Unsigned newpc) {
+    mPC = newpc;
+    return true;
+  }
+}
+
+/** Not A Forth Interpreter
+ * Abstract base class for stack-based interpreters
+ */
+quark NAFI + ProgramCounter + CodeMethods {
+  //// NAFI API
+  virtual Unsigned stackSize() ;
+  virtual Bool isEmpty() ;
+  virtual Bool isFull() ;
+  virtual Bool push(FOC op) ;
+  virtual Bool pop(FOC & op) ;
+  virtual Bool printStackTo(ByteStreamWriter & bsw) ;
+  //  virtual Bool readRAM(Int addr, Int & res) ; just use CodeConstants' for now
+  virtual Bool getPC(Unsigned & curpc) ;
+  virtual Bool setPC(Unsigned newpc) ;
+
+  //// NAFI SERVICES
+  Bool pRStack(String msg) {
+    ByteStreamLogger bsl;
+    bsl.printf("%s:",msg);
+    Unsigned pc;
+    if (getPC(pc))
+      bsl.printf("%d@",pc);
+    else
+      bsl.printf("--@");
+    Bool ret = printStackTo(bsl);
+    if (!ret) bsl.printf(" XXX");
+    bsl.printf("\n");
+    return ret;
+  }
+
+  Bool push(Bool b) { return push(b ? 1 : 0); }
+
+  Bool push(Unsigned u) {
+    if (u > (Unsigned) FOC.maxof) return false;
+    return push((FOC) u);
+  }
+
+  Bool evalOp(Int op, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+    if (evaluateThisOperatorOnly(op,self,g,l,t)) {
+      return pop(result);
+    }
+    return false;
+  }
+
+  Bool evalFunction(Int initpc, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+    mD&&pR("EVFN10")&&pR(initpc)&&pR(nameOfFunction(initpc));
+    if (!setPC(initpc))
+      return false;
+    Int v;
+    if (!readRAM(initpc,v)) return false;
+    mD&&pR("EVFN11")&&pR(v);
+    if (v != oENTER) return false;
+    push(1);                    // fake return address
+    mD&&pR("EVFN12")&&pR(nameOfOperator(v));
+
+    Unsigned pc;
+    while (evaluateOperator(self,g,l,t) && getPC(pc) && pc > 1u) { // pc == 1: returned to top level
+      mD&&pRStack("EVN13")&&pR(pc);
+    }
+    mD&&pRStack("EVFN14")&&pR(pc);
+    if (pc == 1u) {
+      pop(result);
+      mD&&pR("EVFN15")&&pR(result);
+      return true;
+    } // else evaluateOperator failed
+    mD&&pRStack("EVFN16")&&pR(self);
+    return false;
+  }
+
+  Int clampImmed(Int in) {
+    if (in < cFOC_MIN_IMMEDIATE) return cFOC_MIN_IMMEDIATE;
+    if (in > cFOC_MAX_IMMEDIATE) return cFOC_MAX_IMMEDIATE;
+    return in;
+  }
+}
+
+
+

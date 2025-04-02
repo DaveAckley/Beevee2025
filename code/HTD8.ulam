@@ -1,10 +1,94 @@
+transient HTD8State + DTU {
+  SN mGTCCSN = SN.maxof;
+  SN mLOCZSN = SN.maxof;
+  SN mNAFISN = SN.maxof;
+  SN mEMPSN = SN.maxof;
+
+  Bool findComponents() {
+    EventWindow ew;
+    MinXPick gsnpick, lsnpick, nsnpick, emppick;
+    for (SN sn = 1u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a is Empty) emppick.update(sn);
+      else if (a is GTCC) gsnpick.update(sn);
+      else if (a is LOCZ) lsnpick.update(sn);
+      else if (a is AtomNAFI) nsnpick.update(sn);
+    }
+    if (gsnpick.hasPick()) mGTCCSN = gsnpick.getIdxSN();
+    if (lsnpick.hasPick()) mLOCZSN = lsnpick.getIdxSN();
+    if (nsnpick.hasPick()) mNAFISN = nsnpick.getIdxSN();
+    if (emppick.hasPick()) mEMPSN = emppick.getIdxSN();
+    return
+      mGTCCSN != SN.maxof &&
+      mLOCZSN != SN.maxof &&
+      mNAFISN != SN.maxof &&
+      mEMPSN != SN.maxof;
+  }
+
+}
+
 /** spike traktor driver test: CW border patrol
    \symbol D8
    \color #0d8
  */
 @Concrete
-element HTD8 : TermHiddenIO + TRAKtorDriver {
-  Bool mTurnInProgress = false;
+element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
+  Bool mResetRequested = false;
+  
+  // TRAKtorDriver API
+  @Override Void resetTD() {
+    pR("!HTD8 RESET REQUEST!");
+    mResetRequested = true;
+  }
+
+  Bool runCode() {
+    HTD8State d8s;
+    if (!d8s.findComponents()) return false;
+    EventWindow ew;
+    GTCC & g = (GTCC &) ew[d8s.mGTCCSN];
+    LOCZ & l = (LOCZ &) ew[d8s.mLOCZSN];
+    TRAKtor & t = (TRAKtor &) g.mStateMachine;
+    AtomNAFI & n = (AtomNAFI &) ew[d8s.mNAFISN];
+    return n.evalTilBlocked(g,l,t,d8s.mEMPSN);
+  }
+
+  @Override Void behave() {
+    mD&&pR("HTD8BEHAVE10");
+
+    if (mResetRequested) {
+      mResetRequested = false; // whether we find components or not?
+      HTD8State d8s;
+      if (d8s.findComponents()) {
+        EventWindow ew;
+        pR(">>>SELL THE HOUSE SELL THE CAR SELL THE KIDS");
+        ew[d8s.mNAFISN] = Empty.instanceof; // reboot mind
+      }
+      return;
+    }
+
+    //// SPIKE BUILD AN ATOMNAFI TO PLAY WITH
+    mD&&pR("HTD8BEHAVE11");
+
+    EventWindow ew;
+    constant SN asn = 5u; // above and btwn GTCC and HTD8
+    if (ew.isAccessible(asn)) {
+      if (!ew[asn] is AtomNAFI) {
+        AtomNAFI an;
+        //        an.setPC(fDRIVE_BOX_SPIKE); // MAKE A BOX DEMO
+        //        an.setPC(fDRIVE_TO_ORIGIN); // WAHOO LOCALIZATION BEGIN!
+        an.setPC(fFACE_EAST_SPIKE); // run face east demo
+        ew[asn] = an;
+        return;
+      }
+    }
+    
+    if (runCode()) {
+      fail(__FILE__,__LINE__,"RUNCODE FAILED");
+    }
+
+    return super.behave();
+  }
 
   @Override RouteDir getHiddenRouteDir(XBlock & gs) {
     return cNONE_TO_NONE;
@@ -12,7 +96,7 @@ element HTD8 : TermHiddenIO + TRAKtorDriver {
 
   @Override Void notify(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
     TRAKtor.TRAKtorState tstate = t.mTRAKtorState;
-    pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
+    mD&&pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
     which (tstate) {
       case TRAKtor.cTKST_RESET: { return; } // not our business
       case TRAKtor.cTKST_READY: { return notifyReady(g,l,t,te); } 
@@ -26,44 +110,73 @@ element HTD8 : TermHiddenIO + TRAKtorDriver {
     pR("D8NTFY12NOTREACHED")&&pR(self);
   }
 
+  /*
+  Void notifyReadySPIKE(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+
+    mD&&pR("notifyReadySPIKE11");
+    AtomNAFI & an = (AtomNAFI&) ew[asn];
+    if (an.getPCOrDie() == 0u) {
+      Bool old = mD;
+      mD = true;
+
+      mD&&pR(__FUNC__)&&pR(nameOfTRAKtorEvent(te))&&pR(an);
+
+      mD&&an.pRStack("notifyReadySPIKE12");
+      Int result;
+      Bool ef = an.evalFunction(fDRIVE_BOX_SPIKE, result, g, l, t); // SPIKE
+
+      mD&&an.pRStack("notifyReadySPIKE13")&&pR(ef)&&pR(result);
+      mD = false;
+      //fail(__FILE__,__LINE__,"MY GOD WHAT HAVE I DONE?");
+    }
+    mD&&an.pRStack("notifyReadySPIKE14");
+  }
+  */
+
   Void notifyReady(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+    /*
+    if (false) {                 // XXX SPIKE CODE MOVED
+      notifyReadySPIKE(g,l,t,te);
+      return;
+    } 
+    
     l.mPosValid[0] = false;     // XXX SPIKE
 
     // Square up, then decide what to do
     pR("D8NTFYRDY10")&&pR(nameOfTRAKtorEvent(te));
-    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) {
+    if (!t.isThisTRAKtDone(g, l, tFIND_LINE_RIGHT)) {
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
       l.mSpeed8Valid = false; 
-      return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
+      return (Void) t.startTRAKt(tFIND_LINE_RIGHT);
     }
 
     pR("D8NTFYRDY11");
-    if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
+    if (!t.isThisTRAKtDone(g, l, tTUNE_LINE)) {
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
       l.mSpeed8Valid = false; 
-      return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
+      return (Void) t.startTRAKt(tTUNE_LINE);
     }
 
     pR("D8NTFYRDY1110");
     if (!mTurnInProgress) {
       pR("D8NTFYRDY12>>DRIVE_SLOW");
-      t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
+      t.startTRAKt(tDRIVE_SLOW);
       l.mPos[0] = 0u;             // XXX SPIKE
       l.mPosValid[0] = true;      // XXX SPIKE
       return;
     } else { // mTurnInProgess: Do what? READY while turninprogress?
       pR("D8NTFYRDY14")&&pR(g);
-      if (t.isThisTRAKtDone(g, l, TRAKtor.cTRA_DRESS_LINE_FWD)) {
+      if (t.isThisTRAKtDone(g, l, tDRESS_LINE_FWD)) {
         /// Are we on tick or tock now?
-        TRAKtor.TRAKt trakt =
+        TRAKt trakt =
           g.mNewCloks[0] == GreyClok.cCLOK_TICK ?
-          TRAKtor.cTRA_TURN_LEFT_TO_TOCK :
-          TRAKtor.cTRA_TURN_LEFT_TO_TICK;
+          tTURN_RIGHT_TO_TOCK :
+          tTURN_RIGHT_TO_TICK;
         // per esa request, WAS:
-        //          TRAKtor.cTRA_TURN_RIGHT_TO_TOCK :
-        //          TRAKtor.cTRA_TURN_RIGHT_TO_TICK;
+          //          tTURN_LEFT_TO_TOCK :
+          //          tTURN_LEFT_TO_TICK;
         t.startTRAKt(trakt);
         mTurnInProgress = true;
         l.mSpeed8Valid = false; 
@@ -71,11 +184,12 @@ element HTD8 : TermHiddenIO + TRAKtorDriver {
       } else {
         pR("D8NTFYRDY16")&&pR("XXX NOW WHAT?")&&pR(">>> DRIVE SLOW?");
         pR("D8NTFYRDY17>>DRIVE_SLOW");
-        t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
+        t.startTRAKt(tDRIVE_SLOW);
         l.mSpeed8Valid = false; 
         mTurnInProgress = false;
       }
     }
+    */
   }
 
   Unsigned(6) mTileCountSpike;
@@ -86,9 +200,10 @@ element HTD8 : TermHiddenIO + TRAKtorDriver {
       l.mPos[0]++;     // XXX SPIKE
     }
 
+    /*
     if (te == cTKTR_RED_PREWARN_SET) {
       pR("D8NFRUN11");
-      if (t.switchTRAKt(TRAKtor.cTRA_DRIVE_FAST,TRAKtor.cTRA_DRIVE_SLOW))
+      if (t.switchTRAKt(tDRIVE_FAST,tDRIVE_SLOW))
         return;
       pR("D8NFRUN12");
     } else if (te == cTKTR_RED_WARN_SET) {
@@ -96,11 +211,12 @@ element HTD8 : TermHiddenIO + TRAKtorDriver {
       if (!mTurnInProgress) {
         pR("D8NFRUN14");
         mTurnInProgress = true;
-        t.switchTRAKt(TRAKtor.cTRA_DRIVE_SLOW,TRAKtor.cTRA_DRESS_LINE_FWD);
+        t.switchTRAKt(tDRIVE_SLOW,tDRESS_LINE_FWD);
         return;
       } //else ignore
       pR("D8NFRUN15");
     }
+    */
     pR("D8NFRUN16");
   }
 }

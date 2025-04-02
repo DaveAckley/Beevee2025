@@ -7,7 +7,7 @@ local typedef XBarSpace2D GripSource; //< What grid we are built to live in..
 quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
 
   BVBrainStem mBS;
-  Bool(3) mSenseVert = false;   // default is sense horiz
+  //KILLKILL  Bool(3) mSenseVert = false;   // default is sense horiz
 
   //// TAP API
 

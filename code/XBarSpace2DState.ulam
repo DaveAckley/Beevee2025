@@ -142,12 +142,12 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
       mD&&pR("XBSBNEW13")&&pR(xb)&&pR(mMinTap)&&pR(hasTAP);
 
       //// SET SYMMETRY IF HASTAP
-      if (hasTAP) {
+      if (false /*hasTAP*/) {
+        /*
         TAP & tap = (TAP&) ew[mMinTap.getIdxSN()];
         xb.mSymmetry = (tap.mSenseVert ? cXSV : cXSH);
 
         /// ALSO SET ORIGINATING mTaps
-        /*
         {
           C2D absc = xb.getPos2D();
           mD&&pR("NEWXBSBNEW10")&&pR(absc);
@@ -168,7 +168,7 @@ transient XBarSpace2DState : LocalSpaceRect2DState {
             mD&&pR("NEWXBSBNEW12")&&pR(ad)&&pR(isinput);
           }
           }*/
-        mD&&pR("XBSBNEW14")&&pR(tap)&&pR(xb);      
+        //        mD&&pR("XBSBNEW14")&&pR(tap)&&pR(xb);      
         
       } else {
         

@@ -735,6 +735,8 @@ element {n} : {n}_BASE + FourWaySlots {{
         for k,v in ops.items():
             if not v.get('impl'):
                 v['impl'] = f'return native_{k}(s,g,t,l)'
+            if not v.get('special'):
+                v['special'] = False
             eprint(f"DIDIMPL {k},{v}")
 
     def analyzeTRAKtInfoFor(self,t,vals):
@@ -774,12 +776,11 @@ element {n} : {n}_BASE + FourWaySlots {{
         trakts = ccfg.getRequiredSection('trakt')
         self.traktList = []      # name, ..
         self.traktMap = {}       # name -> {stuff}
-        self.codeOps = {}        # name -> ??
+# ?? PASTERROR        self.codeOps = {}        # name -> ??
         for k,v in trakts.items():
             self.analyzeTRAKtInfoFor(k,v)
         eprint(f"MTKIN10 {self.traktMap}")
 
-            
     def generateTRAKts(self):
         print(f'''
   typedef Unsigned(5) TRAKt; //< traktor act codes
@@ -808,6 +809,8 @@ element {n} : {n}_BASE + FourWaySlots {{
     return ret;
   }}
 ''')        
+
+    def generateTRAKtMotorCmds(self):
         print(f'''\
   //// CONSTANT MotorCmd DECLARATIONS
   constant MotorCmd cTRAKT_MOTORCMDS[cTRA_TRAKTNUM_COUNT] = {{''')
@@ -845,13 +848,21 @@ element {n} : {n}_BASE + FourWaySlots {{
 
     def generateCode(self):
         print(f'''
-quark CodeConstants + DTU + Fail + QDebugUtils {{''')
+quark CodeConstants + DTU + Fail {{''')
         self.generateRam()
         self.generateFuncAddrs()
         self.generateOps()
         self.generateTRAKts()
         print(f'''
 }} // CodeConstants
+''')
+
+        print(f'''
+quark CodeMethods : CodeConstants + QDebugUtils {{''')
+        self.generateTRAKtMotorCmds()
+        self.generateOpEvals()
+        print(f'''
+}} // CodeMethods
 ''')
 
     def generateRam(self):
@@ -889,21 +900,27 @@ quark CodeConstants + DTU + Fail + QDebugUtils {{''')
   }}''')
 
     def isSpecialOp(self,op):
-        return op == 'oCALL' or op == 'oENTER' or op == 'oRETURN'
+        ccfg = self.codeCfg
+        ops = ccfg.getRequiredSection('operator')
+        opc = ops[op]
+        return opc['special']
     
     def generateOps(self):
         ccfg = self.codeCfg
         ops = ccfg.getRequiredSection('operator')
 
+        opbound = -2000000000
         print(f'''
   //// OPERATORS
-  constant Int cMIN_OP_VAL = -2000000000;
+  constant Int cMIN_OP_VAL = {opbound};
         ''')
         last = 'cMIN_OP_VAL'
+        count = 0
         for k in ops:
             doc = self.codeOps.get(k,'')
-            print(f'''  constant Int {k:20} = {last+' + 1;':20}// {doc}''')
+            print(f'''  constant Int {k:20} = {last+' + 1;':20}// {count:3}/{opbound+count+1} {doc}''')
             last = k
+            count = count + 1
         print(f'''  constant Int oLAST_OP_USED = {last};''')
         print(f'''  //// END OPERATORS''')
 
@@ -928,22 +945,19 @@ quark CodeConstants + DTU + Fail + QDebugUtils {{''')
     return ret;
  }}''')
         
-        
         print(f'''
   Bool readRAM(Int addr, Int & res) {{
     if (addr < 0 || addr >= cRAM.lengthof) return false;
     res = cRAM[addr];
     return true;
-  }}
-
-  Bool setPC(Int & pc, Int newval) {{
-    if (newval < 0 || newval >= cRAM.lengthof) return false;
-    pc = newval;
-    return true;
   }}''')
+        
+    def generateOpEvals(self):
+        ccfg = self.codeCfg
+        ops = ccfg.getRequiredSection('operator')
         print(f'''
   //// OPERATOR EVAL
-  Bool evaluateThisOperatorOnly(Int o, Function & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
+  Bool evaluateThisOperatorOnly(Int o, NAFI & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
     mD&&pR("ETOPO10")&&pR(o);
     if (o >= cFOC_MIN_IMMEDIATE && o <= cFOC_MAX_IMMEDIATE) {{
       Bool ret = s.push(o);
@@ -968,17 +982,24 @@ quark CodeConstants + DTU + Fail + QDebugUtils {{''')
 
         print(f'''
   Bool isSpecialOp(Int o) {{
-    return o == oCALL ||
-           o == oENTER ||
-           o == oRETURN;
-  }}
-
-  Bool evaluateOperator(Int & pc, Function & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
-    mD&&pR("EVLOP10")&&pR(pc);
+    return ''')
+        first = "  "
+        for k,v in ops.items():
+            if v.get('special'):
+                print(f"      {first} o == {k}")
+                first = "||"
+        print(f'''      ;
+  }}''')
+        print(f'''
+  Bool evaluateOperator(NAFI & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
+    Unsigned curpc;
+    if (!s.getPC(curpc)) return false;
+    mD&&pR("EVLOP10")&&pR(curpc);
     Int v[3]; // temps
     Int o;
-    if (!readRAM(pc,o)) return false;
-    pc++;
+    if (!readRAM((Int) curpc,o)) return false;
+    if (!s.setPC(curpc + 1u)) return false;
+
     mD&&s.pRStack("EVLOP12")&&pR(nameOfOperator(o));
     /// handle 'special ops' here
     which(o) {{''')
@@ -994,6 +1015,15 @@ quark CodeConstants + DTU + Fail + QDebugUtils {{''')
     }}
     return false; // NOT REACHED
   }} // OPERATOR EVAL
+''')
+        print(f'''
+  Bool isTRAKtDone(Int tn, GTCC & g, LOCZ & l, TRAKtor & t) {{
+    if (tn < 0) fail(__FILE__,__LINE__);
+    MotorCmd mc = makeMotorCmdForTRAKt((TRAKt) tn);
+    Int result;
+    if (!mc.evalDoneCode(result,g,l,t)) fail(__FILE__,__LINE__);
+    return result != 0;
+  }} // isTRAKtDone
 ''')
         
 if __name__ == '__main__':

@@ -1,75 +1,86 @@
 # -*- mode: conf-toml; -*-
+# Tue Apr  1 07:49:10 2025 Clean up for NAFI debut
 # Wed Mar 26 11:53:16 2025 Move TRAKt definitions here
 # Mon Mar 24 01:05:16 2025 Try a wittle wanguage for code constants
 
 [Config]
 
-[trakt.cTRA_FIND_LINE_LEFT]
+[trakt.tFIND_LINE_LEFT]
   mSpeedLeft = 1 
   mSpeedRight = 3
   mDoneFunc = fCLOK_EDGE_FRONT
   
-[trakt.cTRA_FIND_LINE_RIGHT]
+[trakt.tFIND_LINE_RIGHT]
   mSpeedLeft = 3
   mSpeedRight = 1
   mDoneFunc = fCLOK_EDGE_FRONT
 
-[trakt.cTRA_TUNE_LINE]
+[trakt.tTUNE_LINE]
   mSpeedMin = 1
   mSpeedMax = 2
   mDoneFunc = fCLOK_EDGE_TUNED
 
-[trakt.cTRA_DRESS_LINE_FWD]
+[trakt.tDRESS_LINE_FWD]
   mSpeedMin = 1
   mSpeedMax = 3
   mDoneFunc = fSAME_EDGE
 
-[trakt.cTRA_DRESS_LINE_REV]
+[trakt.tDRESS_LINE_REV]
   mSpeedMin = -3
   mSpeedMax = -1
   mDoneFunc = fDIFF_EDGE
 
-[trakt.cTRA_TURN_LEFT_TO_TICK]
+[trakt.tTURN_LEFT_TO_TICK]
   mSpeedLeft = -2
   mSpeedRight = 1
   mDoneFunc = fCLOK_TICK_FRONT
 
-[trakt.cTRA_TURN_LEFT_TO_TOCK]
+[trakt.tTURN_LEFT_TO_TOCK]
   mSpeedLeft = -2
   mSpeedRight = 1
   mDoneFunc = fCLOK_TOCK_FRONT
 
-[trakt.cTRA_TURN_RIGHT_TO_TICK]
+[trakt.tTURN_RIGHT_TO_TICK]
   mSpeedLeft = 1
   mSpeedRight = -2
   mDoneFunc = fCLOK_TICK_FRONT
 
-[trakt.cTRA_TURN_RIGHT_TO_TOCK]
+[trakt.tTURN_RIGHT_TO_TOCK]
   mSpeedLeft = 1
   mSpeedRight = -2
   mDoneFunc = fCLOK_TOCK_FRONT
 
-[trakt.cTRA_FULL_STOP]
+[trakt.tFULL_STOP]
   mSpeedMin = 0
   mSpeedMax = 0
   mDoneFunc = fSTOPPED
 
-[trakt.cTRA_DRIVE_SLOW]
+[trakt.tDRIVE_SLOW]
   mSpeedMin = 8
   mSpeedMax = 20
   mDoneFunc = fSTOP_DRIVE_SLOW
 
-[trakt.cTRA_DRIVE_FAST]
+[trakt.tDRIVE_FAST]
   mSpeedMin = 8
   mSpeedMax = 50
   mDoneFunc = fSTOP_DRIVE_FAST
 
-[trakt.cTRA_ROLLING_STOP]
+[trakt.tROLLING_STOP]
   mSpeedMin = 3
   mSpeedMax = 4
   mDoneFunc = fDIFF_EDGE
 
-[trakt.cTRA_EMERGENCY_STOP]
+[trakt.tFORWARD_TO_TICK]
+  mSpeedMin = 4
+  mSpeedMax = 8
+  mDoneFunc = fCLOK_TICK_FRONT
+
+[trakt.tFORWARD_TO_TOCK]
+  mSpeedMin = 4
+  mSpeedMax = 8
+  mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.tEMERGENCY_STOP]
   mSpeedMin = 0
   mSpeedMax = 0
   mDoneFunc = fSTOPPED
@@ -135,6 +146,76 @@
   doc="done if hard offline, or red prewarning, or red warning"
   code = [ fSTOP_DRIVE_SLOW, oCALL, oRED_PRE_WARNING, oOR ]
 
+########### TRAKt FUNCTIONS (??) ############
+
+[function.fFACE_EAST]
+  doc = "Turn until big green"
+  code = [ fTURN_RIGHT_TICK, oCALL,           # fwd [...]
+           oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? [ BIGGREEN ... ]
+           fFACE_EAST, oGOTOZ,                # loop if not biggreen [...]
+           3, oSET_HEAD                       # report valid east heading; done [...]
+          ]
+
+[function.fFACE_EAST_SPIKE]
+  doc = "loop to test/demo FACE_EAST" 
+  code = [ fFACE_EAST, oCALL,
+           tDRIVE_SLOW, oRUN_TRAKT,
+           fTURN_LEFT_TICK, oCALL,
+           tDRESS_LINE_FWD, oRUN_TRAKT,       # some cleanup between back to back turns?
+           fTURN_LEFT_TICK, oCALL,
+           tDRIVE_SLOW, oRUN_TRAKT,
+           fFACE_EAST_SPIKE, oGOTO ]
+           
+[function.fTURN_RIGHT_TICK]
+  doc = "Turn right, maintaining heading if set"
+  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,      # fwd [...]
+           tDRESS_LINE_FWD, oRUN_TRAKT,       # prep [...]
+           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,   # turn [...]
+           1, oINCR_HEAD                      # advance heading CW if valid
+         ]
+
+[function.fTURN_LEFT_TICK]
+  doc = "Turn left, maintaining heading if set"
+  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,      # fwd [...]
+           tDRESS_LINE_FWD, oRUN_TRAKT,       # prep [...]
+           tTURN_LEFT_TO_TOCK, oRUN_TRAKT,    # turn [...]
+           -1, oINCR_HEAD                     # advance heading CW if valid
+         ]
+
+[function.fDRIVE_TO_ORIGIN]
+  doc = "Find SE 'corner' to declare a grid origin"
+  code = [ fFACE_EAST, oCALL,
+           tDRIVE_SLOW, oRUN_TRAKT,
+           0, oSET_XPOS, 
+           fTURN_RIGHT_TICK, oCALL,
+           tDRIVE_SLOW, oRUN_TRAKT,
+           0, oSET_YPOS
+          ]
+
+[function.fDRIVE_BOX_SPIKE]
+  doc = "'infinite' loop making a clockwise box"
+  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,
+           tDRESS_LINE_FWD, oRUN_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
+           fDRIVE_BOX_SPIKE, oGOTO ]
+
+[function.fDRIVE_BOX_SPIKE2]
+  doc = "'infinite' loop making a bigger clockwise box"
+  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,
+           tFORWARD_TO_TOCK, oRUN_TRAKT,
+           tFORWARD_TO_TICK, oRUN_TRAKT,
+           tDRESS_LINE_FWD, oRUN_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
+           fDRIVE_BOX_SPIKE2, oGOTO ]
+
+[function.fDRIVE_BORDER_RIGHT]
+  doc = "'infinite' loop making a clockwise box at the border"
+  code = [ tDRIVE_SLOW, oRUN_TRAKT,
+           tDRESS_LINE_FWD, oRUN_TRAKT, 
+           tFORWARD_TO_TICK, oRUN_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
+           fDRIVE_BORDER_RIGHT, oGOTO ]
+
 [constant.cTRUE] 
   value = 1
 
@@ -159,8 +240,41 @@
 [operator.oSWAP]
   impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[1]) && s.push(v[0])'
 [operator.oENTER]
+  special=true
   impl='return true'
+[operator.oGOTO]
+  special=true
+  impl=''' // UNCONDITIONAL GOTO: stack is [NEXTPC ...]
+      return //s.pRStack("RET=") &&   // DEBUG
+             s.pop(v[0])            // v0 <- nextpc
+          && s.setPC(v[0])          // jump there
+  '''
+[operator.oGOTOZ]
+  special=true
+  impl=''' // CONDITIONAL GOTO: stack is [IFZ NEXTPC ...]
+      return //s.pRStack("RET=") &&   // DEBUG
+             s.pop(v[0])              // v0 <- IFZ  [NEXTPC ...]
+          && s.pop(v[1])              // v1 <- NEXTPC  [...]
+          && s.getPC(v[2])            // v2 <- .+1
+          && (  v[0] != 0             // done if IFZ non-zero
+             || s.setPC(v[1])         // or jump to NEXTPC
+             )
+  '''
+
+[operator.oJUMPZ]
+  special=true
+  impl=''' // CONDITIONAL RELATIVE GOTO: stack is [PCOFFSET IFZ ...]
+      return //s.pRStack("RET=") &&   // DEBUG
+             s.pop(v[0])              // v0 <- PCOFFSET  [IFZ ...]
+          && s.pop(v[1])              // v1 <- condition  [...]
+          && s.getPC(v[2])            // v2 <- .+1
+          && (  v[1] != 0             // done if IFZ non-zero
+             || s.setPC(v[2]+v[0]-1)  // jump to .+offset
+             )
+  '''
+
 [operator.oRETURN]
+  special=true
   impl=''' // FUNCTION RETURN: stack is [RETVAL RETADDR ...]
       return //s.pRStack("RET=") &&   // DEBUG
              s.pop(v[0])            // v0 <- retval
@@ -168,24 +282,52 @@
           && readRAM(v[1] - 1,v[2]) // v2 <- cRAM[retaddr-1]
           && v[2] == oCALL          // [retaddr-1] is a call
           && s.push(v[0])           // restash retval
-          && setPC(pc,v[1])         // jump to retaddr
+          && s.setPC(v[1])          // jump to retaddr 
   '''
 [operator.oCALL]
+  special=true
   impl=''' // FUNCTION CALL: stack is [FUNCADDR ...]
       return s.pop(v[0])            // v0 <- funcaddr
           //&& s.pRStack(nameOfFunction(v[0])) // DEBUG
           && readRAM(v[0],v[1])     // v1 <- cRAM[funcaddr]
           && v[1] == oENTER         // calladdr is func entry point
-          && s.push(pc)             // save retaddr
-          && setPC(pc,v[0] + 1)     // jump to funcaddr + 1
+          && s.push(s.getPCOrDie()) // save retaddr
+          && s.setPC(v[0] + 1)      // jump to funcaddr + 1
   '''
+
+[operator.oRUN_TRAKT]
+  special=true
+  impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff.. ]
+      if (!s.getPC(v[0])) return false; // getpc or fail
+      if (!s.pop(v[1])) return false;   // pop TN or fail stack [ stuff.. ]
+      if (v[1] < 0) return false;       // TN unsigned or fail
+      if (t.startTRAKt((TRAKt) v[1]))   // try to start our trakt
+        return true;                    // MOVE ON (PC incrd; stack popped)
+      // TRAKtor not ready: Block here
+      if (!s.push(v[1])) return false;  // restore stack [ TN stuff.. ]
+      if (s.setPC(v[0] - 1)) return false;  // back up PC (implying BLOCKED)
+      return true;                      // TRY AGAIN (PC--; no stack change)
+  '''
+
+# [operator.oRUN_TRAKT_TRICKY]
+#   special=true
+#   impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff... ]
+#       return s.getPC(v[0])          // v0 <- pc + 1 
+#           && s.pop(v[1])            // v1 <- TN, stack [ stuff... ]
+#           && t.isCurrentTRAKt(v[1]) // assert
+#           && ( isTRAKtDone(v[1],g,l,t)  // move on, stack [ stuff... ]
+#             || ( s.setPC(v[0] - 1)  // or back up PC
+#               && s.push(v[0])       // reset stack [TN stuff... ]
+#                )
+#              )
+#   '''
 
 [operator.oHARD_OFFLINE_FRONT]
   impl='return s.push(g.mHardOfflineFrontTimer.alarm() ? 1 : 0)'
 [operator.oCLOK_FRONT]           # : { outs[0] = g.mNewCloks[0]; return true; } // front newclok
-  impl='return s.push(g.mNewCloks[0])'
+  impl='return s.push((Int) g.mNewCloks[0])'
 [operator.oCLOK_REAR]           # : { outs[0] = g.mNewCloks[1]; return true; } // rear newclok
-  impl='return s.push(g.mNewCloks[1])'
+  impl='return s.push((Int) g.mNewCloks[1])'
 [operator.oGREY_FCTR]           # : { outs[0] = g.mCenterGrey; return true; } // front center grey
   impl='return s.push(g.mCenterGrey)'
 [operator.oVALID_SPEED]           # : { outs[0] = l.mSpeed8Valid ? 1 : 0; return true; } // cur speed valid
@@ -196,6 +338,38 @@
   impl='return s.push(l.mHeadingValid ? 1 : 0)'
 [operator.oCUR_HEAD]           # : { outs[0] = l.mHeading; return true; } // cur heading
   impl='return s.push(l.mHeading)'
+[operator.oSET_HEAD] 
+  impl='''
+     if (!s.pop(v[0])) return false;
+     if (v[0] > 3) return false;
+     l.mHeadingValid = (v[0] >= 0); // negative heading means invalidate ugh
+     l.mHeading = (AxialDir) v[0];
+     return true
+  '''
+[operator.oINCR_HEAD]
+  doc='[CW ...] if mHeadingValid, increment mHeading clockwise if CW > 0 else CCW'
+  impl='''
+     if (!s.pop(v[0])) return false;
+     if (l.mHeadingValid) {
+       l.mHeading = adjacentAxialDir(l.mHeading, v[0] > 0);
+     }
+     return true
+  '''
+[operator.oSET_XPOS] 
+  impl='''
+     if (!s.pop(v[0])) return false;     // get x
+     l.mPosValid[0] = (v[0] >= 0);
+     if (l.mPosValid[0]) l.mPos[0] = (LOCZ.TileCount) v[0];
+     return true
+  '''
+[operator.oSET_YPOS] 
+  impl='''
+     if (!s.pop(v[0])) return false;     // get y
+     l.mPosValid[1] = (v[0] >= 0);
+     if (l.mPosValid[1]) l.mPos[1] = (LOCZ.TileCount) v[0];
+     return true
+  '''
+
 # Fri Mar 28 02:44:51 2025 Expose more LOCZ
 [operator.oRED_WARNING_TRACK]
   impl='return s.push(l.mWarningTrack)'
