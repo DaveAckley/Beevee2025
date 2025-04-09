@@ -675,22 +675,92 @@ element {n} : {n}_BASE + FourWaySlots {{
     def analyzeFunction(self,tok):  # function use
         if not self.codeFuncAddrs.get(tok):
             self.codeFuncAddrs[tok] = None
-            
+        if not self.codeFuncUses.get(tok):
+            self.codeFuncUses[tok] = []
+        self.codeFuncUses[tok].append(len(self.codeIntRam))
 
-    def analyzeToken(self,tok,funcinfo):
-        if funcinfo:
-            self.codeIntRam.append((tok,*funcinfo))
+    def analyzeLabelDef(self,tok):
+        if len(tok) < 2:
+            raise Exception(f"Null label {tok}")
+        label = tok[1:]
+        addr = len(self.codeIntRam)
+        if not self.labelDefs.get(label):
+            self.labelDefs[label] = addr
         else:
-            self.codeIntRam.append(tok)
+            raise Exception(f"Duplicate label '{tok}' at {self.labelDefs[label]} and {addr}")
+
+    def analyzeLabelUse(self,tok):
+        if len(tok) < 2:
+            raise Exception(f"Null label {tok}")
+        label = tok[1:]
+        addr = len(self.codeIntRam)
+        if not self.labelUses.get(label):
+            self.labelUses[label] = []
+        self.labelUses[label].append(addr)
+        # self.codeIntRam.append((label,"label reference"))
+        
+    def analyzeToken(self,tok,funcinfo):
+        append = True
         if type(tok)==int:
-            return
-        code = tok[0]
-        if code == 'c':
-            self.analyzeConstant(tok)
-        elif code == 'o':
-            self.analyzeOperator(tok)
-        elif code == 'f':
-            self.analyzeFunction(tok)
+            pass
+        else:
+            code = tok[0]
+            if code == 'c':
+                self.analyzeConstant(tok)
+            elif code == 'o':
+                self.analyzeOperator(tok)
+            elif code == 'f':
+                self.analyzeFunction(tok)
+            elif code == 'l':
+                self.analyzeLabelDef(tok)
+                append = False
+            elif code == 'a':
+                self.analyzeLabelUse(tok)
+            elif code == 't':       # trakt
+                pass
+            else:
+                raise Exception(f"Unrecognized token type '{code}' in '{tok}'")
+        if append:
+            if funcinfo:
+                self.codeIntRam.append((tok,*funcinfo))
+            else:
+                self.codeIntRam.append(tok)
+
+    def resolveLabels(self):
+        if len(self.labelDefs) == 0 and len(self.labelUses) == 0: return
+        for (label,uses) in self.labelUses.items():
+            defaddr = self.labelDefs.get(label)
+            if not defaddr: # make sure it's defined
+                raise Exception(f"Undefined label: {label} used at {uses}, not in {self.labelDefs}")
+            defcmt = f"def->{label}"
+            if type(self.codeIntRam[defaddr]) == tuple:
+                self.codeIntRam[defaddr] = (*self.codeIntRam[defaddr],defcmt)
+            else:
+                self.codeIntRam[defaddr] = (self.codeIntRam[defaddr],defcmt)
+            
+            for useaddr in uses:
+                eprint(f"{label} is {defaddr}")
+                usecmt = f"ref->{label}"
+                self.codeIntRam[useaddr] = (defaddr,usecmt)
+        eprint(f"FIXED UP {label} at {uses}")
+
+    def decorateFunctionDefs(self):
+        for (name,funcaddr) in self.codeFuncAddrs.items():
+            funcmt = f"FUNCTION: {name}"
+            self.decorateCode(funcaddr,funcmt)
+
+    def decorateFunctionUses(self):
+        for (name,uselist) in self.codeFuncUses.items():
+            funcaddr = self.codeFuncAddrs[name]
+            usecmt = f"@{funcaddr}"
+            for use in uselist:
+                self.decorateCode(use,usecmt)
+            
+    def decorateCode(self,addr,decoration):
+        if type(self.codeIntRam[addr]) == tuple:
+            self.codeIntRam[addr] = (*self.codeIntRam[addr],decoration)
+        else:
+            self.codeIntRam[addr] = (self.codeIntRam[addr],decoration)
 
     def analyzeCodeInfoFor(self,func,vals):
         eprint(f'ANCIF {func} {vals}')
@@ -701,24 +771,30 @@ element {n} : {n}_BASE + FourWaySlots {{
         self.codeFuncAddrs[func] = funcaddr
         first = (func,vals.get('doc',None))
         self.codeFunctions[func] = first[1]
-        self.analyzeToken('oENTER',first)
+        # ABANDON IMPLCIT ENTER/RETURN, WAS: self.analyzeToken('oENTER',first)
         last = None
+        self.labelDefs = {} # labelname -> absaddr
+        self.labelUses = {} # labelname -> [absaddr of refs to labelname]
         for tok in vals['code']:
             self.analyzeToken(tok,None)
-            last = tok
-        if last != 'oRETURN':
-            self.analyzeToken('oRETURN',('From',func))
+        # if last != 'oRETURN':
+        #    self.analyzeToken('oRETURN',('From',func))
+        self.resolveLabels()
         
     def mergeCodeInfo(self):
         ccfg = self.codeCfg
         funcs = ccfg.getRequiredSection('function')
-        self.codeIntRam = [('oCALL','fake for returning to top level')]  # list of code ints
+        self.codeIntRam = [('oCALL0','fake for returning to top level')]  # list of code ints
         self.codeFunctions = {}  # name -> doc
         self.codeFuncAddrs = {}  # name -> intramaddr
+        self.codeFuncUses = {}   # name -> [intramaddrs.. ]
         self.codeConstVals = {}  # name -> constval
         self.codeOps = {}        # name -> ??
         for k,v in funcs.items():
             self.analyzeCodeInfoFor(k,v)
+
+        self.decorateFunctionDefs()
+        self.decorateFunctionUses()
 
         eprint(f"EXPOC {self.codeIntRam}")
         eprint(f"EXPFAD {self.codeFuncAddrs}")
@@ -895,8 +971,8 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
         for k in self.codeFuncAddrs:
             print(f'''    if (funcaddr == {k}) return "{k}";''')
         print(f'''
-    String null;
-    return null;
+    String nullString;
+    return nullString;
   }}''')
 
     def isSpecialOp(self,op):
@@ -964,7 +1040,7 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
       mD&&s.pRStack("ETOPO11");
       return ret;
     }}
-    Int v[3]; // temps
+    Int v[10]; // temps 0..9
     mD&&pR("ETOPO12")&&pR(nameOfOperator(o));
     mD&&s.pRStack("ETOPO13");
     which(o) {{''')
@@ -995,9 +1071,10 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
     Unsigned curpc;
     if (!s.getPC(curpc)) return false;
     mD&&pR("EVLOP10")&&pR(curpc);
-    Int v[3]; // temps
+    Int v[10]; // temps 0..9
     Int o;
     if (!readRAM((Int) curpc,o)) return false;
+    (BeeveeParms.pNAFI_TRACING%2u == 1u)&&s.pRStack(nameOfOperator(o));
     if (!s.setPC(curpc + 1u)) return false;
 
     mD&&s.pRStack("EVLOP12")&&pR(nameOfOperator(o));

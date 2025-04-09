@@ -51,23 +51,32 @@ quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8
   @Override virtual Bool isEmpty() { return mStackFF == 0u; }
   @Override virtual Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
   @Override virtual Bool push(FOC op) {
-    if (!isFull()) 
-      return mStack[mStackFF++].write(op);
-    return false;
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/push")&&pR(op)&&pR(nameOfOperator(op));
+    Bool ret = false;
+    if (!isFull()) {
+      ret = mStack[mStackFF++].write(op);
+    }
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pushed")&&pR(ret);
+    return ret;
   }
 
   @Override Bool pop(FOC & op) {
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pop");
     if (!isEmpty()) {
       mStack[--mStackFF].read(op);
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/popped")&&pR(op)&&pR(nameOfOperator(op));
       return true;
     }
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pop failed");
     return false;
   }
 
   @Override Bool printStackTo(ByteStreamWriter & bsw) {
-    bsw.print(" <-");
+    //// WARNING! CANNOT CALL pRStack inside printStackTo! pRStack calls printStackTo!
+    bsw.print(" Ab[");
     Bool first = true;
-    for (Int i = (Int) mStackFF; --i >= 0; ) {
+    //    for (Int i = (Int) mStackFF; --i >= 0; ) {
+    for (Int i = -1; ++i < (Int) mStackFF; ) {
       if (first) first = false;
       else bsw.print(" ");
       Int s;
@@ -80,7 +89,7 @@ quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8
       bsw.print("#");
       bsw.print(s);             // include decimal anyway
     }
-    bsw.print("<-");
+    bsw.print("]t");
     return true;
   }
 }
@@ -94,14 +103,18 @@ element AtomNAFI : IndexableSoftStackT(9u,100u,6u)
   //// PROGRAMCOUNTER API
   @Override Bool getPC(Unsigned & curpc) {
     curpc = mPC;
+    //// WARNING! CANNOT CALL pRStack inside getPC! pRStack calls getPC!
+    //    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pR("NATR/getPC")&&pR(curpc);
     return true;
   }
 
   @Override Bool setPC(Unsigned newpc) {
     if (newpc <= mPC.maxof) {
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/setPC")&&pR(mPC)&&pR(newpc);
       mPC = (MyPC) newpc;
       return true;
     }
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/setPC failed")&&pR(mPC)&&pR(newpc);
     return false;
   }
 

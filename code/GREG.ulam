@@ -235,7 +235,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
    if (mMaxGreen > 50u && totg == 0u) {
      mEventCounter = 0u;
      mSpinCounter = 0u;
-     mMaxGreen = (MaxCount) (BeeveeParms.pGREEN_MAX_FRAC*mMaxGreen/100u); // reset to (parm%) of 'true max'
+     mMaxGreen = (MaxCount) (BeeveeParms.cGREEN_MAX_FRAC*mMaxGreen/100u); // reset to (parm%) of 'true max'
      mState = cSTATE_MARK1;
    } else {
      if (++mEventCounter == mEventCounter.maxof)
@@ -283,7 +283,7 @@ element GREG : HOpBinary + Grip + Fail {      // GREen Grip driver
        case GripInfoMap.cGRIP_TURNS: { quarterTurnsNeeded = 3u; }
        case GripInfoMap.cGRIP_TURNE: { quarterTurnsNeeded = 0u; }
      }
-     mSpinCounter = (SpinCounter) (quarterTurn * quarterTurnsNeeded + BeeveeParms.pEXTRA_SPINS50 - 50u);
+     mSpinCounter = (SpinCounter) (quarterTurn * quarterTurnsNeeded + BeeveeParms.cEXTRA_SPINS50 - 50u);
      mEventCounter = 0u;
      mState = cSTATE_MARK2;
    } else {

@@ -16,32 +16,41 @@ transient Function : NAFI {
   @Override Bool push(FOC op) {
     if (!isFull()) {
       mStack[mStackFF++] = op;
+      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/pushed");
       return true;
     }
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/pushFailedOn")&&pR(op)&& pR(nameOfOperator(op));
     return false;
   }
 
   @Override Bool pop(FOC & op) {
     if (!isEmpty()) {
       op = mStack[--mStackFF];
+      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/popped")&&pR(op)&&pR(nameOfOperator(op));
       return true;
     }
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/popFailed");
     return false;
   }
 
   @Override Bool getPC(Unsigned & curpc) {
     curpc = mPC;
+    //// WARNING! CANNOT CALL pRStack inside getPC! pRStack callsg etPC!
+    //(BeeveeParms.pNAFI_TRACING>=2u)&&pR("NATR/getPC")&&pR(curpc);
     return true;
   }
   @Override Bool setPC(Unsigned newpc) {
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/setPC")&&pR(mPC)&&pR(newpc);
     mPC = newpc;
     return true;
   }
 
   @Override Bool printStackTo(ByteStreamWriter & bsw) {
-    bsw.print(" <");
+    //// WARNING! CANNOT CALL pRStack inside printStackTo! pRStack calls printStackTo!
+    bsw.print(" Fb[");
     Bool first = true;
-    for (Int i = (Int) mStackFF; --i >= 0; ) {
+    //    for (Int i = (Int) mStackFF; --i >= 0; ) {
+    for (Int i = -1; ++i < (Int) mStackFF; ) {
       if (first) first = false;
       else bsw.print(" ");
       Int s = mStack[i];
@@ -53,7 +62,7 @@ transient Function : NAFI {
       bsw.print("#");
       bsw.print(s);             // include decimal anyway
     }
-    bsw.print("<");
+    bsw.print("]t");
     return true;
   }
 

@@ -3,7 +3,7 @@
     \copyright 2025 LCF
     \license GPL-3
     \symbol S
-    \version 259
+    \version 260
  */
 element S + DTU + QDebugUtils {
   EventWindow ew;

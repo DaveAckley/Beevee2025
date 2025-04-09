@@ -28,7 +28,8 @@
   taps.N=[GTCC, HTD8]  # get a TRAKtorDriver into GTCC-LOCZ metro area
   taps.E=[LOCZ]
   axons=[[GTCC,TRAKPD],
-         [LOCZ,LZRV]]
+         [LOCZ,LZRV],
+         [HTD8,DLRV]]
 
 [xblock.GREEN]
   stride=[3,1]
@@ -73,4 +74,11 @@
   pos=[-5,-6]
   #originSN=7
   taps.N=[LZRV]
+  taps.E=[_]
+
+[xblock.DBGLINE]
+  stride=[2,2]
+  pos=[-5,9]
+  #originSN=7
+  taps.S=[DLRV]
   taps.E=[_]

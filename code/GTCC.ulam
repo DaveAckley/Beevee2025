@@ -7,6 +7,13 @@ element GTCC : HOpUnary + Grip + Fail {
   //SpikeLeft mStateMachine;
   //Corral mStateMachine;
   TRAKtor mStateMachine;
+  typedef RXTimer(4u,15u,2u) SMTimer;
+  SMTimer mTimerForStateMachine; 
+
+  Void setSMTimer(Unsigned u) { mTimerForStateMachine.set((SMTimer.Counter) u); }
+  Unsigned getSMTimer() { return mTimerForStateMachine.current(); }
+  Bool isSMTimerDone() { return mTimerForStateMachine.alarm(); }
+  Bool incrSMTimer() { return mTimerForStateMachine.countAlarm(); }
 
   typedef Unsigned(XBarSpace2D.cGRIPBITS) MyGripVal;
   MyGripVal mLastGrip = MyGripVal.maxof;

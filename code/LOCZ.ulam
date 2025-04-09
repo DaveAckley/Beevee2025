@@ -16,7 +16,7 @@ quark LOCZExtn {
   typedef Unsigned(2) ExtendedFormat;
   constant ExtendedFormat cSIGEXT_HEAD = 0u; //< current heading (0..3 or invalid if greater)
   constant ExtendedFormat cSIGEXT_STAT = 1u; //< current state (unimplemented)
-  constant ExtendedFormat cSIGEXT_RSV2 = 2u;
+  constant ExtendedFormat cSIGEXT_WARN = 2u; //< current warning flags (0none, 1pre, 2warn, 3both)
   constant ExtendedFormat cSIGEXT_RSV3 = 3u;
   ExtendedFormat mExtFmt;
 
@@ -175,6 +175,22 @@ element LOCZ : HOpUnary + Fail {
     return true;
   }
 
+  Bool maybeMakeWarnCode(ASCII & val) {
+    LOCZSigData s;
+    s.mExtn.mExtFmt = LOCZExtn.cSIGEXT_WARN;
+    Bits(4) flags = 0u;
+    if (mPreWarning) flags |= 1u;
+    if (mWarningTrack) flags |= 2u;
+    s.mExtn.mExtData = (LOCZExtn.ExtData) flags;
+
+    LOCZPacket p;
+    p.mSignal.mSigFmt = LOCZSignal.cSIGFMT_EXTN;
+    p.mSignal.mSigData.mData = s.mData;
+    val = p.mData;
+
+    return true;
+  }
+
   Bool maybeMakeSpeedCode(ASCII & val) {
     LOCZPacket p;
     p.mSignal.mSigFmt = LOCZSignal.cSIGFMT_CSP8;
@@ -186,12 +202,14 @@ element LOCZ : HOpUnary + Fail {
 
   Bool maybeMakeRandomSig(ASCII & val) {
     Random random;
-    Int x = random.between(0,3);
+    Int x = random.between(0,5);
     which (x) {
     case 0: { return maybeMakePosCode(0,val); }
     case 1: { return maybeMakePosCode(1,val); }
     case 2: { return maybeMakeHeadingCode(val); }
     case 3: { return maybeMakeSpeedCode(val); }
+    case 4: { return maybeMakeWarnCode(val); }
+    otherwise: { /* else don't make sig */ }
     }
     return false;
   }
@@ -238,9 +256,9 @@ element LOCZ : HOpUnary + Fail {
     if (mGreenLevel >= 2u) {
       mHeadingValid = true;
       mHeading = cE;
-    } else {
+    } /*else {  // XXX DONT INVALIDATE SINCE NAFI WANTS TO CONTROL IT
       mHeadingValid = false;
-    }
+      }*/
     
     /// SEND A SIGNAL IF WE CAN
     {

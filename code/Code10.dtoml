@@ -1,9 +1,76 @@
 # -*- mode: conf-toml; -*-
+# Sat Apr  5 00:25:10 2025 Big funcall redo
 # Tue Apr  1 07:49:10 2025 Clean up for NAFI debut
 # Wed Mar 26 11:53:16 2025 Move TRAKt definitions here
 # Mon Mar 24 01:05:16 2025 Try a wittle wanguage for code constants
 
 [Config]
+
+[trakt.tBLOCK_FOR_SMTIMER]
+  mSpeedLeft = 0
+  mSpeedRight = 0
+  mDoneFunc = fINCR_TIMER_CHECK
+
+[trakt.tFIND_EAST_RIGHT]
+  mSpeedLeft = 3
+  mSpeedRight = -4
+  mDoneFunc = fEAST_AND_ON_LINE
+
+[trakt.tFIND_EAST_LEFT]
+  mSpeedLeft = -4
+  mSpeedRight = 3
+  mDoneFunc = fEAST_AND_ON_LINE
+
+[function.fEAST_AND_ON_LINE]
+  code=[ oENTER0,
+         oGREEN_LEVEL, 2, oCMP_GE,
+         fCLOK_EDGE_FRONT, oCALL0,
+         oAND,
+         oRETURN1
+       ]
+
+[function.fDO_TRAKT]
+  doc="run a trakt and wait till it's done"
+  code=[ oENTER1,          # stack [... TN ]
+         oSTART_TRAKT,     # stack [...]
+         oWAIT_READY,     
+         oRETURN0
+       ]
+
+[function.fINCR_TIMER_CHECK]
+  code=[ oENTER0, oINCR_SMTIMER, oRETURN1 ]
+
+[operator.oSET_SMTIMER]
+  impl='''
+      // stack is [ COUNT, stuff.. ]
+      if (!s.pop(v[0])) return false;   // v[0] <- COUNT or fail, stack [ stuff.. ]
+      mD&&s.pRStack("oSET_SMTIMER10=")&&pR(v[0]);  // DEBUG
+      if (v[0] < 0) return false;       // Need non-neg!
+      g.setSMTimer((Unsigned) v[0]);
+      return true; 
+'''
+
+[operator.oGET_SMTIMER]
+  impl='''
+      // stack is [ stuff.. ]
+      v[0] = (Int) g.getSMTimer();    // v[0] <- SMCOUNTER
+      mD&&s.pRStack("oGET_SMTIMER10=")&&pR(v[0]);  // DEBUG
+      if (!s.push(v[0])) return false;  // stack [ SMCOUNTER, stuff.. ]
+      return true; 
+'''
+
+[operator.oIS_SMTIMER_DONE]
+  impl='''
+      // stack is [ stuff.. ]
+      return !s.push(g.isSMTimerDone() ? 1 : 0);  // stack [ SMTIMERDONE, stuff.. ]
+'''
+
+[operator.oINCR_SMTIMER]
+  impl='''
+      // stack is [ stuff.. ]
+      return s.push(g.incrSMTimer() ? 1 : 0);  // stack [ SMTIMERDONE, stuff.. ]
+'''
+
 
 [trakt.tFIND_LINE_LEFT]
   mSpeedLeft = 1 
@@ -22,11 +89,11 @@
 
 [trakt.tDRESS_LINE_FWD]
   mSpeedMin = 1
-  mSpeedMax = 3
+  mSpeedMax = 4
   mDoneFunc = fSAME_EDGE
 
 [trakt.tDRESS_LINE_REV]
-  mSpeedMin = -3
+  mSpeedMin = -4
   mSpeedMax = -1
   mDoneFunc = fDIFF_EDGE
 
@@ -55,6 +122,11 @@
   mSpeedMax = 0
   mDoneFunc = fSTOPPED
 
+[trakt.tROLLING_STOP]
+  mSpeedMin = 1
+  mSpeedMax = 4
+  mDoneFunc = fROLLING_STOPPED
+
 [trakt.tDRIVE_SLOW]
   mSpeedMin = 8
   mSpeedMax = 20
@@ -64,11 +136,6 @@
   mSpeedMin = 8
   mSpeedMax = 50
   mDoneFunc = fSTOP_DRIVE_FAST
-
-[trakt.tROLLING_STOP]
-  mSpeedMin = 3
-  mSpeedMax = 4
-  mDoneFunc = fDIFF_EDGE
 
 [trakt.tFORWARD_TO_TICK]
   mSpeedMin = 4
@@ -88,133 +155,231 @@
 
 [function.fTRUE]
   doc="always true"
-  code = [ 1 ]
+  code = [ oENTER0, 1, oRETURN1 ]
 
 [function.fFALSE]
   doc="always false"
-  code = [ 0 ]
+  code = [ oENTER0, 0, oRETURN1 ]
 
 [function.fOFFLINE_FRONT]
   doc="true on front not tick and not tock"
-  code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_EQ ]
+  code = [ oENTER0, oCLOK_FRONT, cCLOK_NONE, oCMP_EQ, oRETURN1 ]
 
 [function.fHARD_OFFLINE_FRONT]
   doc="true on front not tick and not tock for quite a consecutive while"
-  code = [ oHARD_OFFLINE_FRONT ]
+  code = [ oENTER0, oHARD_OFFLINE_FRONT, oRETURN1 ]
 
 [function.fCLOK_TICK_FRONT]
   doc="true on front tick"
-  code = [ oCLOK_FRONT, cCLOK_TICK, oCMP_EQ ]
+  code = [ oENTER0, oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, oRETURN1 ]
 
 [function.fCLOK_TOCK_FRONT]
   doc="true on front tock"
-  code = [ oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ ]
+  code = [ oENTER0, oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, oRETURN1 ]
 
 [function.fCLOK_EDGE_FRONT]
   doc="true on front tick or front tock"
-  code = [ oCLOK_FRONT, cCLOK_NONE, oCMP_NE ]
+  code = [ oENTER0, oCLOK_FRONT, cCLOK_NONE, oCMP_NE, oRETURN1 ]
 
 [function.fCLOK_EDGE_REAR]
   doc="true on rear tick or rear tock"
-  code = [ oCLOK_REAR, cCLOK_NONE, oCMP_NE ]
+  code = [ oENTER0, oCLOK_REAR, cCLOK_NONE, oCMP_NE, oRETURN1 ]
 
 [function.fSMALL_GREY_DEV]
   doc="true on small deviation, meaning 128+-25 == 103..153"
-  code = [ oGREY_FCTR, oDUP, 153, oCMP_LE, oSWAP, 103, oCMP_GE, oAND ]
+  code = [ oENTER0, oGREY_FCTR, oDUP, 153, oCMP_LE, oSWAP, 103, oCMP_GE, oAND, oRETURN1 ]
 
 [function.fCLOK_EDGE_TUNED]
   doc="true on front edge and small deviation"
-  code = [ fCLOK_EDGE_FRONT, oCALL, fSMALL_GREY_DEV, oCALL, oAND ]
+  code = [ oENTER0, fCLOK_EDGE_FRONT, oCALL0, fSMALL_GREY_DEV, oCALL0, oAND, oRETURN1 ]
 
 [function.fSAME_EDGE]
   doc="true if front and back on tick or tock"
-  code = [ fCLOK_EDGE_FRONT, oCALL, oCLOK_REAR, oCLOK_FRONT, oCMP_EQ, oAND ]
+  code = [ oENTER0, fCLOK_EDGE_FRONT, oCALL0, oCLOK_REAR, oCLOK_FRONT, oCMP_EQ, oAND, oRETURN1 ]
 
 [function.fDIFF_EDGE]
   doc="true if front and back on tick and tock or tock and tick"
-  code = [ fCLOK_EDGE_FRONT, oCALL, fCLOK_EDGE_REAR, oCALL, oAND, oCLOK_REAR, oCLOK_FRONT, oCMP_NE, oAND ]
+  code = [ oENTER0, fCLOK_EDGE_FRONT, oCALL0, fCLOK_EDGE_REAR, oCALL0, oAND, oCLOK_REAR, oCLOK_FRONT, oCMP_NE, oAND, oRETURN1 ]
 
 [function.fSTOPPED]
   doc="true if valid speed is 0"
-  code = [ oVALID_SPEED, oCUR_SPEED, 0, oCMP_EQ, oAND ]
+  code = [ oENTER0, oVALID_SPEED, oCUR_SPEED, 0, oCMP_EQ, oAND, oRETURN1 ]
+
+[function.fROLLING_STOPPED]
+  doc="true if over an edge and valid speed is at most 4"
+  code = [ oENTER0, fDIFF_EDGE, oCALL0, oVALID_SPEED, oAND, oCUR_SPEED, 4, oCMP_LE, oAND, oRETURN1 ]
 
 [function.fSTOP_DRIVE_SLOW]
   doc="done if hard offline, or red warning"
-  code = [ oHARD_OFFLINE_FRONT, oRED_WARNING_TRACK, oOR ]
+  code = [ oENTER0, oHARD_OFFLINE_FRONT, oRED_WARNING_TRACK, oOR, oRETURN1 ]
 
 [function.fSTOP_DRIVE_FAST]
   doc="done if hard offline, or red prewarning, or red warning"
-  code = [ fSTOP_DRIVE_SLOW, oCALL, oRED_PRE_WARNING, oOR ]
+  code = [ oENTER0, fSTOP_DRIVE_SLOW, oCALL0, oRED_PRE_WARNING, oOR, oRETURN1 ]
 
 ########### TRAKt FUNCTIONS (??) ############
 
-[function.fFACE_EAST]
-  doc = "Turn until big green"
-  code = [ fTURN_RIGHT_TICK, oCALL,           # fwd [...]
-           oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? [ BIGGREEN ... ]
-           fFACE_EAST, oGOTOZ,                # loop if not biggreen [...]
-           3, oSET_HEAD                       # report valid east heading; done [...]
+# [function.fFACE_EAST]
+#   doc = "Turn until big green"
+#   code = [ oENTER0,
+
+#           lLOOP,                              # define label loop
+#            fTURN_RIGHT_TICK, oCALL0,          # fwd [...]
+#            oWAIT_READY                        # til turn complete
+#            oGREEN_LEVEL, 2, oCMP_GE,          # [ ... green 2 ] green >= 2? [ ... BIGGREEN ]
+#            aLOOP, oGOTOZ,                     # loop if not biggreen [...]
+
+#            3, oSET_HEAD,                      # report valid east heading; done [...]
+#            oRETURN0                           # done
+#           ]
+
+# [function.fFACE_EAST_SPIKE]
+#   doc = "loop to test/demo FACE_EAST" 
+#   code = [ oENTER0,
+#          lLOOP,
+#            fFACE_EAST, oCALL0,
+#            tDRIVE_SLOW, oSTART_TRAKT,
+#            fTURN_LEFT_TICK, oCALL0,
+#            tDRESS_LINE_FWD, oSTART_TRAKT,       # some cleanup between back to back turns?
+#            fTURN_LEFT_TICK, oCALL0,
+#            tDRIVE_SLOW, oSTART_TRAKT,
+#            aLOOP, oGOTO,
+#            oRETURN0           ## NOT REACHED
+#            ]
+           
+[function.fWAIT_A_WHILE]
+  doc = "delay for rxtimer ARG time"
+  code = [ oENTER1,           # stack is [... ARG]
+           oSET_SMTIMER,     # stack is [...]
+           tBLOCK_FOR_SMTIMER, fDO_TRAKT, oCALL1,
+           oRETURN0
+          ]
+           
+
+[function.fDRIVE_TO_ORIGIN11]
+  doc = "nth attempt to drive to origin"
+  code = [ oENTER0,
+           5, fWAIT_A_WHILE, oCALL1,   # Wait for axons etc on startup!
+
+         lFACE_EAST_LOOP,
+
+           tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,    # try to start sane
+           fFWD_TO_TICK, oCALL0,                   # and straighten our shoulders
+           tFIND_EAST_LEFT, fDO_TRAKT, oCALL1,     # spin ccw for east
+           fFWD_TO_TICK, oCALL0,                   # and restraighten our shoulders
+
+         #   fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
+         #   oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? => [ BIGGREEN ... ]
+         #   aFACE_EAST_LOOP, oGOTOZ,           # loop back to fTURN_RIGHT_TICK if !BIGGREEN
+
+           # DRIVE SLOW EAST
+           tDRIVE_SLOW, fDO_TRAKT, oCALL1,      # else (is BIGGREEN, so) drive slow
+           tROLLING_STOP, fDO_TRAKT, oCALL1,    # make sure we just don't fly through here
+           tDRESS_LINE_REV, fDO_TRAKT, oCALL1,  # back up when drive slow ends
+
+           # TURN WEST TO CLEAR RED WARNING
+           fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
+           fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]      
+
+           # TURN SOUTH AND DRIVE
+           fTURN_LEFT_TICK, oCALL0,           # fwd, dress, left [...]
+           tDRIVE_SLOW, oSTART_TRAKT,         # drive slow
+           tROLLING_STOP, fDO_TRAKT, oCALL1,  # again, don't fly through here
+           tDRESS_LINE_REV, fDO_TRAKT, oCALL1,  # back up when drive slow ends
+
+           # SET ORIGIN
+           0, oSET_XPOS,                      # declare origin when 
+           0, oSET_YPOS,                      # 2nd drive slow bails
+
+           # TURN WEST
+           fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
+           oWAIT_READY,  # ?? shouldn't need?
+
+          lDIAGO,
+           fTURN_RIGHT_TICK, oCALL0,          # TURN NORTH
+           fTURN_LEFT_TICK, oCALL0,           # TURN WEST
+           oWAIT_READY,  # ?? shouldn't need?
+           aDIAGO, oGOTO,                     # and loop
+
+           aFACE_EAST_LOOP, oGOTO,        # then try again? FSD I ask you: what next?
+
+           oRETURN0   ## NOT REACHED
           ]
 
-[function.fFACE_EAST_SPIKE]
-  doc = "loop to test/demo FACE_EAST" 
-  code = [ fFACE_EAST, oCALL,
-           tDRIVE_SLOW, oRUN_TRAKT,
-           fTURN_LEFT_TICK, oCALL,
-           tDRESS_LINE_FWD, oRUN_TRAKT,       # some cleanup between back to back turns?
-           fTURN_LEFT_TICK, oCALL,
-           tDRIVE_SLOW, oRUN_TRAKT,
-           fFACE_EAST_SPIKE, oGOTO ]
-           
+[function.fFWD_TO_TICK]
+  doc = "Go forward, maintaining pos if heading is set"
+  code = [ oENTER0,
+           tFORWARD_TO_TICK, fDO_TRAKT, oCALL1, # fwd [...]
+           oINCR_POS,                           # advance pos if heading valid
+           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,  # prep [...]
+           oRETURN0                             # no return value
+         ]
+
 [function.fTURN_RIGHT_TICK]
   doc = "Turn right, maintaining heading if set"
-  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,      # fwd [...]
-           tDRESS_LINE_FWD, oRUN_TRAKT,       # prep [...]
-           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,   # turn [...]
-           1, oINCR_HEAD                      # advance heading CW if valid
+  code = [ oENTER0,
+           fFWD_TO_TICK, oCALL0,
+           tTURN_RIGHT_TO_TOCK, fDO_TRAKT, oCALL1,   # turn [...]
+           1, oINCR_HEAD,                     # advance heading CW if valid
+           oRETURN0                           # no return value
          ]
 
 [function.fTURN_LEFT_TICK]
   doc = "Turn left, maintaining heading if set"
-  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,      # fwd [...]
-           tDRESS_LINE_FWD, oRUN_TRAKT,       # prep [...]
-           tTURN_LEFT_TO_TOCK, oRUN_TRAKT,    # turn [...]
-           -1, oINCR_HEAD                     # advance heading CW if valid
+  code = [ oENTER0,
+           fFWD_TO_TICK, oCALL0,
+           tTURN_LEFT_TO_TOCK, fDO_TRAKT, oCALL1,    # turn [...]
+           -1, oINCR_HEAD,                    # advance heading CCW if valid
+           oRETURN0
          ]
 
-[function.fDRIVE_TO_ORIGIN]
-  doc = "Find SE 'corner' to declare a grid origin"
-  code = [ fFACE_EAST, oCALL,
-           tDRIVE_SLOW, oRUN_TRAKT,
-           0, oSET_XPOS, 
-           fTURN_RIGHT_TICK, oCALL,
-           tDRIVE_SLOW, oRUN_TRAKT,
-           0, oSET_YPOS
-          ]
+# [function.fDRIVE_TO_ORIGIN]
+#   doc = "Find SE 'corner' to declare a grid origin"
+#   code = [ oENTER0,
+#            fFACE_EAST, oCALL0,
+#            tDRIVE_SLOW, oSTART_TRAKT,
+#            0, oSET_XPOS, 
+#            fTURN_RIGHT_TICK, oCALL0,
+#            tDRIVE_SLOW, oSTART_TRAKT,
+#            0, oSET_YPOS,
+#            oRETURN0
+#           ]
 
 [function.fDRIVE_BOX_SPIKE]
   doc = "'infinite' loop making a clockwise box"
-  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,
-           tDRESS_LINE_FWD, oRUN_TRAKT,
-           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
-           fDRIVE_BOX_SPIKE, oGOTO ]
+  code = [ oENTER0,
+         lLOOP,
+           tFORWARD_TO_TICK, oSTART_TRAKT,
+           tDRESS_LINE_FWD, oSTART_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
+           aLOOP, oGOTO,
+           oRETURN0   ## NOT REACHED
+           ]
 
 [function.fDRIVE_BOX_SPIKE2]
   doc = "'infinite' loop making a bigger clockwise box"
-  code = [ tFORWARD_TO_TICK, oRUN_TRAKT,
-           tFORWARD_TO_TOCK, oRUN_TRAKT,
-           tFORWARD_TO_TICK, oRUN_TRAKT,
-           tDRESS_LINE_FWD, oRUN_TRAKT,
-           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
-           fDRIVE_BOX_SPIKE2, oGOTO ]
+  code = [ oENTER0,
+          lLOOP,
+           tFORWARD_TO_TICK, oSTART_TRAKT,
+           tFORWARD_TO_TOCK, oSTART_TRAKT,
+           tFORWARD_TO_TICK, oSTART_TRAKT,
+           tDRESS_LINE_FWD, oSTART_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
+           aLOOP, oGOTO,
+           oRETURN0 ## NOT REACHED
+           ]          
 
 [function.fDRIVE_BORDER_RIGHT]
   doc = "'infinite' loop making a clockwise box at the border"
-  code = [ tDRIVE_SLOW, oRUN_TRAKT,
-           tDRESS_LINE_FWD, oRUN_TRAKT, 
-           tFORWARD_TO_TICK, oRUN_TRAKT,
-           tTURN_RIGHT_TO_TOCK, oRUN_TRAKT,
-           fDRIVE_BORDER_RIGHT, oGOTO ]
+  code = [ oENTER0,
+          lLOOP,
+           tDRIVE_SLOW, oSTART_TRAKT,
+           tDRESS_LINE_FWD, oSTART_TRAKT, 
+           tFORWARD_TO_TICK, oSTART_TRAKT,
+           tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
+           aLOOP, oGOTO,
+           oRETURN0 ## NOT REACHED
+           ]
 
 [constant.cTRUE] 
   value = 1
@@ -239,32 +404,56 @@
   impl='return s.pop(v[0])'
 [operator.oSWAP]
   impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[1]) && s.push(v[0])'
-[operator.oENTER]
+[operator.oENTER0]
+  doc="Start a function taking 0 arguments"
+  special=true
+  impl='return true'
+[operator.oENTER1]
+  doc="Start a function taking 1 argument"
+  special=true
+  impl='return true'
+[operator.oENTER2]
+  doc="Start a function taking 2 arguments"
+  special=true
+  impl='return true'
+[operator.oENTER3]
+  doc="Start a function taking 3 arguments"
   special=true
   impl='return true'
 [operator.oGOTO]
   special=true
-  impl=''' // UNCONDITIONAL GOTO: stack is [NEXTPC ...]
+  impl=''' // UNCONDITIONAL ABSOLUTE GOTO: stack is [NEXTPC ...]
       return //s.pRStack("RET=") &&   // DEBUG
              s.pop(v[0])            // v0 <- nextpc
           && s.setPC(v[0])          // jump there
   '''
 [operator.oGOTOZ]
   special=true
-  impl=''' // CONDITIONAL GOTO: stack is [IFZ NEXTPC ...]
-      return //s.pRStack("RET=") &&   // DEBUG
-             s.pop(v[0])              // v0 <- IFZ  [NEXTPC ...]
-          && s.pop(v[1])              // v1 <- NEXTPC  [...]
+  impl=''' // CONDITIONAL ABSOLUTE GOTO: stack is [NEXTPC IFZ ...]
+      return s.pRStack("IN oGOTOZ=") &&   // DEBUG
+             s.pop(v[0])              // v0 <- NEXTPC  [IFZ ...]
+          && s.pop(v[1])              // v1 <- IFZ  [...]
           && s.getPC(v[2])            // v2 <- .+1
-          && (  v[0] != 0             // done if IFZ non-zero
-             || s.setPC(v[1])         // or jump to NEXTPC
+          && (  (v[1] != 0             // done if IFZ non-zero
+               && s.pRStack("NO JUMP OUT oGOTOZ="))
+             || (s.setPC(v[0])         // or jump to NEXTPC
+              && s.pRStack("JUMP OUT oGOTOZ="))
              )
+  '''
+
+[operator.oJUMP]
+  special=true
+  impl=''' // UNCONDITIONAL RELATIVE GOTO: stack is [PCOFFSET ...]
+      return s.pRStack("oJUMP=") &&   // DEBUG
+             s.pop(v[0])              // v0 <- PCOFFSET  [ ...]
+          && s.getPC(v[1])            // v2 <- .+1
+          && s.setPC(v[1]+v[0]-1)  // jump to .+offset
   '''
 
 [operator.oJUMPZ]
   special=true
   impl=''' // CONDITIONAL RELATIVE GOTO: stack is [PCOFFSET IFZ ...]
-      return //s.pRStack("RET=") &&   // DEBUG
+      return s.pRStack("oJUMPZ=") &&   // DEBUG
              s.pop(v[0])              // v0 <- PCOFFSET  [IFZ ...]
           && s.pop(v[1])              // v1 <- condition  [...]
           && s.getPC(v[2])            // v2 <- .+1
@@ -273,43 +462,115 @@
              )
   '''
 
-[operator.oRETURN]
+[operator.oRETURN0]
+  doc="Exit function returning zero values"
   special=true
-  impl=''' // FUNCTION RETURN: stack is [RETVAL RETADDR ...]
-      return //s.pRStack("RET=") &&   // DEBUG
+  impl=''' // FUNCTION RETURN0: stack is [RETADDR ...]
+      return //s.pRStack("RET0=") &&   // DEBUG
+             s.pop(v[0])            // v0 <- retaddr
+          && s.setPC(v[0])          // jump to retaddr 
+  '''
+
+[operator.oRETURN1]
+  doc="Exit function returning one value"
+  special=true
+  impl=''' // FUNCTION RETURN1: stack is [RETVAL RETADDR ...]
+      return //s.pRStack("RET1=") &&   // DEBUG
              s.pop(v[0])            // v0 <- retval
           && s.pop(v[1])            // v1 <- retaddr
-          && readRAM(v[1] - 1,v[2]) // v2 <- cRAM[retaddr-1]
-          && v[2] == oCALL          // [retaddr-1] is a call
           && s.push(v[0])           // restash retval
           && s.setPC(v[1])          // jump to retaddr 
   '''
-[operator.oCALL]
+
+[operator.oRETURN2]
+  doc="Exit function returning two values"
+  special=true
+  impl=''' // FUNCTION RETURN2: stack is [RETVAL2 RETVAL1 RETADDR ...]
+      return s.pRStack("RET2=") &&   // DEBUG
+             s.pop(v[0])            // v0 <- retval2
+          && s.pop(v[1])            // v1 <- retval1
+          && s.pop(v[2])            // v2 <- retaddr
+          && s.push(v[1])           // restash retval1
+          && s.push(v[0])           // restash retval2
+          && s.setPC(v[1])          // jump to retaddr 
+  '''
+
+[operator.oCALL0]
+  doc="Call a function taking 0 arguments"
   special=true
   impl=''' // FUNCTION CALL: stack is [FUNCADDR ...]
       return s.pop(v[0])            // v0 <- funcaddr
           //&& s.pRStack(nameOfFunction(v[0])) // DEBUG
           && readRAM(v[0],v[1])     // v1 <- cRAM[funcaddr]
-          && v[1] == oENTER         // calladdr is func entry point
+          && v[1] == oENTER0        // calladdr is func entry point
           && s.push(s.getPCOrDie()) // save retaddr
-          && s.setPC(v[0] + 1)      // jump to funcaddr + 1
+          && s.setPC(v[0] + 1)      // jump to funcaddr + 1, stack [RETADDR ...]
   '''
 
-[operator.oRUN_TRAKT]
+[operator.oCALL1]
+  doc="Call a function taking 1 argument"
   special=true
-  impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff.. ]
+  impl=''' // FUNCTION CALL: stack is [FUNCADDR ARG ...]
+      return s.pop(v[0])            // v0 <- funcaddr
+          //&& s.pRStack(nameOfFunction(v[0])) // DEBUG
+          && readRAM(v[0],v[1])     // v1 <- cRAM[funcaddr]
+          && v[1] == oENTER1        // calladdr is func entry point
+          && s.pop(v[2])            // v2 <- ARG
+          && s.push(s.getPCOrDie()) // push RETADDR
+          && s.push(v[2])           // push ARG
+          && s.setPC(v[0] + 1)      // jump to FUNCADDR + 1, stack [ARG RETADDR ...]
+  '''
+
+[operator.oCALL2]
+  doc="Call a function taking 2 argument2"
+  special=true
+  impl=''' // FUNCTION CALL: stack is [FUNCADDR ARG2 ARG1 ...]
+      return s.pop(v[0])            // v0 <- funcaddr
+          //&& s.pRStack(nameOfFunction(v[0])) // DEBUG
+          && readRAM(v[0],v[1])     // v1 <- cRAM[funcaddr]
+          && v[1] == oENTER2        // calladdr is func entry point
+          && s.pop(v[2])            // v2 <- ARG2
+          && s.pop(v[3])            // v2 <- ARG1
+          && s.push(s.getPCOrDie()) // push RETADDR
+          && s.push(v[3])           // push ARG1
+          && s.push(v[2])           // push ARG2
+          && s.setPC(v[0] + 1)      // jump to FUNCADDR + 1, stack [ARG2 ARG1 RETADDR ...]
+  '''
+
+[operator.oSTART_TRAKT]
+  special=true
+  impl=''' // START TRAKT: stack is [TRAKT_NUM stuff.. ]
       if (!s.getPC(v[0])) return false; // getpc or fail
       if (!s.pop(v[1])) return false;   // pop TN or fail stack [ stuff.. ]
       if (v[1] < 0) return false;       // TN unsigned or fail
-      if (t.startTRAKt((TRAKt) v[1]))   // try to start our trakt
+
+      if (t.startTRAKt((TRAKt) v[1])) { // try to start our trakt
+        (BeeveeParms.pNAFI_TRACING%2u == 1u)&&pR("NATR/oSTART_TRAKT:started")&&s.pRStack(nameOfTRAKt((TRAKt) v[1]));
+        s.pRStack("TRAKt Started");
         return true;                    // MOVE ON (PC incrd; stack popped)
+      }
       // TRAKtor not ready: Block here
+      (BeeveeParms.pNAFI_TRACING%2u == 1u)&&pR("NATR/oSTART_TRAKT:blocking")&&s.pRStack(nameOfTRAKt((TRAKt) v[1]));      
       if (!s.push(v[1])) return false;  // restore stack [ TN stuff.. ]
       if (s.setPC(v[0] - 1)) return false;  // back up PC (implying BLOCKED)
       return true;                      // TRY AGAIN (PC--; no stack change)
   '''
 
-# [operator.oRUN_TRAKT_TRICKY]
+[operator.oWAIT_READY]
+  special=true
+  impl=''' // WAIT READY: stack is [stuff.. ]
+      if (t.isReady()) { // check if trakor is ready
+        (BeeveeParms.pNAFI_TRACING%2u == 1u)&&s.pRStack("NATR/oWAIT_READY:done");
+        return true;                    // MOVE ON (PC incrd)
+      }
+      // TRAKtor not ready: Block here
+      if (!s.getPC(v[0])) return false; // getpc or fail
+      if (s.setPC(v[0] - 1)) return false;  // back up PC (implying BLOCKED)
+      (BeeveeParms.pNAFI_TRACING%2u == 1u)&&s.pRStack("NATR/oWAIT_READY:block");
+      return true;                      // TRY AGAIN (PC--; no stack change)
+  '''
+
+# [operator.oSTART_TRAKT_TRICKY]
 #   special=true
 #   impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff... ]
 #       return s.getPC(v[0])          // v0 <- pc + 1 
@@ -349,12 +610,33 @@
 [operator.oINCR_HEAD]
   doc='[CW ...] if mHeadingValid, increment mHeading clockwise if CW > 0 else CCW'
   impl='''
+     s.pRStack("IN oINCR_HEAD")&&pR(l.mHeadingValid);
      if (!s.pop(v[0])) return false;
      if (l.mHeadingValid) {
        l.mHeading = adjacentAxialDir(l.mHeading, v[0] > 0);
      }
+     s.pR(l.mHeading);
      return true
   '''
+[operator.oINCR_POS]
+  doc='[...] if mHeadingValid, modify XPOS or YPOS based on mHeading'
+  impl='''
+     s.pRStack("IN oINCR_POS")&&pR(l.mHeadingValid);
+     if (!l.mHeadingValid) {
+       l.mPosValid[0] = false;
+       l.mPosValid[1] = false;
+     } else if (l.mHeading == cW) {
+       if (l.mPosValid[0]) ++l.mPos[0];
+     } else if (l.mHeading == cN) {
+       if (l.mPosValid[1]) ++l.mPos[1];
+     } else if (l.mHeading == cS) {
+       if (l.mPosValid[1]) --l.mPos[1];
+     } else if (l.mHeading == cE) {
+       if (l.mPosValid[0]) --l.mPos[0];
+     }
+     return true
+  '''
+
 [operator.oSET_XPOS] 
   impl='''
      if (!s.pop(v[0])) return false;     // get x
@@ -389,7 +671,7 @@
 [operator.oCMP_GT]           # : { outs[0] = ins[0] >  ins[1] ? 1 : 0; return true; }
   impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] > v[1])'
 [operator.oCMP_GE]           # : { outs[0] = ins[0] >= ins[1] ? 1 : 0; return true; }
-  impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] >= v[1])'
+  impl='return /*s.pRStack("IN oCMP_GE") &&*/ s.pop(v[1]) && s.pop(v[0]) && s.push(v[0] >= v[1]) /*&& s.pRStack("OUT oCMP_GE")*/ '
 [operator.oMAX]           # : { outs[0] = max(ins[0],ins[1]); return true; }
   impl='return s.pop(v[1]) && s.pop(v[0]) && s.push(max(v[0],v[1]))'
 [operator.oMIN]           # : { outs[0] = min(ins[0],ins[1]); return true; }
@@ -410,3 +692,13 @@
   impl='return s.pop(v[0]) && s.push(v[0] == 0 ? 1 : 0)'
 [operator.oNEG]           # : { outs[0] = -ins[0]; return true; }
   impl='return s.pop(v[0]) && s.push(s.clampImmed(-v[0]))'
+
+[operator.oSET_DEBUG]
+  impl='''
+     if (!s.pRStack("SET_DEBUG")) return false;
+     if (!s.pop(v[0])) return false;
+     s.setDebugOutputEnabled(v[0]!=0);
+     l.setDebugOutputEnabled(v[0]!=0);
+     g.setDebugOutputEnabled(v[0]!=0);
+     return true
+'''

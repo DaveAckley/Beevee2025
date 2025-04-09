@@ -1,0 +1,145 @@
+union DLRVUnion {
+  ASCII mASCII;
+  DLRVSignal mDLRVSignal;
+}
+
+quark DLRVSignal {
+  typedef Unsigned(2) DLRVFormat;
+  constant DLRVFormat cDLRVFMT_STRING = 0u; //< data is string#
+  constant DLRVFormat cDLRVFMT_TRAKT  = 1u; //< data is trakt#
+  constant DLRVFormat cDLRVFMT_RSRV2 =  2u; //< future
+  constant DLRVFormat cDLRVFMT_RSRV3 =  3u; //< future
+  DLRVFormat mDLRVFmt;
+  typedef Unsigned(6) DLRVData;
+  DLRVData mDLRVData;
+}
+
+element DLRV : TermHiddenIO {
+  DLRVUnion mDLRVUnion;
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cAXON_TO_XBAR;
+  }
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    SN sn = findLabelSN();
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return false;
+    DebugLine & lb = (DebugLine&) ew[sn];
+    Bool ret = false;
+    if (iss.isOccupied()) {
+      if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_HTD8) {
+        if (mDLRVUnion.mASCII != iss.mValue) {
+          mDLRVUnion.mASCII = iss.mValue;
+          ret = true;
+        }
+      }
+      iss.reset();
+    }
+
+    if (lb.mDLRVUnion.mASCII != mDLRVUnion.mASCII) {
+      lb.mDLRVUnion.mASCII = mDLRVUnion.mASCII;
+      lb.mPrio.increment();
+    }
+
+    return ret;
+  }
+
+  SN findLabelSN() {
+    SN retsn = SN.maxof;        // assume no good
+    SN sn = 23u;                // assume we're tap.S and go Sx2
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return retsn;
+    Atom & a = ew[sn];
+    if (a is DebugLine) retsn = sn;
+    else if (!a is DebugLine) { // vs 'is Empty': be arrogant here
+      DebugLine lb;
+      FontSet fs;
+      Font & font = fs.getFont(lb.getFontNumber(0)); // assume all chs same font
+      lb.mLabelIndex = DebugLine.cDEBUGLINE_LEN/2u; // middle of line
+      lb.mGloc.set((Int) (font.fontWidth()-1u),(Int) (font.fontHeight()-1u)); // top right corner of glyph?
+      ew[sn] = lb.atomof;
+      retsn = sn;
+    }
+    return retsn;
+  }
+}
+
+element DebugLine : Label + CodeMethods + DTU + Fail {
+  /** Label layout:
+      
+     0123456789
+
+   */
+  constant Unsigned cDEBUGLINE_LEN = 22u;
+  Unsigned(7) mSpinCounter;
+  DLRVUnion mDLRVUnion;
+
+  @Override Void behave() {
+    if (mSpinCounter++ == mSpinCounter.maxof) mSpinCounter = 0u;
+    return super.behave();
+  }
+
+  //// Label API
+  @Override ASCII aref(Unsigned idx) {
+    mD&&pR("DLAREF10")&&pR(idx)&&pR(mDLRVUnion);
+    if (idx >= cDEBUGLINE_LEN) fail(__FILE__,__LINE__);
+    ASCII ch = '?';
+    which (mDLRVUnion.mDLRVSignal.mDLRVFmt) {
+    case DLRVSignal.cDLRVFMT_TRAKT: {
+      String n = nameOfTRAKt((TRAKt) mDLRVUnion.mDLRVSignal.mDLRVData);
+      Unsigned nlen = n.lengthof;
+      mD&&pR("DLAREF11")&&pR(n)&&pR(nlen);
+      if (idx >= nlen) return ' '; // right fill with spaces
+      if (nlen <= cDEBUGLINE_LEN) // if whole name fits
+        return n[idx];            // just do it
+      
+      mD&&pR("DLAREF12");
+      // else drop text before .
+      //  0123456789abcd       glyph idxs
+      //                ^ cDEBUGLINE_LEN == 14
+      //
+      //                  11
+      //  0123456789abcdef01   glyph idxs
+      //  tFIND_LINE_RIGHT.2   trakt name
+      //                    ^ nlen == 18
+      //                  ^ dotpos == 16
+      //          fromend == nlen-dotpos == 2
+      //          frombeg == cDEBUGLINE_LEN - fromend == 12
+      //
+      //  0123456789abcd       glyph idxs
+      //
+      //              11
+      //  0123456789ab01       n idxs
+      //  tFIND_LINE_R.2       desired result
+
+      Unsigned dotpos = Unsigned.maxof;
+      for (Unsigned i = 0u; i < nlen; ++i) {
+        if (n[i] == '.') { dotpos = i; break; }
+      }
+      mD&&pR("DLAREF13")&&pR(dotpos);
+      if (dotpos == Unsigned.maxof) { // if no dot
+        return n[idx];                // truncate at end
+      }
+
+      Unsigned fromend = nlen-dotpos;
+      Unsigned frombeg = cDEBUGLINE_LEN - fromend;
+      mD&&pR("DLAREF14")&&pR(fromend)&&pR(frombeg);
+
+      if (idx < frombeg) ch = n[idx];
+      else ch = n[idx+dotpos-frombeg];
+    }
+    case DLRVSignal.cDLRVFMT_STRING: { ch = '-'; } // string choice not implemented opps
+    case DLRVSignal.cDLRVFMT_RSRV2: { ch = '2'; }
+    case DLRVSignal.cDLRVFMT_RSRV3: { ch = '3'; }
+    }
+    mD&&pR("DLAREF15")&&pR(ch);
+    return ch;
+    return ch;
+  }
+  @Override Unsigned alengthof() { return cDEBUGLINE_LEN; }
+  @Override FontNumber getFontNumber(LabelIndex idx) { return FontSet.cFONTSET_TERMINUSOGU12N; }
+
+  //            0123456789
+  // DEBUGLINE: 
+
+  DLRVSignal mDLRVSignal;
+}

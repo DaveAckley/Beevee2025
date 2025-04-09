@@ -48,6 +48,16 @@ element LZRV : TermHiddenIO {
         }
         case LOCZExtn.cSIGEXT_STAT: {
         }
+        case LOCZExtn.cSIGEXT_WARN: {
+          Bits(4) flags = p.mSignal.mSigData.mExtn.mExtData;
+          Bool pre = (flags&1u)!=0u;
+          Bool red = (flags&2u)!=0u;
+          if (lb.mPreWarning != pre || lb.mWarningTrack != red) {
+            lb.mPreWarning = pre;
+            lb.mWarningTrack = red;
+            ret = true;
+          }
+        }
         otherwise: { }
         }
       }
@@ -99,6 +109,13 @@ element LoczLabel : Label + DTU + Fail {
   @Override Void behave() {
     if (mSpinCounter++ == mSpinCounter.maxof) mSpinCounter = 0u;
     return super.behave();
+  }
+
+  @Override ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (mWarningTrack) return chooseColor(selector, cu.color(0xff000000), cu.color(0xffff5555));
+    if (mPreWarning) return chooseColor(selector, cu.color(0xff000000),   cu.color(0xffffff55));
+    return super.getColor(selector);
   }
 
   //// Label API
@@ -171,7 +188,7 @@ element LoczLabel : Label + DTU + Fail {
     return ch;
   }
   @Override Unsigned alengthof() { return cLOCZLABEL_LEN; }
-  @Override FontNumber getFontNumber(LabelIndex idx) { return 1u; } // 1==Inconsolata
+  @Override FontNumber getFontNumber(LabelIndex idx) { return FontSet.cFONTSET_TERMINUSOGU14B; } 
 
   constant ASCII cCODE_NOISE25 = '\001';  //< 25% black pixels
   constant ASCII cCODE_NOISE50 = '\002';  //< 50% black pixels
@@ -224,4 +241,7 @@ element LoczLabel : Label + DTU + Fail {
 
   Bool mHasYPos;
   SquareCoord mYPos;
+
+  Bool mPreWarning;
+  Bool mWarningTrack;
 }

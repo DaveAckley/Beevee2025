@@ -429,27 +429,23 @@ quark HOpPhaseDiff : HOpBinary {
     left.reset();
     right.reset();
 
-    if (BeeveeParms.pGREY_MULTIPLIER == 0u)
+    if (BeeveeParms.cGREY_MULTIPLIER == 0u)
       return false;
 
     mD&&pR("HPDFX10L")&&pR(lState)&&pR(lPhase);
     mD&&pR("HPDFX10R")&&pR(rState)&&pR(rPhase);
 
     Int pdiff = (Int) lPhase - (Int) rPhase;
-    if (false /*BeeveeParms.pSENECAS_ERRORS*/) {
-      if (lState != rState || pdiff < -30 || pdiff > 30)  // only correct on 'small' matching
-        return false;
-    }
 
     Int clipdiff = pdiff;
     if (pdiff > 20) clipdiff = 20;
     else if (pdiff < -20) clipdiff = -20;
         
-    if (BeeveeParms.pFLIP_STATES && lState != rState) clipdiff = -clipdiff; // XXX???
+    if (BeeveeParms.cFLIP_STATES && lState != rState) clipdiff = -clipdiff; // XXX???
 
     if (invertFinalSign()) clipdiff = -clipdiff;
 
-    Int modval = 30 + (Int)(BeeveeParms.pGREY_MULTIPLIER)*clipdiff;
+    Int modval = 30 + (Int)(BeeveeParms.cGREY_MULTIPLIER)*clipdiff;
     ret.mValue = intToSignedAscii(modval);
     mD&&pR("HPDFX11")&&pR(pdiff)&&pR(modval)&&pR(ret);
     return true;

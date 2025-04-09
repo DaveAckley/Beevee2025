@@ -15,6 +15,7 @@ transient MotorCmd + DTU + QDebugUtils + Fail {
         return true;
       fail(__FILE__,__LINE__);
     } else /* op */ {
+      pR("!!WARNING !mFuncNotOp UNRELIABLE!!")&&pR(self);
       if (f.evalOp(mDoneCode, result, g, l, t))
         return true;
       fail(__FILE__,__LINE__);
