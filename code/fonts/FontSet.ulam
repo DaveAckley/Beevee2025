@@ -1,15 +1,47 @@
 transient FontSet {
-  typedef Unsigned(3) FontNumber;
+  typedef Unsigned(4) FontNumber;
+  constant FontNumber cFONTSET_RADONX = 0u;
+  constant FontNumber cFONTSET_INCONSOLATA14 = 1u;
+  constant FontNumber cFONTSET_CURSIVE = 2u;
+  constant FontNumber cFONTSET_HGR224 = 3u;
+  constant FontNumber cFONTSET_TERMINUSOGU12B = 4u;
+  constant FontNumber cFONTSET_TERMINUSOGU12N = 5u;
+  constant FontNumber cFONTSET_TERMINUSOGU14B = 6u;
+  constant FontNumber cFONTSET_TERMINUSOGU14N = 7u;
+  constant FontNumber cFONTSET_TERMINUSOGU14V = 8u;
+  constant FontNumber cFONTSET_TERMINUSOGU18B = 9u;
+  constant FontNumber cFONTSET_TERMINUSOGU18N = 10u;
+  constant FontNumber cFONTSET_TERMINUSOGU22N = 11u;
+  constant FontNumber cFONTSET_TERMINUSOGU28N = 12u;
+
   Font10RadonX mFont0;
   Font11Inconsolata14 mFont1;
   Font12Cursive mFont2;
-  //  Font13Dagger mFont3;
   FontHGR224 mFont3;
+  FontTerminusOGu12b mFont4;
+  FontTerminusOGu12n mFont5;
+  FontTerminusOGu14b mFont6;
+  FontTerminusOGu14n mFont7;
+  FontTerminusOGu14v mFont8;
+  FontTerminusOGu18b mFont9;
+  FontTerminusOGu18n mFont10;
+  FontTerminusOGu22n mFont11;
+  FontTerminusOGu28n mFont12;
+
   Font & getFont(FontNumber i) {
-    if (i == 0) return mFont0;
-    if (i == 1) return mFont1;
-    if (i == 2) return mFont2;
-    if (i == 3) return mFont3;
+    if (i == 0u) return mFont0;
+    if (i == 1u) return mFont1;
+    if (i == 2u) return mFont2;
+    if (i == 3u) return mFont3;
+    if (i == 4u) return mFont4;
+    if (i == 5u) return mFont5;
+    if (i == 6u) return mFont6;
+    if (i == 7u) return mFont7;
+    if (i == 8u) return mFont8;
+    if (i == 9u) return mFont9;
+    if (i == 10u) return mFont10;
+    if (i == 11u) return mFont11;
+    if (i == 12u) return mFont12;
 
     // Default
     return mFont0;

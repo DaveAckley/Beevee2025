@@ -257,7 +257,13 @@ quark Label + Fail {
 
   }
 
+  @Override 
   ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    return chooseColor(selector, cu.color(0xff000000), cu.color(0xffffffff)); // 'ink on paper' white by default
+  }
+  
+  ARGB chooseColor(Unsigned selector, ARGB onc, ARGB offc) {
     ColorUtils cu;
     ARGB ret = cu.color(0xffff0000);
     ASCII glyph;
@@ -269,9 +275,9 @@ quark Label + Fail {
     Font & font = fs.getFont(fn);
     Font.SiteGlyphStatus fss = font.getSiteStatus(myLoc, glyph);
     if (fss == Font.cON)
-      ret = cu.color(0xff000000);
+      ret = onc;
     else if (fss == Font.cOFF)
-      ret = cu.color(0xffffffff); // else cOUT == red
+      ret = offc;
     return ret;
   }
 }

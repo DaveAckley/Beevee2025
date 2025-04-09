@@ -204,7 +204,8 @@ transient Font {
     Bits mask = 0x80u >> colBit;
     Unsigned idx = cFIRST_BITMAP_INDEX + rowStartByte + colByte;
     DebugUtils du;
-    if (false && du.hasEventWindow()) {
+    Bool print = (idx >= charInfo.lengthof);
+    if (print && du.hasEventWindow()) {
       du.print("CHECK");
       du.printContext();
       du.printChar(charInfo[0]);
@@ -222,7 +223,9 @@ transient Font {
       du.print("colByte"); du.print(colByte);
       du.print("colBit"); du.print(colBit);
       du.print("rightPad"); du.print(rightPad);
+      return cOFF;
     }
+
     if (0 != (charInfo[idx] & mask))
       return cON;
     return cOFF;
