@@ -1,4 +1,4 @@
-{459}  -*-  mode: text; fill-column: 50;  -*-
+{471}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -6337,6 +6337,154 @@ that. For the Function interpreter, I don't know..
 [458:
 
 Wed Apr  2 02:33:32 2025 OK, past t2sup 3160.
-Doing a checkpoint commit.
+Doing a checkpoint commit.[459:
+
+Wed Apr  2 03:11:11 2025 Did a little cleanup
+after the commit.
+
+:459]
 
 :458]
+[460:
+
+Thu Apr  3 23:05:55 2025 OK debugging NAFI some
+more, and slowly finally coming to rememberealize 
+that ALL NAFI FUNCTIONS MUST LEAVE A RETURN VALUE
+ON THE STACK, WHETHER THEY "NEED" TO OR NOT,
+BECAUSE oRETURN ASSUMES IT IS THERE.
+
+Doh.
+
+Maybe we should make oRETURN0 and oRETURN1, with
+only the latter assuming a return value on the
+stack?[461:
+
+Thu Apr  3 23:08:36 2025 we'd have to declare how
+many return values the function has in the dtoml,
+if we're going to continue with the whole
+'implicit oCALL/oRETURN' business.
+
+:461]
+
+And in any case, are callers properly throwing
+away return values they don't want?
+
+:460]
+[462:
+
+Fri Apr  4 00:39:29 2025 OK, after thinking it
+over during breakfast (while also reading on in
+"Venus Plus X" in my vintage SF thing), the best I
+can come up with is
+(1) ditch the implicit oENTER/oRETURN; make them
+    explicit, and
+(2) rename/extend to like oENTER0, and oENTER1, to
+    signify how many args the function will
+    consume off the stack on entr, and how many
+    values it will push onto the stack on exit
+(3) redo all existing functions to follow that
+    format
+(4) get that working
+
+and then, say I, things will be better.
+[463:
+
+Fri Apr  4 00:43:51 2025 Let's go. Let's just do
+  it.[464:
+
+Fri Apr  4 00:45:37 2025 OK, that immediately puts
+us into makeBeeveXBlockSources.py territory. Which
+we're going to need some refresh on..
+
+.analyzeToken DOES look at the first char of
+tokens to determine type - 'c'onstant, 'o'perator,
+'f'unction [465:
+
+Fri Apr  4 00:49:22 2025 Well it looks like three
+lines deleted in the .py gets rid of implicit
+enter/return.. So I guess now we're in
+Code10.dtoml.[466:
+
+Fri Apr  4 00:55:19 2025 Now I'm thinking we
+should also have oCALL0, oCALL1, as well. They
+would match up with the oENTER0 to help ensure
+the intended/expected number of arguments are
+being passed..
+[467:
+
+Fri Apr  4 01:14:36 2025 Aaaand the hack continues
+to try to expand: Right now the oENTER[0-3]
+operators aren't doing anything - although we
+played with trying to have them extract the
+arguments (but that made no sense).
+
+BUT, since oENTER* does nothing, it's safe to do
+like
+
+[function.fFACE_EAST]
+  code = [ oENTER0,
+           fTURN_RIGHT_TICK, oCALL0,          # fwd [...]
+           oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? [ BIGGREEN ... ]
+           fFACE_EAST, oGOTOZ,                # loop if not biggreen [...]
+ ..
+to jump back to the beginning of a function, even
+though that is going to redo the oENTER without an
+intervening oRETURN* and oCALL*.
+
+AGAIN, that's safe at the moment, but obviously we
+would rather have a temporary label scheme so we
+could say like
+[function.fFACE_EAST]
+  code = [ oENTER0,
+           m0,                                # DEFINE MARK 0 == . (& NO INSNS EMITTED)
+           fTURN_RIGHT_TICK, oCALL0,          # fwd [...]
+           oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? [ BIGGREEN ... ]
+           a0, oGOTOZ,                        # jump to absolute address of mark 0 if not biggreen [...]
+
+or
+   r0, oJUMPZ    # jump to relative offset of mark0 - .
+
+or whatever.
+
+And we could get the python to handle all that by
+extending analyzeToken and such appropriately.
+[468:
+
+Fri Apr  4 01:23:58 2025 Maybe 'lANYTHING' to
+define a label and 'aANYTHING' to get the absolute
+address of that label..
+
+..wouldn't be very hard, right?? here on the 3rd
+day after t2sday?[469:
+
+Fri Apr  4 01:26:06 2025 Of course it becomes two
+pass if we're going to allow forward jumps to
+labels.. 
+
+:469]
+
+:468]
+:467]
+:466]
+
+:465]
+
+:464]
+
+:463]
+
+:462]
+[470:
+
+Wed Apr  9 02:40:49 2025 OK so we're making
+progress, and I can foresee we'll soon want to
+expand the MotorCmd format to be able to specify
+and event handler -- in the index case, so that
+DRIVE_SLOW can count edges without (necessarily)
+interrupting its running.
+
+We could have a bitmap of events, I suppose, or
+just a single optional handler that gets
+everything. 
+
+:470]
