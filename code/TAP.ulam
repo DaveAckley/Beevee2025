@@ -53,7 +53,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
   /** SN of axon matching our tapidx or SN.maxof if none. 
    */
   SN findMatchingAxonEnd(Bool forInput) {
-    mD&&pR("FNMTAXE10");
+    mD&&pR("FNMTAXE10")&&pR(forInput);
     SN ret = SN.maxof;
     BeeveeBIMXBlock bim;
     TapIdx tapidx = bim.getTapIdx(self);
@@ -71,7 +71,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
         if (!forInput && !(a is AxonTail)) continue;
         AxonIdx aix = a.getAxonIdx();
         if (a.getAxonTap(aix) == tapidx) // that's our axon
-          snpick.update(sn);
+          snpick.update(sn,a.mBranchCount); // we want the least branchcount if there's multiple!
       }
     }
     if (snpick.hasPick())
@@ -118,7 +118,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
     return ret;
   }
 
-  Bool trySendSigViaTAP(ASCII sig, ClassId toclassid) { /// imported from TRAK
+  Bool trySendSigViaTAPClassId(ASCII sig, ClassId toclassid) { /// imported from TRAK
     mD&&pR("TSSVTP10")&&pR(self);
     mD&&pR("TSSVTP11")&&pR(sig)&&pR(toclassid);
     EventWindow ew;
@@ -174,7 +174,7 @@ quark TAP : GripStgT(GripSource.cBITS) + DTU + QDebugUtils {
       SN empsn = emppick.getIdxSN();
       FloodFindTAPIdx fix;
       fix.mBranchOK = true;      // XXXX TESTING DENDRITIC TREES
-      fix.mMaxRadius = 20u;
+      fix.mMaxRadius = 20u;      // BEEEG TREES CAN BE NEEEEDED
       fix.mLocal = srcidx;
       fix.mRemote = destidx;
       mD&&pR("TSSVTPI17")&&pR(fix);
@@ -703,13 +703,6 @@ element SRRR :  TermSensor {
 
 
 ///// MOTORS (with gradients)
-/*
-element BVACT : TermMotor {
-  @Override virtual String hasTerminalNamed() { return "BVACT"; }
-  @Override virtual GradIdx getGradientIndex() { return cGRADIDX_BVACT; }
-  //take default @Override virtual ARGB getGradientColor() { ARGB ret; } 
-}
-*/
 
 quark IFix(Unsigned cBITS, Unsigned cFIX_BITS) {
   typedef Int(cBITS*2+1) DblInt; // DblInt DblInt um
@@ -732,68 +725,47 @@ quark IFix(Unsigned cBITS, Unsigned cFIX_BITS) {
 }
 
 quark TermEyeStalk : TermMotor {
-  typedef IFix(20u,10u) FixMax;
-  /*
-  typedef Unsigned(20u) FixMax;
-  constant Unsigned cFIX_BITS = 6u;
-  FixMax mStalkAngle; 
-  FixMax updateFixMax(Unsigned pct, FixMax fm, ASCII newvalue) {
-    Unsigned newfix = (Unsigned) (((Bits) newvalue)<<cFIX_BITS);
-    FixMax ret = (FixMax) ((fm*pct + (100u-pct)*newfix)/100u);
-    return ret;
-    }
-  */
-  FixMax mStalkAngle;
-
-  Int getFixMaxAngle() { return mStalkAngle.getFrac(); }
-
-  //  virtual String getTermName() ;
+  typedef FixedPoint(20u,10u) Frac;
+  Frac mStalkAngle;
 
   //// TERMMOTOR API
   @Override
   virtual Bool handleSigHook(SlotSig & iss,XBlock & xb) {
+    SlotSig in = iss;
     ASCII val = iss.mValue; // pick up value (ignoring source tapidx)
-    Int ival = signedAsciiToInt(val);
+    EyePacket ep;
+    ep.mData = val;
+    Int ival = ep.mSignal.mSigData;
+    ival *= 2;                  // XXXX HACK INCREASE EYEPACKET RANGE
+
+    //    Int ival = signedAsciiToInt(val);
     mD&&pR("TEYS10")&&pR(iss)&&pR(ival)&&pR(mStalkAngle);
-    mStalkAngle.update(90u,ival);
-    Int aval = getFixMaxAngle();
-    iss.mValue = intToSignedAscii(ival);
-    mD&&pR("TEYS11")&&pR(iss)&&pR(aval)&&pR(mStalkAngle);
+    Frac newv(ival);
+    mStalkAngle = mStalkAngle*Frac.instanceof(7,8) + newv*Frac.instanceof(1,8);
+    Int aval = mStalkAngle.getInt();
+    iss.mValue = intToSignedAscii(aval);
+    mD&&pR("TEYS11")&&pR(in)&&pR(iss)&&pR(ival)&&pR(aval)&&pR(mStalkAngle);
+
+    // XXXXXGAAAAAAH trySendSigViaTAP(iss.mValue,BeeveeBIMXBlock.cTAPIDX_HESR);
+    trySendSigViaTAPClassId(iss.mValue,HESR.classidof);
     return false;
   }
-  
-
-  /*
-  @Override
-  Void behave() {
-    String name = getTermName();
-    if (!(Bool) name) return;
-    if (!mBS.open()) return;
-    SMTerm esterm = mBS.readTermByName(name);
-
-    //// UPDATE SIGNAL VALUES
-
-    ClassUtils cu;
-    ClassId selfid = cu.getClassId(self.atomof);
-    for (SN sn = 1u; sn < 41u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      Atom & a = ew[sn];
-      if (a as Signal) {
-        ClassId destid = getClassIdOfGradientIndex(a.mClimbGradIdx);
-        if (destid == selfid) {
-          mStalkAngle = updateFixMax(90u,mStalkAngle,a.mValue);
-          ew[sn] = Empty.instanceof; 
-        }
-      }
-    }
-    ASCII val = getFixMaxAngle();
-    sterm.setValue(val);
-    mBS.writeTerm(esterm);
-    mBS.close();
-  }
-  */
-
 }
+
+/** Motor Left EYestalk 
+    \symbol EL
+    \color #55b
+*/
+element MLEY : TermEyeStalk {
+}
+
+/** Motor Right EYestalk
+    \symbol ER
+    \color #5b5
+*/
+element MREY : TermEyeStalk {
+}
+
 
 /** Motor Rear Right Forward 
     \symbol MR
@@ -809,20 +781,6 @@ element MRRF : TermMotor {
 element MLRF : TermMotor {
 }
 
-
-/** Motor Left EYestalk 
-    \symbol EL
-    \color #55b
-*/
-element MLEY : TermEyeStalk {
-}
-
-/** Motor Right EYestalk
-    \symbol ER
-    \color #5b5
-*/
-element MREY : TermEyeStalk {
-}
 
 /** SLFG Left Front Green Detector
     \symbol LG

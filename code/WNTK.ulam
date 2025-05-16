@@ -20,7 +20,8 @@ element WNTK : TermHiddenIO + Fail {
 
   @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
     Frac fval((Int) iss.mValue);
-    mRedLevel = mRedLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+    //Sat Apr 12 15:23:19 2025 too fast? mRedLevel = mRedLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+    mRedLevel = mRedLevel*Frac.instanceof(15,16) + fval*Frac.instanceof(1,16);
     mD&&pR("WNTK10")&&pR(iss)&&pR(fval)&&pR(mRedLevel);
     iss.mValue = (ASCII) mRedLevel.getInt();
     //Random random;

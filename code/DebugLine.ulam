@@ -133,7 +133,6 @@ element DebugLine : Label + CodeMethods + DTU + Fail {
     }
     mD&&pR("DLAREF15")&&pR(ch);
     return ch;
-    return ch;
   }
   @Override Unsigned alengthof() { return cDEBUGLINE_LEN; }
   @Override FontNumber getFontNumber(LabelIndex idx) { return FontSet.cFONTSET_TERMINUSOGU12N; }

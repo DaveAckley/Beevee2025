@@ -36,6 +36,9 @@ union LOCZSigData {
  */
 element LOCZ : HOpUnary + Fail {
 
+  typedef Unsigned(5) GSCounter;
+  GSCounter mGeneralStateCounter;
+
   Bool mWarningTrack;
   Bool mPreWarning;
 
@@ -266,6 +269,7 @@ element LOCZ : HOpUnary + Fail {
       mD&&pR("LCZBV210")&&pR(self);
       if (maybeMakeRandomSig(val)) {
         mD&&pR("LCZBV211")&&pR(val);
+
         trySendSigViaTAPIdxs(val,
                              BeeveeBIMXBlock.cTAPIDX_LOCZ,
                              BeeveeBIMXBlock.cTAPIDX_LZRV);
@@ -300,11 +304,15 @@ element LOCZ : HOpUnary + Fail {
     if (!sig.isOccupied()) return false;
     mD&&pR("LCZCX1010")&&pR(self)&&pR(sig);
 
+    MetroState ms;
+    if (!ms.findComponents()) return false;
+    /*
     SN gtccsn, tdsn;
     if (!findOtherSNs(gtccsn, tdsn)) return false;
+    */
     EventWindow ew;
-    GTCC & gtcc = (GTCC&) ew[gtccsn];
-    TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
+    GTCC & gtcc = ms.getGTCC(); //(GTCC&) ew[gtccsn];
+    TRAKtorDriver & td = ms.getTRAKtorDriver(); //(TRAKtorDriver&) ew[tdsn];
 
     BeeveeBIMXBlock bim;
     TapIdx sigsrc = sig.mSource;
@@ -318,11 +326,11 @@ element LOCZ : HOpUnary + Fail {
         Unsigned val = sig.getValueRaw();
 
         if (val > 3u) {
-          prewarningStatus(true,gtcc,td); //if (!mPreWarning) 
-          if (val > 5u) warningStatus(true,gtcc,td); //if (!mWarningTrack) 
+          prewarningStatus(true,ms); // gtcc,td //if (!mPreWarning) 
+          if (val > 5u) warningStatus(true,ms); // gtcc,td //if (!mWarningTrack) 
         } else if (val < 2u) {
-          warningStatus(false,gtcc,td); //if (!mWarningTrack) 
-          if (val < 1u) prewarningStatus(false,gtcc,td); //if (!mPreWarning) 
+          warningStatus(false,ms); // gtcc,td //if (!mWarningTrack) 
+          if (val < 1u) prewarningStatus(false,ms); // gtcc,td //if (!mPreWarning) 
         }
         mD&&pR("LCZCX1011")&&pR(val);
         mD = old;
@@ -382,27 +390,31 @@ element LOCZ : HOpUnary + Fail {
     return gsn;
   }
 
-  Void prewarningStatus(Bool status, GTCC & gtcc, TRAKtorDriver & td) {
-    statusUpdateBool(mPreWarning, status, gtcc, td,
+  Void prewarningStatus(Bool status, MetroState & ms) { // GTCC & gtcc, TRAKtorDriver & td
+    statusUpdateBool(mPreWarning, status, ms, // gtcc, td,
                      TRAKtorDriver.cTKTR_RED_PREWARN_SET,
                      TRAKtorDriver.cTKTR_RED_PREWARN_CLEAR);
   }
 
-  Void warningStatus(Bool status, GTCC & gtcc, TRAKtorDriver & td) {
-    statusUpdateBool(mWarningTrack, status, gtcc, td,
+  Void warningStatus(Bool status, MetroState & ms) { // GTCC & gtcc, TRAKtorDriver & td
+    statusUpdateBool(mWarningTrack, status, ms, // gtcc, td,
                      TRAKtorDriver.cTKTR_RED_WARN_SET,
                      TRAKtorDriver.cTKTR_RED_WARN_CLEAR);
   }
 
-  Void statusUpdateBool(Bool & store, Bool newval, GTCC & gtcc, TRAKtorDriver & td
+  Void statusUpdateBool(Bool & store, Bool newval, MetroState & ms, // GTCC & gtcc, TRAKtorDriver & td
                         TRAKtorDriver.TRAKtorEvent ifset,
                         TRAKtorDriver.TRAKtorEvent ifclear) {
     if (store == newval) return;
+    TRAKtorDriver & td = ms.getTRAKtorDriver();
     store = newval;
     TRAKtorDriver.TRAKtorEvent te = newval ? ifset : ifclear;
-    td.notify(gtcc, self, gtcc.mStateMachine, te);
+    ms.mTRAKtorEvent = te;
+
+    td.notify(ms); // self, gtcc.mStateMachine, te);
   }
 
+  /*
   Void executeWarning() {
     EventWindow ew;
     Bool warned = false;
@@ -412,16 +424,6 @@ element LOCZ : HOpUnary + Fail {
     GTCC & gtcc = (GTCC&) ew[gsn];
     pR("REWRITEME")&&pR(__FUNC__)&&pR(__FILE__)&&pR(__LINE__);
 
-    /*
-    Corral & corral = gtcc.mStateMachine;
-    if (corral.mState == Corral.cGOST) {
-      corral.mTilesRemaining = 0u;
-      corral.mEdgeSize = corral.mEdgeSize.maxof;
-      corral.mState = Corral.cSLOW;
-      mWarningTrack = true;
-      warned = true;
-    }
-    */
     if (!warned) {
       DebugUtils du;
       du.print(" * * * WARNING FAILED * * *");
@@ -432,6 +434,7 @@ element LOCZ : HOpUnary + Fail {
     }
     
   }
+  */
 }
 
 /** Reset (all) LOCZ in ngb

@@ -69,7 +69,7 @@ public:
 
   bool readConfigEX(int fd) ;   // HOLDS LOCK
 
-  void runRequestSnapshotHookEX(char * buf) ; // HOLDS LOCK
+  void runRequestSnapshotHookEX(char * buf, time_t itime) ; // HOLDS LOCK
 
   int getTermIndex(const char * name) ;
 
@@ -135,6 +135,7 @@ private:
   size_t _routed;
   struct stat _istat; // last stat read by input
   struct stat _rstat; // last stat read by routing
+  time_t _lastTimeSnapshotted; // avoid duplicating same snapshot
   
   typedef struct tag {
     TagType mTagType;

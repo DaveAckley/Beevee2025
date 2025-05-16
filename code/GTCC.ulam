@@ -7,13 +7,16 @@ element GTCC : HOpUnary + Grip + Fail {
   //SpikeLeft mStateMachine;
   //Corral mStateMachine;
   TRAKtor mStateMachine;
-  typedef RXTimer(4u,15u,2u) SMTimer;
+  typedef RXTimer(5u,16u,1u) SMTimer;
   SMTimer mTimerForStateMachine; 
 
+  Void resetSMTimer() { mTimerForStateMachine.reset(); }
   Void setSMTimer(Unsigned u) { mTimerForStateMachine.set((SMTimer.Counter) u); }
   Unsigned getSMTimer() { return mTimerForStateMachine.current(); }
   Bool isSMTimerDone() { return mTimerForStateMachine.alarm(); }
   Bool incrSMTimer() { return mTimerForStateMachine.countAlarm(); }
+
+  Bool mAllRed = false;
 
   typedef Unsigned(XBarSpace2D.cGRIPBITS) MyGripVal;
   MyGripVal mLastGrip = MyGripVal.maxof;
@@ -98,7 +101,8 @@ element GTCC : HOpUnary + Grip + Fail {
       if (mNewCloks[i] == mLastCloks[i]) mEdgeTimer[i].reset();
       else if (mNewCloks[i] != GreyClok.cCLOK_NONE && mEdgeTimer[i].countAlarm()) {
         if (mLastCloks[i] != GreyClok.cCLOK_NONE)
-          mStateMachine.clockEdge(self, i==0u, mNewCloks[i]);
+          mStateMachine.clockEdge(i==0u, mNewCloks[i]);
+        //          mStateMachine.clockEdge(self, i==0u, mNewCloks[i]);
         mLastCloks[i] = mNewCloks[i];
       }
     }
@@ -109,7 +113,7 @@ element GTCC : HOpUnary + Grip + Fail {
     /// SEND A SIGNAL IF WE CAN
     {
       ASCII sig = mStateMachine.makeSig();
-      if (trySendSigViaTAP(sig,TRAKPD.classidof))
+      if (trySendSigViaTAPClassId(sig,TRAKPD.classidof))
         mStateMachine.recordSigSent();
     }
 
@@ -137,10 +141,13 @@ element GTCC : HOpUnary + Grip + Fail {
 
     BeeveeBIMXBlock bim;
     TapIdx idx = sig.mSource;
-    if (idx == bim.getTapIdxFromClassId(CLOK.classidof)) // clock edges
+    if (idx == bim.cTAPIDX_CLOK) // clock edges
       return 0;             
 
-    if (idx == bim.getTapIdxFromClassId(LOCZ.classidof)) // speed reports
+    if (idx == bim.cTAPIDX_LOCZ) // speed reports
+      return 0;             
+
+    if (idx == bim.cTAPIDX_TRAK) // ALLRED signals
       return 0;             
     
     return Int.maxof;           // or don't want
@@ -157,7 +164,7 @@ element GTCC : HOpUnary + Grip + Fail {
     BeeveeBIMXBlock bim;
     TapIdx sigsrc = sig.mSource;
 
-    if (sigsrc == bim.getTapIdxFromClassId(CLOK.classidof)) {
+    if (sigsrc == bim.cTAPIDX_CLOK) {
       /// PICK UP CLOCK SIG
       Unsigned val = sig.getValueRaw();
       for (Unsigned i = 0u; i < 2u; ++i) {
@@ -167,6 +174,17 @@ element GTCC : HOpUnary + Grip + Fail {
       return false;
     }
 
+    if (sigsrc == bim.cTAPIDX_TRAK) {
+      /// PICK UP ALLRED SIG
+      Unsigned val = sig.getValueRaw();
+      Bool allred = (val!=0u);
+      if (mAllRed != allred) {
+        mAllRed = allred;
+        /*mD&&*/pR(mAllRed ? "GTCCX1012 ALLRED" : "GTCCX1012 !ALLRED");
+      }
+      return false;
+    }
+    
     { Bool oldmd = mD;
       mD = true;
       mD&&pR("GTCCX11")&&pR(self)&&pR(sig);

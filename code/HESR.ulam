@@ -1,0 +1,84 @@
+/** Hidden eyestalk position receiver
+   \symbol EY
+   \color #08d
+ */
+@Concrete
+element HESR : TermHiddenIO + CodeConstants {
+  Bool mResetRequested = false;
+  
+  ASCII mLastKnownEyePos[2];  //< 0 : MLEY, 1 : MREY
+
+  Bool doSignals() {
+    mD&&pR("HNFRC10");
+    EventWindow ew;
+
+    Bool ret = true;
+
+    mD&&pR("HNFRC12")&&pR(ret);
+
+    /// RECV A SIGNAL IF WE CAN
+    {
+      SN axonsn = findMatchingAxonEnd(true); // look for inbound from MxEY
+      if (ew.isAccessible(axonsn)) {
+        mD&&pR("HESCR10")&&pR(axonsn);
+        Atom & ae = ew[axonsn];
+        if (ae as AxonEnd) {
+          SlotSig iss;
+          if (tryRecvSig(ae, iss)) {
+            mD&&pR("HESCR11 DO SOMETHING")&&pR(iss);
+            if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MLEY) {
+              mLastKnownEyePos[0] = iss.mValue;
+            } else if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MREY) {
+              mLastKnownEyePos[1] = iss.mValue;
+            } else {
+              pR("HESCR12WHATWHAT")&&pR(iss);
+            }
+          }
+        }
+      }
+    }
+
+    /// SEND A SIGNAL IF WE CAN
+    if (false) {
+      ASCII val;
+      mD&&pR("HNFRC14")&&pR(self);
+      if (maybeMakeRandomSignal(val)) {
+        mD&&pR("HNFRC15")&&pR(val);
+        trySendSigViaTAPClassId(val, TOCK.classidof);
+        ret = true;
+      }
+    }
+    mD&&pR("HNFRC16")&&pR(ret);
+    return ret;
+  }
+  @Override Void behave() {
+    mD&&pR("HESRBEHAVE10");
+
+    if (!doSignals()) {
+      mD&&pR("SIGNALING FAILED");
+      return;
+    }
+
+    /// AND DO NORMAL BUSINESS
+    mD&&pR("HESRBEHAVE12");
+
+    return super.behave();
+  }
+
+  Bool maybeMakeRandomSignal(ASCII & val) {
+    Random random;
+    if (random.oddsOf(4,5)) return false;
+    EyePacket p;
+    Bool doleft = random.oneIn(2u);
+    p.mSignal.mSigFmt = doleft ? EyeSignal.cISIGFMT_LEYE : EyeSignal.cISIGFMT_REYE;
+    p.mSignal.mSigData = (EyeSignal.ISigData) mLastKnownEyePos[doleft ? 0 : 1];
+    val = p.mData;
+    mD&&pR("MMRSG11")&&pR(doleft)&&pR(p)&&pR(val);
+    return true; 
+  }
+
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cNONE_TO_NONE;
+  }
+
+}

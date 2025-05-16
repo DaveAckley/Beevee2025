@@ -1,0 +1,144 @@
+union DestLabelUnion {
+  ASCII mData;
+  DestLabelDistanceSignal mDestLabelDistanceSignal;
+  DestLabelGoalSignal mDestLabelGoalSignal;
+}
+
+quark DestLabelDistanceSignal {
+  typedef Unsigned(1) DestLabelDistance0;
+  DestLabelDistance0 mDestLabelDistance0;
+  typedef Unsigned(7) DestLabelData;
+  DestLabelData mDestLabelData;
+}
+
+quark DestLabelGoalSignal {
+  typedef Unsigned(2) DestLabelGoalItem;
+  constant DestLabelGoalItem cDestLabelGoal_X = 2u; //< 10b
+  constant DestLabelGoalItem cDestLabelGoal_Y = 3u; //< 11b
+  DestLabelGoalItem mDestLabelGoalItem;
+  typedef Unsigned(6) DestLabelGoalData;
+  DestLabelGoalData mDestLabelGoalData;
+}
+
+element DestLabel : Label + CodeMethods + DTU + Fail {
+  // CURRENT LAYOUT
+  // 01234
+  // 99,99
+  /** Label layout:
+      
+     0123456789
+     999->99,99
+
+   */
+  constant Unsigned cDESTLABEL_LEN = 5u;
+
+  @Override ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (!hasDestPos())
+      return chooseColor(selector, cu.color(0xff000000), cu.color(0xff555555));
+    return super.getColor(selector);
+  }
+
+  typedef Unsigned(6) DestCoord;
+  DestCoord mDestPos[2] = { DestCoord.maxof, DestCoord.maxof };
+  Bool hasDestPos() {
+    return
+      mDestPos[0] != DestCoord.maxof &&
+      mDestPos[1] != DestCoord.maxof;
+  }
+
+  typedef Unsigned(7) DestDist;
+  DestDist mDistance = DestDist.maxof;
+  Bool hasDistance() { return mDistance != DestDist.maxof; }
+
+  //// Label API
+  @Override ASCII aref(Unsigned idx) {
+    if (!hasDestPos()) return '.';
+    which (idx) {
+    case 0u: case 1u: { return digthis(mDestPos[0],1u-idx); }
+    case 2u:          { return ','; }
+    case 3u: case 4u: { return digthis(mDestPos[1],4u-idx); }
+    }
+    return 'X'; // NOT REACHED
+  }
+
+  /* ASPIRATIONAL
+  @Override ASCII aref(Unsigned idx) {
+    if (!hasDistance()) return ' ';
+    which (idx) {
+    case 0u: case 1u: case 2u: { return digthis(mDistance,2u-idx); }
+    case 3u: case 4u:          { return "->"[idx-3u]; }
+    case 5u: case 6u:          { return digthis(mDestPos[0],6u-idx); }
+    case 7u:                   { return ','; }
+    case 8u: case 9u:          { return digthis(mDestPos[1],9u-idx); }
+    }
+    return 'X'; // NOT REACHED
+  }
+  */
+
+  ASCII digthis(Unsigned value, Unsigned digit) {
+    Unsigned div = 1u;
+    while (digit-- > 0u) div = div*10u;
+    return (ASCII) ('0'+(value/div)%10u);
+  }
+
+  @Override Unsigned alengthof() { return cDESTLABEL_LEN; }
+  @Override FontNumber getFontNumber(LabelIndex idx) { return FontSet.cFONTSET_TERMINUSOGU14B; }
+}
+
+
+element DSTRV : TermHiddenIO {
+  @Override Void behave() {
+    // DEBUG ONLY    SN foo=findLabelSN();       // GET LABEL BUILT
+    return super.behave();
+  }
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cAXON_TO_XBAR;
+  }
+  SN findLabelSN() {
+    SN retsn = SN.maxof;        // assume no good
+    SN sn = 4u;                // assume we're tap.E and go 1xeast of E
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return retsn;
+    Atom & a = ew[sn];
+    if (a is DestLabel) retsn = sn;
+    else if (!a is DestLabel) { // vs 'is Empty': be arrogant here
+      DestLabel lb;
+      lb.mLabelIndex = 0u;
+      //      lb.mGloc.set(0,0);        // bottom left corner of glyph
+      lb.mGloc.set(0,13);        // top left corner of glyph?
+      ew[sn] = lb.atomof;
+      retsn = sn;
+    }
+    return retsn;
+  }
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    SN sn = findLabelSN();
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return false;
+    DestLabel & lb = (DestLabel&) ew[sn];
+    Bool chg = false;
+    if (iss.isOccupied()) {
+      DestLabelUnion u;
+      u.mData = iss.mValue;
+      if (u.mDestLabelDistanceSignal.mDestLabelDistance0 == 0u) {
+        if (lb.mDistance != u.mDestLabelDistanceSignal.mDestLabelData) {
+          lb.mDistance = u.mDestLabelDistanceSignal.mDestLabelData;
+          chg = true;
+        }
+      } else {
+        Unsigned idx = u.mDestLabelGoalSignal.mDestLabelGoalItem - 2u;
+        mD&&pR("DSTRVTSH10")&&pR(idx)&&pR(iss)&&pR(u.mDestLabelGoalSignal.mDestLabelGoalItem)&&pR(u.mDestLabelGoalSignal.mDestLabelGoalData);
+
+        if (lb.mDestPos[idx] != u.mDestLabelGoalSignal.mDestLabelGoalData) {
+          lb.mDestPos[idx] = u.mDestLabelGoalSignal.mDestLabelGoalData;
+          chg = true;
+        }
+        mD&&pR("DSTRVTSH11")&&pR(lb.mDestPos[idx])&&pR(lb);
+      }
+      iss.reset();
+      if (chg) lb.mPrio.increment();
+    }
+    return true;
+  }
+}

@@ -1,0 +1,77 @@
+local constant Unsigned cBITS_PER_ITEM = 11u;
+local constant Unsigned cMAX_OPS = 100u;
+local constant Unsigned cSTACK_SIZE = 6;
+
+element ENAFI : NAFI {
+  constant Unsigned cSTACK_SIZE_BITS =
+    ((cSTACK_SIZE <= Unsigned(3u).maxof)  ? 3u :
+    ((cSTACK_SIZE <= Unsigned(4u).maxof)  ? 4u :
+    ((cSTACK_SIZE <= Unsigned(5u).maxof)  ? 5u :
+    ((cSTACK_SIZE <= Unsigned(6u).maxof)  ? 6u :
+    ((cSTACK_SIZE <= Unsigned(7u).maxof)  ? 7u :
+     8u
+     )))));
+    
+  typedef ItemZ(cBITS_PER_ITEM,cMAX_OPS) MyItem;
+  typedef Unsigned(cSTACK_SIZE_BITS) MyIndex;
+  MyItem mStack[cSTACK_SIZE];
+  MyIndex mStackFF = 0u;
+
+  //// NAFI API
+  @Override Void reset() {
+    mStackFF = 0u;
+  }
+
+  Bool getPC(Unsigned& curpc) { return false; } // XXX NYI!
+  Bool setPC(Unsigned newpc){ return false; } // XXX NYI!
+
+  @Override virtual Unsigned stackSize() { return cSTACK_SIZE; }
+  @Override virtual Bool isEmpty() { return mStackFF == 0u; }
+  @Override virtual Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
+  @Override virtual Bool push(FOC op) {
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/push")&&pR(op)&&pR(nameOfOperator(op));
+    Bool ret = false;
+    if (!isFull()) {
+      ret = mStack[mStackFF++].write(op);
+    }
+    if (!ret) {
+      pRStack("ATNAP10")&&pR(op)&&pR(nameOfOperator(op));
+      fail(__FILE__,__LINE__, "PUSH/WRITE FAILED");
+    }
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pushed")&&pR(ret);
+    return ret;
+  }
+
+  @Override Bool pop(FOC & op) {
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pop");
+    if (!isEmpty()) {
+      mStack[--mStackFF].read(op);
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/popped")&&pR(op)&&pR(nameOfOperator(op));
+      return true;
+    }
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pop failed");
+    return false;
+  }
+
+  @Override Bool printStackTo(ByteStreamWriter & bsw) {
+    //// WARNING! CANNOT CALL pRStack inside printStackTo! pRStack calls printStackTo!
+    bsw.print(" Ab[");
+    Bool first = true;
+    //    for (Int i = (Int) mStackFF; --i >= 0; ) {
+    for (Int i = -1; ++i < (Int) mStackFF; ) {
+      if (first) first = false;
+      else bsw.print(" ");
+      Int s;
+      mStack[i].read(s);
+      String n = nameOfOperatorOrNull(s); // try op first
+      //if (!(Bool) n) n = nameOfFunctionOrNull(s); // then try func
+      if ((Bool) n) {
+        bsw.print(n);
+      }
+      bsw.print("#");
+      bsw.print(s);             // include decimal anyway
+    }
+    bsw.print("]At");
+    return true;
+  }
+}

@@ -86,8 +86,8 @@
 
   sigfunc.StalkMap = '''
   if (i > 0) {
-    o = i*10;
-    if (o > 90) o = 90;
+    o = i*5;
+    if (o > 63) o = 63;   // limit to 6 bits for EyePacket compat?
   }
 '''
   sigmap.SLLR.MLEY = StalkMap
@@ -117,6 +117,29 @@
   # Treat TOCK just as a constant signal generator?
   routes.TOCK = [ MLEY, MREY ]
 
-  sigfunc.StalkMap = "o = 1;"   # eyestalks basically straight ahead?
-  sigmap.TOCK.MLEY = StalkMap
-  sigmap.TOCK.MREY = StalkMap
+#  sigfunc.StalkMap = "o = 1;"   # eyestalks basically straight ahead?
+#  sigfunc.StalkMap = "o = i;"   # pass eyestalk sigs unmodified
+  sigfunc.LeftStalkMap = ''' { MetroState ms; ms.setDebugOutputEnabled(false);
+  EyePacket ep;
+  ep.mData = (ASCII) (Bits(8)) i;
+  ms.mD&&ms.pR("LSMLEFT10")&&ms.pR(i)&&ms.pR(ep);
+  if (ep.mSignal.mSigFmt == EyeSignal.cISIGFMT_LEYE) {
+    o = i;
+    ms.mD&&ms.pR("LSMLEFT11")&&ms.pR(o);
+  }
+  else o = Int.maxof; // "don't route" flag
+} '''
+
+  sigfunc.RightStalkMap = ''' { MetroState ms; ms.setDebugOutputEnabled(false);
+  EyePacket ep;
+  ep.mData = (ASCII) (Bits(8)) i;
+  ms.mD&&ms.pR("RSMRIGHT10")&&ms.pR(i)&&ms.pR(ep);
+  if (ep.mSignal.mSigFmt == EyeSignal.cISIGFMT_REYE) {
+    o = i;
+    ms.mD&&ms.pR("RSMRIGHT11")&&ms.pR(o);
+  }    
+  else o = Int.maxof; // "don't route" flag
+} '''
+
+  sigmap.TOCK.MLEY = LeftStalkMap
+  sigmap.TOCK.MREY = RightStalkMap

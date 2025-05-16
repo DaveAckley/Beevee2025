@@ -62,10 +62,16 @@ transient XPick
     return update(idx,newx,1u);
   }
 
-  Bool update(Unsigned idx, Unsigned newx, Unsigned weight) { //< pick with args all 0
+  Bool update(Unsigned idx, Unsigned newx, Unsigned weight) { //< pick extremal newx with ties weighted by \c weight, and with args all 0
     return update(idx,newx,weight, 0u);
   }
   
+  /** Pick an extremal \c newx, with breaking ties randomly but
+      weighted by \c weight (so that weight 6, say, is twice as likely
+      to win as weight 3; weight 0 will never be picked), and remember
+      the \c arg associated with the winner (as well as remembering
+      its \c idx, of course).
+  */
   Bool update(Unsigned idx, Unsigned newx, Unsigned weight, Unsigned arg) {
     if (weight == 0u) return false;
     if (mThisCount < mThisIdx.lengthof) {

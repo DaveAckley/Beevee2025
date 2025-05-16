@@ -256,9 +256,11 @@ quark XBlock : Intender + XBInfo + GripStgT(XBarSpace2D.cGRIPBITS) + DTU + Fail 
         Int oval = ival;
         mD&&pR("XBFSIP16")&&pR(ival);
         if (gr.mapSig(ss.mSource, taps[ad], ival, oval)) {
-          tss = ss;
-          tss.setValueSigned(oval);   // LET'S SAY ALWAYS SIGNED
-          mD&&pR("XBFSIP16")&&pR(oval)&&pR(tss);
+          if (oval != Int.maxof) { // flag meaning don't ship
+            tss = ss;
+            tss.setValueSigned(oval);   // LET'S SAY ALWAYS SIGNED
+            mD&&pR("XBFSIP16")&&pR(oval)&&pR(tss);
+          }
         }
       }
     }

@@ -44,27 +44,36 @@ quark PCUnsigned : ProgramCounter {
  */
 quark NAFI + ProgramCounter + CodeMethods {
   //// NAFI API
+  virtual Void reset() ;
   virtual Unsigned stackSize() ;
   virtual Bool isEmpty() ;
   virtual Bool isFull() ;
   virtual Bool push(FOC op) ;
   virtual Bool pop(FOC & op) ;
   virtual Bool printStackTo(ByteStreamWriter & bsw) ;
-  //  virtual Bool readRAM(Int addr, Int & res) ; just use CodeConstants' for now
+
   virtual Bool getPC(Unsigned & curpc) ;
   virtual Bool setPC(Unsigned newpc) ;
 
+  virtual Bool canBlock() { return false; } //< no by default; AtomNAFI says yes
+
   //// NAFI SERVICES
-  Bool pRStack(String msg) {
+  Bool pRStack(String msg) { return pRStack(msg, "", ""); }
+  Bool pRStack(String m1, String m2) { return pRStack(m1, m2, ""); }
+
+  Bool pRStack(String m1, String m2, String m3) {
     ByteStreamLogger bsl;
-    bsl.printf("%s:",msg);
+    bsl.printf("%s%s%s: ",m1,m2,m3);
     Unsigned pc;
-    if (getPC(pc))
-      bsl.printf("%d@",pc);
-    else
-      bsl.printf("--@");
     Bool ret = printStackTo(bsl);
     if (!ret) bsl.printf(" XXX");
+
+    if (getPC(pc)) {
+      String src;
+      if (!readRAMSource((Int) pc,src)) src = "??";
+      bsl.printf(" @%dC: %s",pc,src);
+    } else
+      bsl.printf(" @--");
     bsl.printf("\n");
     return ret;
   }
@@ -76,16 +85,17 @@ quark NAFI + ProgramCounter + CodeMethods {
     return push((FOC) u);
   }
 
-  Bool evalOp(Int op, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+  Bool evalOp(Int op, Int & result, MetroState & ms) {
     (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalOP")&&pR(op)&&pR(nameOfOperator(op));
-    if (evaluateThisOperatorOnly(op,self,g,l,t)) {
+    //XXX    if (evaluateThisOperatorOnly(op,self,g,l,t,e)) {
+    if (evaluateThisOperatorOnly(op,ms)) {
       (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalOP done");
       return pop(result);
     }
     return false;
   }
 
-  Bool evalFunction(Int initpc, Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
+  Bool evalFunction(Int initpc, Int & result, MetroState & ms) {
     (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalFunction")&&pR(initpc)&&pR(nameOfFunction(initpc));
     mD&&pR("EVFN10")&&pR(initpc)&&pR(nameOfFunction(initpc));
     if (!setPC(initpc))
@@ -95,22 +105,22 @@ quark NAFI + ProgramCounter + CodeMethods {
     mD&&pR("EVFN11")&&pR(v);
     // MULTIPLE oENTERs NOW..    if (v != oENTER) return false;
     push(1);                    // fake return address
-    mD&&pR("EVFN12")&&pR(nameOfOperator(v));
+    mD&&pRStack("EVFN12PRE-EO-LOOP")&&pR(nameOfOperator(v));
     (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalFunction START");
     Unsigned pc;
-    while (evaluateOperator(self,g,l,t) && getPC(pc) && pc > 1u) { // pc == 1: returned to top level
+    while (evaluateOperator(ms) && getPC(pc) && pc > 1u) { // pc == 1: returned to top level
       (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalFunction LOOP");
-      mD&&pRStack("EVN13")&&pR(pc);
+      mD&&pRStack("EVN13IN-EO-LOOP")&&pR(pc);
     }
-    mD&&pRStack("EVFN14")&&pR(pc);
+    mD&&pRStack("EVFN14POST-EO-LOOP")&&pR(pc);
     if (pc == 1u) {
       pop(result);
-      mD&&pR("EVFN15")&&pR(result);
+      mD&&pR("EVFN15-EO-RESULT")&&pR(result);
       (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalFunction done")&&pR(result);
       return true;
     } // else evaluateOperator failed
     (BeeveeParms.pNAFI_TRACING>0u)&&pRStack("NATR/evalFunction fail")&&pR(self);
-    mD&&pRStack("EVFN16")&&pR(self);
+    /*mD&&*/pRStack("EVFN16FAIL")&&pR(initpc)&&pR(self);
     return false;
   }
 

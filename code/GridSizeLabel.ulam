@@ -1,0 +1,114 @@
+union GSLabelUnion {
+  ASCII mData;
+  GSLabelSignal mGSLabelSignal;
+}
+
+quark GSLabelSignal {
+  typedef Unsigned(1) GSLabelFormat;
+  constant GSLabelFormat cGSLabelFMT_WIDTH = 0u; //< 
+  constant GSLabelFormat cGSLabelFMT_HEIGHT  = 1u; //<
+  GSLabelFormat mGSLabelFmt;
+  typedef Unsigned(7) GSLabelData;
+  GSLabelData mGSLabelData;
+}
+
+element GridSizeLabel : Label + CodeMethods + DTU + Fail {
+  /** Label layout:
+      
+     0123456789
+     99,99
+
+   */
+  constant Unsigned cGRIDSIZELABEL_LEN = 5u;
+
+  Unsigned(7) mGridSize[2];
+  Bool mGridSizeValid[2];
+
+  @Override ARGB getColor(Unsigned selector) {
+    ColorUtils cu;
+    if (!mGridSizeValid[0] ||
+        !mGridSizeValid[1]) 
+      return chooseColor(selector, cu.color(0xff000000), cu.color(0xff555555));
+    return super.getColor(selector);
+  }
+
+  ASCII valdig(Unsigned idx,Unsigned dig) {
+    if (!mGridSizeValid[idx]) return '-';
+    Unsigned s = mGridSize[idx];
+    if (dig == 0u) s /= 10u; // want high order
+    return (ASCII) ((s%10u)+'0');
+  }
+  //// Label API
+  @Override ASCII aref(Unsigned idx) {
+    mD&&pR("DLAREF10")&&pR(idx);
+    if (idx >= cGRIDSIZELABEL_LEN) fail(__FILE__,__LINE__);
+    if (!mGridSizeValid[0] ||
+        !mGridSizeValid[1]) return ' ';
+    ASCII ch = '?';
+    which (idx) {
+      case 0u: case 1u: {
+        ch = valdig(0u,idx);
+      }
+      case 2u: {
+        ch = 'x';
+      }
+      case 3u: case 4u: {
+        ch = valdig(1u,idx-3u);
+      }
+    }
+    mD&&pR("DLAREF11")&&pR(idx)&&pR(ch);
+    return ch;
+  }
+  @Override Unsigned alengthof() { return cGRIDSIZELABEL_LEN; }
+  @Override FontNumber getFontNumber(LabelIndex idx) { return FontSet.cFONTSET_TERMINUSOGU14B; }
+}
+
+
+element GSRV : TermHiddenIO {
+  @Override Void behave() {
+    // DEBUG ONLY    SN foo=findLabelSN();       // GET LABEL BUILT
+    return super.behave();
+  }
+
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cAXON_TO_XBAR;
+  }
+  SN findLabelSN() {
+    SN retsn = SN.maxof;        // assume no good
+    SN sn = 29u;                // assume we're tap.S and go westx2 of W
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return retsn;
+    Atom & a = ew[sn];
+    if (a is GridSizeLabel) retsn = sn;
+    else if (!a is GridSizeLabel) { // vs 'is Empty': be arrogant here
+      GridSizeLabel lb;
+      lb.mLabelIndex = 0u;
+      lb.mGloc.set(0,0);        // bottom left corner of glyph
+      ew[sn] = lb.atomof;
+      retsn = sn;
+    }
+    return retsn;
+  }
+  @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
+    SN sn = findLabelSN();
+    EventWindow ew;
+    if (!ew.isAccessible(sn)) return false;
+    GridSizeLabel & lb = (GridSizeLabel&) ew[sn];
+    Bool chg = false;
+    if (iss.isOccupied()) {
+      GSLabelUnion u;
+      u.mData = iss.mValue;
+      Unsigned idx = u.mGSLabelSignal.mGSLabelFmt;
+      if (lb.mGridSize[idx] != u.mGSLabelSignal.mGSLabelData) {
+        lb.mGridSize[idx] = u.mGSLabelSignal.mGSLabelData;
+        chg = true;
+      }
+      if (lb.mGridSizeValid[idx] != (lb.mGridSize[idx] != 0u)) {
+        lb.mGridSizeValid[idx] = (lb.mGridSize[idx] != 0u);
+        chg = true;
+      }
+    }
+    if (chg) lb.mPrio.increment();
+    return true;
+  }
+}

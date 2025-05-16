@@ -1,0 +1,83 @@
+transient MetroState + DTU + QDebugUtils + Fail {
+  SN mGTCCSN = SN.maxof;
+  SN mLOCZSN = SN.maxof;
+  SN mNAFISN = SN.maxof;
+  SN mHINFOSN = SN.maxof;
+  SN mTDSN = SN.maxof;
+  SN mEMPSN = SN.maxof;
+  TRAKtorEvent mTRAKtorEvent = cTKTR_NONE;
+  Bool mInternalNAFI = false;
+  Function mNAFI;
+  
+  Void setUseInternalNAFI(Bool to) {
+    mInternalNAFI = to;
+  }
+
+  EventWindow ew;
+  Void accessible(SN sn,String msg) {
+    if (!ew.isAccessible(sn)) fail(__FILE__,__LINE__,msg);
+  }
+
+  Bool dump(String file, Unsigned line) {
+    pR("MSDUMP10FROM")&&pR(file)&&pR(line);
+    
+    pR("MSDUMP11")&&pR(self);
+    if (allComponentsFound()) {
+      pR("MSDUMP12GTCC")&&pR(getGTCC());
+      pR("MSDUMP13TD")&&pR(getTRAKtorDriver());
+      pR("MSDUMP14LOCZ")&&pR(getLOCZ());
+      pR("MSDUMP15HINFO")&&pR(getHINFO());
+      pR("MSDUMP16NAFI")&&pR(mInternalNAFI)&&pR(getNAFI());
+    }
+    pR("MSDUMP17");
+    return true;
+  }
+
+  TRAKtorDriver & getTRAKtorDriver() { accessible(mTDSN,__FUNC__); return (TRAKtorDriver&) ew[mTDSN]; }
+  GTCC & getGTCC() { accessible(mGTCCSN,__FUNC__); return (GTCC&) ew[mGTCCSN]; }
+  LOCZ & getLOCZ() { accessible(mLOCZSN,__FUNC__); return (LOCZ&) ew[mLOCZSN]; }
+  HINFO & getHINFO() { accessible(mHINFOSN,__FUNC__); return (HINFO&) ew[mHINFOSN]; }
+  NAFI & getNAFI() {
+    if (mInternalNAFI) {
+      //mNAFI.pRStack("M8RSGNAF10");
+      return mNAFI;
+    }
+    accessible(mNAFISN,__FUNC__);
+    return (AtomNAFI&) ew[mNAFISN];
+  }
+
+  Bool findComponents() {
+    EventWindow ew;
+    MinXPick tdsnpick, gsnpick, lsnpick, nsnpick, hsnpick, emppick;
+    for (SN sn = 0u; sn <= 40u; ++sn) {
+      if (!ew.isAccessible(sn)) continue;
+      Atom & a = ew[sn];
+      if (a is Empty) emppick.update(sn);
+      else if (a is TRAKtorDriver) tdsnpick.update(sn);
+      else if (a is GTCC) gsnpick.update(sn);
+      else if (a is LOCZ) lsnpick.update(sn);
+      else if (a is AtomNAFI) nsnpick.update(sn);
+      else if (a is HINFO) hsnpick.update(sn);
+    }
+    if (tdsnpick.hasPick()) mTDSN = tdsnpick.getIdxSN();
+    if (gsnpick.hasPick()) mGTCCSN = gsnpick.getIdxSN();
+    if (lsnpick.hasPick()) mLOCZSN = lsnpick.getIdxSN();
+    if (nsnpick.hasPick()) mNAFISN = nsnpick.getIdxSN();
+    if (hsnpick.hasPick()) mHINFOSN = hsnpick.getIdxSN();
+    if (emppick.hasPick()) mEMPSN = emppick.getIdxSN();
+    return
+      allComponentsFound();
+  }
+  
+  Bool allComponentsFound() {
+    return
+      mTDSN != SN.maxof &&
+      mGTCCSN != SN.maxof &&
+      mLOCZSN != SN.maxof &&
+      mNAFISN != SN.maxof &&
+      mHINFOSN != SN.maxof &&
+      mEMPSN != SN.maxof;
+  }
+
+}
+

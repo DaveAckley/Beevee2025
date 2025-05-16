@@ -95,7 +95,7 @@ element CLOK : HOpNullary + Fail {
       Unsigned sig = 0u;
       sig += mCLOKs[0].mClokState*1u;
       sig += mCLOKs[1].mClokState*4u;
-      trySendSigViaTAP((ASCII) sig, GTCC.classidof);
+      trySendSigViaTAPClassId((ASCII) sig, GTCC.classidof);
     }
     return false; // NOT REACHED
   }

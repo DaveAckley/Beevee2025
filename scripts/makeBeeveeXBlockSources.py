@@ -746,8 +746,15 @@ element {n} : {n}_BASE + FourWaySlots {{
 
     def decorateFunctionDefs(self):
         for (name,funcaddr) in self.codeFuncAddrs.items():
+            eprint(f"decorateFunctionDefs{name},{funcaddr}")
             funcmt = f"FUNCTION: {name}"
             self.decorateCode(funcaddr,funcmt)
+
+    def checkFunctionUses(self):
+        for (name,uselist) in self.codeFuncUses.items():
+            funcaddr = self.codeFuncAddrs[name]
+            if not funcaddr:
+                raise Exception(f"Undefined function {name} {uselist}")
 
     def decorateFunctionUses(self):
         for (name,uselist) in self.codeFuncUses.items():
@@ -793,6 +800,7 @@ element {n} : {n}_BASE + FourWaySlots {{
         for k,v in funcs.items():
             self.analyzeCodeInfoFor(k,v)
 
+        self.checkFunctionUses()
         self.decorateFunctionDefs()
         self.decorateFunctionUses()
 
@@ -833,6 +841,7 @@ element {n} : {n}_BASE + FourWaySlots {{
             v2 = vals['mSpeedMax']  # ditto
         else:
             raise Exception(f"unrecognized trakt {t} ({vals})")
+
         if (k := 'mDoneFunc') in vals:
             funcNotOp = True
             done = vals[k]
@@ -846,6 +855,24 @@ element {n} : {n}_BASE + FourWaySlots {{
         self.traktMap[t]['mSpeed2'] = v2
         self.traktMap[t]['mFuncNotOp'] = funcNotOp
         self.traktMap[t]['mDoneCode'] = done
+
+        lep = rep = 0
+        if (k := 'mLeftEyePos') in vals:
+            lep = vals[k]
+        if (k := 'mRightEyePos') in vals:
+            rep = vals[k]
+
+        self.traktMap[t]['mLeftEyeOffset'] = str(lep)+','
+        self.traktMap[t]['mRightEyeOffset'] = str(rep)+','
+        
+        if (k := 'mSetTimerTo') in vals:
+            self.traktMap[t]['mSetTimerTo'] = str(vals[k])+','
+        else:
+            self.traktMap[t]['mSetTimerTo'] = 'Unsigned.maxof,  // don\'t set timer'
+        if (k := 'mEventFunction') in vals:
+            self.traktMap[t]['mEventFunction'] = str(vals[k])+','
+        else:
+            self.traktMap[t]['mEventFunction'] = '0u,  // no event handler'
 
     def mergeTRAKtInfo(self):
         ccfg = self.codeCfg
@@ -898,8 +925,13 @@ element {n} : {n}_BASE + FourWaySlots {{
       .mSpeedNotWheel = {'true' if m['mSpeedNotWheel'] else 'false'},
       .mSpeed1 = {str(m['mSpeed1'])+',':20} // {'min' if m['mSpeedNotWheel'] else 'left'}
       .mSpeed2 = {str(m['mSpeed2'])+',':20} // {'max' if m['mSpeedNotWheel'] else 'right'}
+      .mLeftEyeOffset = {m['mLeftEyeOffset']:12} // left eyestalk angle adjustment
+      .mRightEyeOffset = {m['mRightEyeOffset']:12} // right eyestalk angle adjustment
       .mFuncNotOp = {'true' if m['mFuncNotOp'] else 'false'},
-      .mDoneCode = {m['mDoneCode']},
+      .mDoneCode = {m['mDoneCode']},\
+      {'\n      .mSetTimerTo = '+m['mSetTimerTo'] if m.get('mSetTimerTo') else ''}\
+      {'\n      .mEventFunction = '+m['mEventFunction'] if m.get('mEventFunction') else ''}\
+
    }},''')
         print(f'''  }}; // cTRAKT_MOTORCMDS''')
         print(f'''
@@ -924,8 +956,12 @@ element {n} : {n}_BASE + FourWaySlots {{
 
     def generateCode(self):
         print(f'''
-quark CodeConstants + DTU + Fail {{''')
+/// LOCAL DECLARATIONS
+local typedef CodeConstants CC;''')
         self.generateRam()
+        self.generateDRam()
+        print(f'''
+quark CodeConstants + DTU + Fail {{''')
         self.generateFuncAddrs()
         self.generateOps()
         self.generateTRAKts()
@@ -943,22 +979,61 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
 
     def generateRam(self):
         l = len(self.codeIntRam)
-        decl = f'constant Int cRAM[{l}]'
         print(f'''
-  {decl} = {{''')        
-        for (i,n) in zip(self.codeIntRam,range(l)):
-            doc = ''
-            if type(i) == tuple:
-                (i,*doc) = i
-            print(f'''    {str(i)+',':20} // {n:3} {': '.join(map(str,doc))}''')
-        print(f'''  }}; // {decl}''')        
+local constant Unsigned cTOTAL_CRAM_LEN = {l}u;''')        
+        for idx in range(0,l,256):
+            block = int(idx/256)
+            size = 256 if idx+256 <= l else l-idx
+            decl = f'local constant Int cRAM{block}[{size}]'
+            print(f'''
+{decl} = {{''')        
+            for (i,n) in zip(self.codeIntRam[idx:idx+size],range(idx,idx+size)):
+                doc = ''
+                if type(i) == tuple:
+                    (i,*doc) = i
+                if not self.isIntUgh(i):
+                    i = 'CC.' + i
+                print(f'''  {str(i)+',':24} // {n:3}C {': '.join(map(str,doc))}''')
+            print(f'''}}; // {decl}''')        
+
+    def isIntUgh(self,num):
+        try:
+            int(num)
+            return True
+        except ValueError:
+            return False
+
+    def generateDRam(self):
+        l = len(self.codeIntRam)
+        for idx in range(0,l,256):
+            block = int(idx/256)
+            size = 256 if idx+256 <= l else l-idx
+            decl = f'local constant String cRAMSource{block}[{size}]'
+            print(f'''
+{decl} = {{''')        
+            for (i,n) in zip(self.codeIntRam[idx:idx+size],range(idx,idx+size)):
+                doc = ''
+                if type(i) == tuple:
+                    (i,*doc) = i
+                if len(doc) > 0: # Include doc in "source"
+                    print(f'''  {'"'+str(i)} // {': '.join(map(str,doc))}",''')
+                else:
+                    print(f'''  {'"'+str(i)+'",':20} // {n:3}C {': '.join(map(str,doc))}''')
+            print(f'''}}; // {decl}''')        
 
     def generateFuncAddrs(self):
         print(f'''
   //// FUNCTION ADDRS''')
         for k,v in self.codeFuncAddrs.items():
-            d = self.codeFunctions[k]
-            print(f'''  constant Int {k:20} = {v:3};   // {d}''')
+            d = self.codeFunctions[k] or ""
+            dl = d.split('\n')
+            if len(dl) > 1:
+                print(f'''  // FUNCTION {k}''')
+                for l in dl:
+                    print(f"  // {l}")
+                print(f'''  constant Int {k:20} = {v:3};''')
+            else:
+                print(f'''  constant Int {k:20} = {v:3};   // {d}''')
         print(f'''  //// END FUNCTION ADDRS''')
         print(f'''
   String nameOfFunction(Int funcaddr) {{
@@ -1023,8 +1098,31 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
         
         print(f'''
   Bool readRAM(Int addr, Int & res) {{
-    if (addr < 0 || addr >= cRAM.lengthof) return false;
-    res = cRAM[addr];
+    if (addr < 0 || addr >= cTOTAL_CRAM_LEN) return false;
+    Int block = addr/256;
+    Int idx = addr%256;
+    which (block) {{''')        
+        l = len(self.codeIntRam)
+        for idx in range(0,l,256):
+            block = int(idx/256)
+            print(f'''     case {block}: {{ res = cRAM{block}[idx]; }}''')
+        print(f'''     otherwise: {{ return false; }}
+    }}
+    return true;
+  }}''')
+        
+        print(f'''
+  Bool readRAMSource(Int addr, String & res) {{
+    if (addr < 0 || addr >= cTOTAL_CRAM_LEN) return false;
+    Int block = addr/256;
+    Int idx = addr%256;
+    which (block) {{''')        
+        l = len(self.codeIntRam)
+        for idx in range(0,l,256):
+            block = int(idx/256)
+            print(f'''     case {block}: {{ res = cRAMSource{block}[idx]; }}''')
+        print(f''' otherwise: {{ return false; }}
+    }}
     return true;
   }}''')
         
@@ -1033,8 +1131,15 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
         ops = ccfg.getRequiredSection('operator')
         print(f'''
   //// OPERATOR EVAL
-  Bool evaluateThisOperatorOnly(Int o, NAFI & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
+  Bool evaluateThisOperatorOnly(Int o, MetroState & ms) {{
     mD&&pR("ETOPO10")&&pR(o);
+    NAFI & s = ms.getNAFI();
+    GTCC & g = ms.getGTCC();
+    LOCZ & l = ms.getLOCZ();
+    TRAKtor & t = g.mStateMachine;
+    HINFO & h = ms.getHINFO();
+    TRAKtorEvent e = ms.mTRAKtorEvent;
+        
     if (o >= cFOC_MIN_IMMEDIATE && o <= cFOC_MAX_IMMEDIATE) {{
       Bool ret = s.push(o);
       mD&&s.pRStack("ETOPO11");
@@ -1067,7 +1172,14 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
         print(f'''      ;
   }}''')
         print(f'''
-  Bool evaluateOperator(NAFI & s, GTCC & g, LOCZ & l, TRAKtor & t) {{
+  Bool evaluateOperator(MetroState & ms) {{
+    NAFI & s = ms.getNAFI();
+    GTCC & g = ms.getGTCC();
+    LOCZ & l = ms.getLOCZ();
+    TRAKtor & t = g.mStateMachine;
+    HINFO & h = ms.getHINFO();
+    TRAKtorEvent e = ms.mTRAKtorEvent;
+
     Unsigned curpc;
     if (!s.getPC(curpc)) return false;
     mD&&pR("EVLOP10")&&pR(curpc);
@@ -1088,17 +1200,17 @@ quark CodeMethods : CodeConstants + QDebugUtils {{''')
     case {k}: {{ {impl}; }}''')
         print(f'''
     /// else dish to general case
-    otherwise: {{ return evaluateThisOperatorOnly(o, s, g, l, t); }}
+    otherwise: {{ return evaluateThisOperatorOnly(o, ms); }}
     }}
     return false; // NOT REACHED
   }} // OPERATOR EVAL
 ''')
         print(f'''
-  Bool isTRAKtDone(Int tn, GTCC & g, LOCZ & l, TRAKtor & t) {{
+  Bool isTRAKtDone(Int tn, MetroState & ms) {{
     if (tn < 0) fail(__FILE__,__LINE__);
     MotorCmd mc = makeMotorCmdForTRAKt((TRAKt) tn);
     Int result;
-    if (!mc.evalDoneCode(result,g,l,t)) fail(__FILE__,__LINE__);
+    if (!mc.evalDoneCode(result,ms)) fail(__FILE__,__LINE__);
     return result != 0;
   }} // isTRAKtDone
 ''')

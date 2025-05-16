@@ -13,6 +13,8 @@ element TRAK : HOpTernary + Grip + Fail {
 
   Bool mDoUpdate;
 
+  Bool mLastAllRedSigTrue = false;
+
   //// UrSelf API
   @Override
   Void behave() {
@@ -154,6 +156,9 @@ XXX NO PD..i get it
     ClassId giid = gim.getGripInfoClassId(gripnum); // of current grip
     GripInfo & gin = gim.getGripInfo(giid);
 
+    //// CONSIDER SENDING "RED" SIGNAL
+    maybeSendRedSignal();
+    
     //// DISPATCH ON STATE
     Bool wheelmode = pd.isWheelMode(); // are we zombie?
     mD&&pR("TRKX16")&&pR(gin)&&pR(wheelmode);
@@ -329,6 +334,36 @@ XXX NO PD..i get it
 
     return valid;
   }
+
+  Bool maybeSendRedSignal() {
+    SlotSig & sl = getSlotSig(0u);
+    SlotSig & sc = getSlotSig(1u);
+    SlotSig & sr = getSlotSig(2u);
+    mD&&pR("MBESRS10")&&pR(self);
+
+    if (!sl.isOccupied() || !sc.isOccupied() || !sr.isOccupied())
+      return false;
+
+    Unsigned vl = sl.getValueRaw();
+    Unsigned vc = sc.getValueRaw();
+    Unsigned vr = sr.getValueRaw();
+    Bool allRedGrey =
+      vl == ASCII.maxof &&
+      vc == ASCII.maxof &&
+      vr == ASCII.maxof;
+
+    Random random;
+    Bool sendIt = (mLastAllRedSigTrue != allRedGrey) || random.oneIn(8);
+    ASCII val = allRedGrey ? 1u : 0u;
+    if (sendIt) {
+      Bool sent = trySendSig(val,GTCC.classidof);
+      if (sent) 
+        mLastAllRedSigTrue = allRedGrey;
+      /*mD&&*/pR(allRedGrey ? "MBESRS11 TRUE" : "MBESRS11 FALSE");
+    }
+    return false;
+  }
+
 
   Bool executeTRACK(Unsigned gripnum, GripInfoMap & gim, GripInfo & gin, XBlock & xb, TRAKPD & pd) {
     SlotSig & sl = getSlotSig(0u);

@@ -1,0 +1,182 @@
+union EyePacket {
+  EyeSignal mSignal;
+  ASCII mData;
+}
+quark EyeSignal {
+  typedef Unsigned(2) ISignalFormat;
+  constant ISignalFormat cISIGFMT_LEYE = 0u; //< left eye offset
+  constant ISignalFormat cISIGFMT_REYE = 1u; //< right eye offset
+  constant ISignalFormat cISIGFMT_RSV1 = 2u; //<
+  constant ISignalFormat cISIGFMT_RSV2 = 3u; //<
+  ISignalFormat mSigFmt;
+  typedef Int(6) ISigData;
+  ISigData mSigData;
+}
+
+union GridInfoPacket {
+  GridInfoSignal mSignal;
+  ASCII mData;
+}
+quark GridInfoSignal {
+  typedef Unsigned(1) GridInfoFormat;
+  constant GridInfoFormat cGRIDINFO_X = 0u; //< width of grid, x of dest
+  constant GridInfoFormat cGRIDINFO_Y = 1u; //< height of grid, y of dest
+  GridInfoFormat mSigFmt;
+  typedef Unsigned(7) GridInfoData;
+  GridInfoData mSigData;
+}
+
+/** Hidden grid info
+   \symbol Hi
+   \color #d08
+ */
+@Concrete
+element HINFO : TermHiddenIO + CodeConstants {
+  Bool mResetRequested = false;
+  typedef ASCII GridSize[2];
+  GridSize mGridSize;
+
+  Bool mDestinationExists;
+  GridSize mDestination;
+  
+  ASCII mLastSig;
+
+  Bool runCode(MetroState & ms) {
+    mD&&pR("HNFRC10");
+    EventWindow ew;
+    GTCC & g = (GTCC &) ew[ms.mGTCCSN];
+    LOCZ & l = (LOCZ &) ew[ms.mLOCZSN];
+    TRAKtor & t = (TRAKtor &) g.mStateMachine;
+    AtomNAFI & n = (AtomNAFI &) ew[ms.mNAFISN];
+
+    Bool ret = true; //// n.evalTilBlocked(ms); // g,l,t,ms.mEMPSN);
+
+    mD&&pR("HNFRC12")&&pR(ret);
+
+    if (false) {
+      DLRVUnion u;
+      u.mDLRVSignal.mDLRVFmt = DLRVSignal.cDLRVFMT_TRAKT;
+      u.mDLRVSignal.mDLRVData = (DLRVSignal.DLRVData) t.mTRAKt;
+      ASCII sig = u.mASCII;
+      Random random;
+      if (mLastSig != sig || random.oneIn(25)) {
+        mLastSig = sig;
+        trySendSigViaTAPIdxs(sig, BeeveeBIMXBlock.cTAPIDX_HINFO, BeeveeBIMXBlock.cTAPIDX_DLRV);
+      }
+    }
+
+    /// SEND A SIGNAL IF WE CAN
+    if (t.isRunning()) {
+      MotorCmd mc = t.makeCurrentMotorCmd();
+      ASCII val;
+      mD&&pR("HNFRC14")&&pR(self);
+      if (maybeMakeRandomSignal(val,mc)) {
+        mD&&pR("HNFRC15")&&pR(val);
+        trySendSigViaTAPIdxs(val,
+                             BeeveeBIMXBlock.cTAPIDX_HINFO,
+                             BeeveeBIMXBlock.cTAPIDX_TOCK);
+        ret = true;
+      }
+    }
+
+    /// ANNOUNCE GRID SIZE IF APPROPRIATE
+    if (mGridSize[0] != 0u && mGridSize[1] != 0u) {
+      ASCII val;
+      mD&&pR("HNFRC16")&&pR(self);
+      if (maybeMakeRandomGridInfoSignal(val,mGridSize[0],mGridSize[1])) {
+        mD&&pR("HNFRC17")&&pR(val);
+        trySendSigViaTAPIdxs(val,
+                             BeeveeBIMXBlock.cTAPIDX_HINFO,
+                             BeeveeBIMXBlock.cTAPIDX_GSRV);
+        ret = true;
+      }
+    }
+
+    /// MAYBE ANNOUNCE (LACK OF) DESTINATION
+    {
+      ASCII val;
+      mD&&pR("HNFRC18")&&pR(self);
+      if (maybeMakeRandomDestInfoSignal(val,mDestination[0],mDestination[1],mDestinationExists)) {
+        mD&&pR("HNFRC19")&&pR(val);
+        trySendSigViaTAPIdxs(val,
+                             BeeveeBIMXBlock.cTAPIDX_HINFO,
+                             BeeveeBIMXBlock.cTAPIDX_DSTRV);
+        ret = true;
+      }
+    }
+
+    mD&&pR("HNFRC210")&&pR(ret);
+    return ret;
+  }
+  @Override Void behave() {
+    mD&&pR("HINFOBEHAVE10");
+
+    MetroState ms;
+    if (ms.findComponents()) {
+      if (mResetRequested) {
+        mResetRequested = false; // whether we find components or not?
+        EventWindow ew;
+        pR(">>>SELL THE HOUSE SELL THE JAR SELL THE LIDS");
+        ew[ms.mNAFISN] = Empty.instanceof; // reboot mind
+        mLastSig = 0u;
+        return;
+      }
+
+      if (!runCode(ms)) {
+        mD&&pR("RUNCODE FAILED");
+        return;
+      }
+    }
+
+    /// AND DO NORMAL BUSINESS
+
+    return super.behave();
+  }
+
+  Bool maybeMakeRandomSignal(ASCII & val,MotorCmd &mc) {
+    Random random;
+    if (random.oddsOf(4,5)) return false;
+    EyePacket p;
+    Bool doleft = random.oneIn(2u);
+    p.mSignal.mSigFmt = doleft ? EyeSignal.cISIGFMT_LEYE : EyeSignal.cISIGFMT_REYE;
+    p.mSignal.mSigData = (EyeSignal.ISigData) (doleft ? mc.mLeftEyeOffset : mc.mRightEyeOffset);
+    val = p.mData;
+    mD&&pR("MMRSG11")&&pR(doleft)&&pR(p)&&pR(val);
+    return true; 
+  }
+
+  Bool maybeMakeRandomGridInfoSignal(ASCII & val,Unsigned x, Unsigned y) {
+    Random random;
+    if (random.oddsOf(4,5)) return false;
+    GridInfoPacket p;
+    Bool dox = random.oneIn(2u);
+    p.mSignal.mSigFmt = dox ? GridInfoSignal.cGRIDINFO_X : GridInfoSignal.cGRIDINFO_Y;
+    p.mSignal.mSigData = (GridInfoSignal.GridInfoData) (dox ? x : y);
+    val = p.mData;
+    mD&&pR("MMRGISIG11")&&pR(dox)&&pR(p)&&pR(val);
+    return true; 
+  }
+
+  Bool maybeMakeRandomDestInfoSignal(ASCII & val, Unsigned x, Unsigned y, Bool destExists) {
+    Random random;
+    if (random.oddsOf(4,5)) return false;
+    DestLabelUnion u;
+    Bool dox = random.oneIn(2u);
+    u.mDestLabelGoalSignal.mDestLabelGoalItem = dox
+      ? DestLabelGoalSignal.cDestLabelGoal_X
+      : DestLabelGoalSignal.cDestLabelGoal_Y;
+    if (destExists)
+      u.mDestLabelGoalSignal.mDestLabelGoalData = (DestLabelGoalSignal.DestLabelGoalData) (dox ? x : y);
+    else
+      u.mDestLabelGoalSignal.mDestLabelGoalData = DestLabelGoalSignal.DestLabelGoalData.maxof; // signal no dest
+    val = u.mData;
+    mD&&pR("MMRGISIG11")&&pR(dox)&&pR(u)&&pR(val);
+    return true; 
+  }
+
+
+  @Override RouteDir getHiddenRouteDir(XBlock & gs) {
+    return cNONE_TO_NONE;
+  }
+
+}

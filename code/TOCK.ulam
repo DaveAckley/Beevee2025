@@ -3,7 +3,7 @@
     \symbol TK
     \color #0ff
  */
-element TOCK : TermSensor + Once {
+element TOCK : TermSensor + Once + Fail {
   constant Unsigned cBITS = 20u;
   typedef Unsigned(cBITS) ClockState;
   ClockState mClockState;
@@ -12,6 +12,27 @@ element TOCK : TermSensor + Once {
       mClockState = mClockState.minof;
     else ++mClockState;
     return mClockState;
+  }
+
+  EyePacket mEyePosSig[2];
+  typedef RXTimer(3u,5u,1u) EyePosTimer;
+  EyePosTimer mEyePosTimer;
+
+  Void resetEyePackets() {
+    EyePacket p;
+    p.mSignal.mSigFmt = EyeSignal.cISIGFMT_LEYE;
+    mEyePosSig[0] = p;
+    p.mSignal.mSigFmt = EyeSignal.cISIGFMT_REYE;
+    mEyePosSig[1] = p;
+  }
+
+  Bool getEyestalkSignal(ASCII & val) {
+    if (mEyePosTimer.countAlarm()) resetEyePackets();
+    Random random;
+    Bool sendleft = random.oneIn(2);
+    Int idx = sendleft ? 0 : 1;
+    val = mEyePosSig[idx].mData;
+    return true;
   }
 
   // 'static' method for GripInfo to call to map getSig values during
@@ -67,6 +88,47 @@ element TOCK : TermSensor + Once {
                     clockf ? 0xdd : 0x00);
   } 
 
+  Void maybeForwardEyeStalks() {
+    mD&&pR("MYBFES10");
+
+    EventWindow ew;
+    SN axonsn = findMatchingAxonEnd(true); // look for inbound from hinfo
+    if (!ew.isAccessible(axonsn)) return;  // nope
+
+    mD&&pR("MYBFES11")&&pR(axonsn);
+    Atom & a = ew[axonsn];
+    if (!a is AxonEnd) return;  // WTF?
+
+    AxonEnd & ae = (AxonEnd&) a;
+
+    AxonIdx aidx = ae.getRemoteAxonIdx();
+    TapIdx ti = ae.getAxonTap(aidx);
+    mD&&pR("MYBFES12")&&pR(aidx)&&pR(ti);
+
+    if (ti != BeeveeBIMXBlock.cTAPIDX_HINFO) return; // "?
+    SlotSig & iss = ae.getEndSlotSig(true); // get inbound slot of axon
+    mD&&pR("MYBFES13")&&pR(iss);
+
+    if (iss.isOccupied()) {
+      EyePacket p;
+      p.mData = iss.mValue;
+      iss.reset();
+
+      Unsigned idx;
+      if (p.mSignal.mSigFmt == EyeSignal.cISIGFMT_LEYE)
+        idx = 0u;
+      else if (p.mSignal.mSigFmt == EyeSignal.cISIGFMT_REYE)
+        idx = 1u;
+      else {
+        pR("MYBFES14 UNREC")&&pR(p.mSignal);
+        return;
+      }
+      mEyePosSig[idx] = p;
+      mEyePosTimer.reset();
+      mD&&pR("MYBFES15 GOTX")&&pR(p)&&pR(idx)&&pR(mEyePosSig[idx]);
+    }
+  }
+
   @Override
   Void behave() {
     Random random;
@@ -81,6 +143,12 @@ element TOCK : TermSensor + Once {
     if (!ew.isAccessible(xblocksn)) return;
 
     Atom & a = ew[xblocksn];
+
+    Unsigned gripnum;
+    if (a as XBlock) {
+      gripnum = a.getGripNumber();
+    } else fail(__FILE__,__LINE__);
+
     mD&&pR("TOCKSNBV11")&&pR(a);
     if (a as FourWaySlots) {
       mD&&pR("TOCKSNBV1110");
@@ -92,18 +160,21 @@ element TOCK : TermSensor + Once {
         SlotSig & oss = a.getSlotSig(adout); // check outgoing from us
         mD&&pR("TOCKSNBV1112")&&pR(iss)&&pR(oss);
         if (iss.isOccupied()) {
+          // OK TO DISCARD HERE IN XBLOCK BECAUSE HINFO ONLY ARRIVES BY AXON
           iss.reset();          // discard input to us
           mD&&pR("TOCKSNBV1113")&&pR(iss)&&pR(oss);
         }
-        if (!oss.isOccupied()) {
+        /// TOCK IS ONLY RESPONSIBLE FOR EYESTALKS WHEN TRACKING!
+        if (gripnum == BeeveeGrips.cGRIPIDX_TRACK && !oss.isOccupied()) {
           mD&&pR("TOCKSNBV1114")&&pR(iss);
           BeeveeBIMXBlock bim;
           TapIdx tapidx = bim.getTapIdx(self);
 
-          ASCII val = 32u; // XXX getSig();
-          if (val > 32u) val = 32u;
-          oss.setOccupied(val,tapidx);
-          mD&&pR("TOCKSNBV12")&&pR(oss);
+          ASCII val;
+          if (getEyestalkSignal(val)) {
+            oss.setOccupied(val,tapidx);
+            mD&&pR("TOCKSNBV12")&&pR(oss);
+          }
         }
       }
     } else {                    // ??
@@ -112,5 +183,7 @@ element TOCK : TermSensor + Once {
       return;
     }
     mD&&pR("TOCKSNBV14");
+    maybeForwardEyeStalks();
   }
+
 }

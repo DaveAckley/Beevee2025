@@ -2,6 +2,41 @@
     functions useful for life on a diamond
  */
 quark DTU {
+  typedef Unsigned TRAKtorEvent;
+  constant TRAKtorEvent cTKTR_NONE =              0u;
+  constant TRAKtorEvent cTKTR_FAIL =              cTKTR_NONE+1u;
+  constant TRAKtorEvent cTKTR_READY =             cTKTR_FAIL+1u;
+  constant TRAKtorEvent cTKTR_FRONT_TICK =        cTKTR_READY+1u;
+  constant TRAKtorEvent cTKTR_FRONT_TOCK =        cTKTR_FRONT_TICK+1u;
+  constant TRAKtorEvent cTKTR_FRONT_NONE =        cTKTR_FRONT_TOCK+1u;
+  constant TRAKtorEvent cTKTR_REAR_TICK =         cTKTR_FRONT_NONE+1u;
+  constant TRAKtorEvent cTKTR_REAR_TOCK =         cTKTR_REAR_TICK+1u;
+  constant TRAKtorEvent cTKTR_REAR_NONE =         cTKTR_REAR_TOCK+1u;
+  constant TRAKtorEvent cTKTR_RED_PREWARN_SET =   cTKTR_REAR_NONE+1u;
+  constant TRAKtorEvent cTKTR_RED_WARN_SET =      cTKTR_RED_PREWARN_SET+1u;
+  constant TRAKtorEvent cTKTR_RED_PREWARN_CLEAR = cTKTR_RED_WARN_SET+1u;
+  constant TRAKtorEvent cTKTR_RED_WARN_CLEAR =    cTKTR_RED_PREWARN_CLEAR+1u;
+
+  constant String cTKTR_EVT_NAMES[] = {
+    "NONE",
+    "FAIL",
+    "READY",
+    "FRONT_TICK",
+    "FRONT_TOCK",
+    "FRONT_NONE",
+    "REAR_TICK",
+    "REAR_TOCK",
+    "REAR_NONE",
+    "RED_PREWARN_SET",
+    "RED_WARN_SET",
+    "RED_PREWARN_CLEAR",
+    "RED_WARN_CLEAR",
+  };
+
+  String nameOfTRAKtorEvent(TRAKtorEvent te) {
+    return cTKTR_EVT_NAMES[te];
+  }
+
   //// Function-related constants (see mainly BeeveeBIMXBlock.ulam)
   typedef Int FOC; 
 

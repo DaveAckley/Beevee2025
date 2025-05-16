@@ -6,17 +6,42 @@ transient MotorCmd + DTU + QDebugUtils + Fail {
   Int(16) mSpeed2;     //< max or right wheel speed
   Bool mFuncNotOp;     //< true if mDoneCode is func, false if op
   Int mDoneCode;       //< funcaddr or op
+  Int mEventFunction;  //< funcaddr or 0 if none
+  Unsigned mSetTimerTo = Unsigned.maxof; //< set timer on trakt start if <15
+  Int(8) mLeftEyeOffset; //< >0 to look outward, <0 to look inward
+  Int(8) mRightEyeOffset; //< >0 to look outward, <0 to look inward
 
-  Bool evalDoneCode(Int & result, GTCC & g, LOCZ & l, TRAKtor & t) {
-    Function f;
-    f.takeDebug(self);
+  Bool evalEvent(Int & result, MetroState & ms) {
+    if (mEventFunction == 0) return true; // we are successfully ignoring e
+    MetroState fms = ms;
+    fms.setUseInternalNAFI(true);
+    NAFI & f = fms.getNAFI();
+    if (f.evalFunction(mEventFunction, result, fms))
+      return true;
+    pR("MCXFAILINGX10")&&
+      fms.dump(__FILE__,__LINE__)&&
+      pR("MCXFAILINGX11")&&
+      ms.dump(__FILE__,__LINE__);
+    fail(__FILE__,__LINE__);
+    return false; // NOT REACHED
+  }
+
+  Bool evalDoneCode(Int & result, MetroState & ms) {
+    MetroState fms = ms;
+    fms.setUseInternalNAFI(true);
+    NAFI & f = fms.getNAFI();
+    if (!(f is Function)) {
+      pR(f)&&pR(fms)&&pR(ms);
+      fail(__FILE__,__LINE__,"NOT INTERNAL?");
+    }
+    // should be set up, or this is default anyway? - ms.mTRAKtorEvent = TRAKtorDriver.cTKTR_NONE;  // no event
     if (mFuncNotOp) {
-      if (f.evalFunction(mDoneCode, result, g, l, t))
+      if (f.evalFunction(mDoneCode, result, fms))
         return true;
       fail(__FILE__,__LINE__);
     } else /* op */ {
       pR("!!WARNING !mFuncNotOp UNRELIABLE!!")&&pR(self);
-      if (f.evalOp(mDoneCode, result, g, l, t))
+      if (f.evalOp(mDoneCode, result, fms))
         return true;
       fail(__FILE__,__LINE__);
     }

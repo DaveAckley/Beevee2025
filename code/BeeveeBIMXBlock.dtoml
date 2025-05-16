@@ -1,4 +1,5 @@
 # -*- mode: conf-toml; -*-
+# Sun Apr 20 15:51:03 2025 add HESR to receive eyestalk pos info
 # Sun Mar  9 00:11:22 2025 try moving TILES to an intertile zone..
 # Thu Feb 13 09:12:13 2025 try an XBlock version
 # Wed Jan 22 14:01:02 2025 move CTLGREY and GTCC
@@ -18,7 +19,10 @@
   taps.S=[SLRY, SLLY, SRRY, SRLY, SRRR, SLLR]
   taps.W=[MRRF, MLRF, WNTK, _]  # Dead spot at end for TAP sig pull BUG
   taps.E=[_, MREY, MLEY, GRIP]
-  axons=[[WNTK,LOCZ]]
+  axons=[[WNTK,LOCZ],
+         [MREY,HESR],
+         [MLEY,HESR],
+        ]
 
 [xblock.TILES]
   stride=[2,1]
@@ -27,9 +31,13 @@
   color='#04f'
   taps.N=[GTCC, HTD8]  # get a TRAKtorDriver into GTCC-LOCZ metro area
   taps.E=[LOCZ]
+  taps.S=[_, HINFO]
   axons=[[GTCC,TRAKPD],
          [LOCZ,LZRV],
-         [HTD8,DLRV]]
+         [HINFO,TOCK],
+         [HINFO,GSRV],
+         [HTD8,DLRV]
+         ]
 
 [xblock.GREEN]
   stride=[3,1]
@@ -38,6 +46,7 @@
   color='#4f0'
   taps.S=[SLFG, SRFG]
   taps.W=[GRLN, GREG]
+  taps.E=[_, HESR]
   axons=[[GREG,MRRF],
          [GREG,MLRF],
          [GRLN,LOCZ]]
@@ -56,6 +65,7 @@
          [TRAK,MRRF],
          [TRAK,MLRF],
          [TRAK,LOCZ],
+         [TRAK,GTCC],  # to send "red(greyx3)" signals?
          [CLOK,GTCC]
          ]        
 
@@ -71,7 +81,7 @@
   
 [xblock.LOCZLABEL]
   stride=[2,2]
-  pos=[-5,-6]
+  pos=[-4,-6]
   #originSN=7
   taps.N=[LZRV]
   taps.E=[_]
@@ -82,3 +92,18 @@
   #originSN=7
   taps.S=[DLRV]
   taps.E=[_]
+
+[xblock.GRIDSIZELABEL]
+  stride=[2,2]
+  pos=[1,-6]
+  #originSN=7
+  taps.N=[GSRV]
+  taps.E=[_]
+
+[xblock.DESTLABEL]
+  stride=[2,2]
+  pos=[3,2]
+  #originSN=7
+  taps.N=[_]
+  taps.E=[DSTRV]
+

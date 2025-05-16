@@ -1,33 +1,3 @@
-transient HTD8State + DTU {
-  SN mGTCCSN = SN.maxof;
-  SN mLOCZSN = SN.maxof;
-  SN mNAFISN = SN.maxof;
-  SN mEMPSN = SN.maxof;
-
-  Bool findComponents() {
-    EventWindow ew;
-    MinXPick gsnpick, lsnpick, nsnpick, emppick;
-    for (SN sn = 1u; sn <= 40u; ++sn) {
-      if (!ew.isAccessible(sn)) continue;
-      Atom & a = ew[sn];
-      if (a is Empty) emppick.update(sn);
-      else if (a is GTCC) gsnpick.update(sn);
-      else if (a is LOCZ) lsnpick.update(sn);
-      else if (a is AtomNAFI) nsnpick.update(sn);
-    }
-    if (gsnpick.hasPick()) mGTCCSN = gsnpick.getIdxSN();
-    if (lsnpick.hasPick()) mLOCZSN = lsnpick.getIdxSN();
-    if (nsnpick.hasPick()) mNAFISN = nsnpick.getIdxSN();
-    if (emppick.hasPick()) mEMPSN = emppick.getIdxSN();
-    return
-      mGTCCSN != SN.maxof &&
-      mLOCZSN != SN.maxof &&
-      mNAFISN != SN.maxof &&
-      mEMPSN != SN.maxof;
-  }
-
-}
-
 /** spike traktor driver test: CW border patrol
    \symbol D8
    \color #0d8
@@ -45,15 +15,15 @@ element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
   ASCII mLastSig;
 
   Bool runCode() {
-    HTD8State d8s;
-    if (!d8s.findComponents()) return false;
+    MetroState ms;
+    if (!ms.findComponents()) return false;
     EventWindow ew;
-    GTCC & g = (GTCC &) ew[d8s.mGTCCSN];
-    LOCZ & l = (LOCZ &) ew[d8s.mLOCZSN];
+    GTCC & g = (GTCC &) ew[ms.mGTCCSN];
+    LOCZ & l = (LOCZ &) ew[ms.mLOCZSN];
     TRAKtor & t = (TRAKtor &) g.mStateMachine;
-    AtomNAFI & n = (AtomNAFI &) ew[d8s.mNAFISN];
+    AtomNAFI & n = (AtomNAFI &) ew[ms.mNAFISN];
 
-    Bool ret = n.evalTilBlocked(g,l,t,d8s.mEMPSN);
+    Bool ret = n.evalTilBlocked(ms); // g,l,t,ms.mEMPSN
 
     {
       DLRVUnion u;
@@ -74,11 +44,13 @@ element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
 
     if (mResetRequested) {
       mResetRequested = false; // whether we find components or not?
-      HTD8State d8s;
-      if (d8s.findComponents()) {
+      MetroState ms;
+      if (ms.findComponents()) {
         EventWindow ew;
         pR(">>>SELL THE HOUSE SELL THE CAR SELL THE KIDS");
-        ew[d8s.mNAFISN] = Empty.instanceof; // reboot mind
+        AtomNAFI & an = (AtomNAFI&) ew[ms.mNAFISN];
+        an.reset();                        // let it clean up
+        ew[ms.mNAFISN] = Empty.instanceof; // reboot mind
         mLastSig = 0u;
       }
       return;
@@ -95,10 +67,14 @@ element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
         //        an.setPC(fDRIVE_BOX_SPIKE); // MAKE A BOX DEMO
         //        an.setPC(fDRIVE_TO_ORIGIN); // WAHOO LOCALIZATION BEGIN!
         //        an.setPC(fFACE_EAST_SPIKE); // run face east demo
-        constant Int cSPIKE_DEMO = fDRIVE_TO_ORIGIN11;
+        //        constant Int cSPIKE_DEMO = fDRIVE_TO_ORIGIN11;
+        //        constant Int cSPIKE_DEMO = fDRIVE_TO_ORIGIN12;
+        //        constant Int cSPIKE_DEMO = fDRIVE_TO_ORIGIN13;
+        constant Int cSPIKE_DEMO = fDRIVE_TO_ORIGIN14;
         an.setPC(cSPIKE_DEMO); // another localization spike
-        pR("HTD8BEHAVE12")&&an.pRStack(nameOfFunction(cSPIKE_DEMO));
         ew[asn] = an;
+        AtomNAFI & ewan = (AtomNAFI&) ew[asn];
+        pR("HTD8BEHAVE12")&&ewan.pRStack(nameOfFunction(cSPIKE_DEMO));
         return;
       }
     }
@@ -114,13 +90,17 @@ element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
     return cNONE_TO_NONE;
   }
 
-  @Override Void notify(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+  @Override Void notify(MetroState & ms) { // GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te
+    GTCC & g = ms.getGTCC();
+    TRAKtor & t = g.mStateMachine;
+    TRAKtorEvent te = ms.mTRAKtorEvent;
+
     TRAKtor.TRAKtorState tstate = t.mTRAKtorState;
-    mD&&pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
+    /*mD&&*/pR("D8NTFY10")&&pR(t.nameOfTRAKtorState(tstate))&&pR(nameOfTRAKtorEvent(te));
     which (tstate) {
       case TRAKtor.cTKST_RESET: { return; } // not our business
-      case TRAKtor.cTKST_READY: { return notifyReady(g,l,t,te); } 
-      case TRAKtor.cTKST_RUN:   { return notifyRun(g,l,t,te); } 
+      case TRAKtor.cTKST_READY: { return notifyReady(ms); }    // g,l,t,te
+      case TRAKtor.cTKST_RUN:   { return notifyRun(ms); }  // g,l,t,te
       case TRAKtor.cTKST_FAIL:  {
         pR("D8NTFY11FAIL")&&pR(nameOfTRAKtorEvent(te));
         t.reset();
@@ -153,36 +133,22 @@ element HTD8 : TermHiddenIO + CodeConstants + TRAKtorDriver {
   }
   */
 
-  Void notifyReady(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
+  Void notifyReady(MetroState & ms) { // GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te
   }
 
-  Unsigned(6) mTileCountSpike;
+  Void notifyRun(MetroState & ms,) { // GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent e
+    GTCC & g = ms.getGTCC();
+    TRAKtor & t = g.mStateMachine;
 
-  Void notifyRun(GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent te) {
-    pR("D8NFRUN10")&&pR(nameOfTRAKtorEvent(te));
-    /*
-    if (te == cTKTR_FRONT_TICK || te == cTKTR_FRONT_TOCK) {
-      l.mPos[0]++;     // XXX SPIKE
-    }
-    */
+    TRAKtorEvent e = ms.mTRAKtorEvent;
+    pR("D8NFRUN10")&&pR(nameOfTRAKtorEvent(e));
 
-    /*
-    if (te == cTKTR_RED_PREWARN_SET) {
-      pR("D8NFRUN11");
-      if (t.switchTRAKt(tDRIVE_FAST,tDRIVE_SLOW))
-        return;
-      pR("D8NFRUN12");
-    } else if (te == cTKTR_RED_WARN_SET) {
-      pR("D8NFRUN13");
-      if (!mTurnInProgress) {
-        pR("D8NFRUN14");
-        mTurnInProgress = true;
-        t.switchTRAKt(tDRIVE_SLOW,tDRESS_LINE_FWD);
-        return;
-      } //else ignore
-      pR("D8NFRUN15");
-    }
-    */
+    MotorCmd mc = t.makeCurrentMotorCmd();
+    Int result;
+    if (!mc.evalEvent(result,ms)) // g,l,t,e
+      fail(__FILE__,__LINE__);
+    // result not used?
+
     pR("D8NFRUN16");
   }
 }

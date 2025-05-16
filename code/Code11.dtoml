@@ -1,4 +1,5 @@
 # -*- mode: conf-toml; -*-
+# Tue Apr 29 13:42:04 2025 Try clean up for clarity (and robustness?)
 # Wed Apr  9 17:01:47 2025 Heading toward motorcmd event handling
 # Sat Apr  5 00:25:10 2025 Big funcall redo
 # Tue Apr  1 07:49:10 2025 Clean up for NAFI debut
@@ -14,19 +15,6 @@
   mLeftEyePos = 0
   mRightEyePos = 0
   mDoneFunc = fTIME_OR_GREEN
-#  mDoneFunc = fTIMER_DONE
-#  mEventFunction = fMEET_ON_EDGES
-
-# [function.fMEET_ON_EDGES]
-#   doc="EVENT FUNCTION: increment smtimer on all edge events"
-#   code=[ oENTER0,
-#          1, oSET_DEBUG,
-#          oIS_EVENT_AN_EDGE,
-#          aDONE, oGOTOZ,
-#          oINCR_SMTIMER,
-#        lDONE,
-#          0, oSET_DEBUG,
-#          oRETURN0 ]
 
 [operator.oRAND_BETWEEN]
   impl=''' // stack is [... LO HI ]
@@ -55,27 +43,6 @@
   mSpeedRight = 0
   mSetTimerTo = 6
   mDoneFunc = fINCR_TIMER_CHECK
-
-# [trakt.tFIND_EAST_RIGHT]
-#   mSpeedLeft = 3
-#   mSpeedRight = -4
-#   mSetTimerTo = 2
-#   mDoneFunc = fEAST_AND_ON_LINE_OR_TIMER
-
-# [trakt.tFIND_EAST_LEFT]
-#   mSpeedLeft = -4
-#   mSpeedRight = 3
-#   mSetTimerTo = 2
-#   mDoneFunc = fEAST_AND_ON_LINE_OR_TIMER
-
-# [function.fEAST_AND_ON_LINE_OR_TIMER]
-#   code=[ oENTER0,
-#          fEAST_AND_ON_LINE, oCALL0,
-#          oINCR_SMTIMER,
-#          oOR,
-#          0, oSET_DEBUG,
-#          oRETURN1
-#        ]
 
 [function.fEAST_AND_ON_LINE]
   code=[ oENTER0,
@@ -282,7 +249,7 @@
 
 [trakt.tFORWARD_TO_TOCK]
   mSpeedMin = 4
-  mSpeedMax = 8
+  mSpeedMax = 20
   mDoneFunc = fCLOK_TOCK_FRONT
 
 [trakt.tEMERGENCY_STOP]
@@ -398,25 +365,19 @@
            oRETURN0
           ]
            
-[function.fDRIVE_TO_ORIGIN12]
+[function.fDRIVE_TO_ORIGIN13]
   doc = "nth**nth attempt to drive to origin"
   code = [ oENTER0,
-           # Test oRAND_BETWEEN..
-           # 1, oSET_DEBUG,
-           # 1, 100, oRAND_BETWEEN, oDROP,
-           # 0, oSET_DEBUG,
            4, fWAIT_A_WHILE, oCALL1,   # Wait for axons etc on startup!
 
          lFIRST_FIND_LINE,
-           tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,    # try to start sane
-           fFWD_TO_TICK, oCALL0,                   # and straighten our shoulders
+           oRESET_HEAD,                            # forget any old heading/pos info
            3, oSET_GSCOUNTER,                      # init give-up counter
-
          lTURN_LOOP,
-           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,     # get square on line 
+           fFWD_ONE_SQUARE, oCALL0,                # straighten up, move ahead
            fEAST_AND_ON_LINE, oCALL0,              # check if done
            aIT_WORKED, oGOTON,                     # we is
-           fTURN_LEFT_TICK, oCALL0,                # we ain't. fwd, dress, left [...]
+           fTURN_LEFT, oCALL0,                     # we ain't. turn left
            oDECR_GSCOUNTER, aTURN_LOOP, oGOTON,    # loop til counter == 0
 
          lESCAPE_RETRY,                            # here when counter expires
@@ -436,146 +397,139 @@
 #           fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]      
 
            # TURN SOUTH AND DRIVE
-           fTURN_RIGHT_TICK, oCALL0,           # fwd, dress, left [...]
-           tDRIVE_SLOW, oSTART_TRAKT,         # drive slow
-           tROLLING_STOP, fDO_TRAKT, oCALL1,  # again, don't fly through here
-           tDRESS_LINE_REV, fDO_TRAKT, oCALL1,  # back up when drive slow ends
+           fTURN_RIGHT, oCALL0, 
+           tDRIVE_SLOW, fDO_TRAKT, oCALL1,     # drive slow
+           tROLLING_STOP, fDO_TRAKT, oCALL1,   # again, don't fly through here
+           tDRESS_LINE_REV, fDO_TRAKT, oCALL1, # back up when drive slow ends
 
            # SET ORIGIN
            0, oSET_XPOS,                      # declare origin when 
            0, oSET_YPOS,                      # 2nd drive slow bails
 
-           # TURN WEST
-           fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
-
-           # HEAD WEST
+           # TURN WEST AND DRIVE
+           fTURN_RIGHT, oCALL0,               # fwd, dress, right [...]
            tDRIVE_SLOW, fDO_TRAKT, oCALL1,    # drive slow
+           tROLLING_STOP, fDO_TRAKT, oCALL1,   # again, don't fly through here
+           tDRESS_LINE_REV, fDO_TRAKT, oCALL1, # back up when drive slow ends
 
-           # TURN NORTH
-           fTURN_RIGHT_TICK, oCALL0,          # TURN NORTH
-
-           # HEAD NORTH
+           # TURN NORTH AND DRIVE
+           fTURN_RIGHT, oCALL0,               # TURN NORTH
            tDRIVE_SLOW, fDO_TRAKT, oCALL1,    # drive slow
+           tROLLING_STOP, fDO_TRAKT, oCALL1,   # again, don't fly through here
+           tDRESS_LINE_REV, fDO_TRAKT, oCALL1, # back up when drive slow ends
 
            # SET SIZE!
            oGET_XPOS, oSET_GRID_WIDTH,        
            oGET_YPOS, oSET_GRID_HEIGHT,        
-
-           # # PICK RANDOM GRID LOC AS DEST
-           # 1, oGET_GRID_WIDTH, oRAND_BETWEEN, oSET_DEST_X,        
-           # 1, oGET_GRID_HEIGHT, oRAND_BETWEEN, oSET_DEST_Y,        
 
            # PICK MIDDLE OF GRID AS DEST
            oGET_GRID_WIDTH, 2, oDIV, oSET_DEST_X,      
            oGET_GRID_HEIGHT, 2, oDIV, oSET_DEST_Y,     
            1, oSET_DEST_EXISTS,        
 
-           #### GO THERE! WRITE ME!
+           #### GO THERE!
 
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,  # DO A BUNCH OF NOTHING TO STRETCH PAST 256 OPS!
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           oNOP,
-           aFIRST_FIND_LINE, oGOTO,           # then try again? FSD I ask you: what next?
+          lBEEVEE_UBER_ALLES,
+           fDRIVE_TO_DEST, oCALL0,
+           0, oSET_DEST_EXISTS,
+           1, fWAIT_A_WHILE, oCALL1,
+           
+           # PICK RANDOM GRID LOC AS DEST
+           1, oGET_GRID_WIDTH, oRAND_BETWEEN, oSET_DEST_X,        
+           1, oGET_GRID_HEIGHT, oRAND_BETWEEN, oSET_DEST_Y,        
+           1, oSET_DEST_EXISTS,        
+           aBEEVEE_UBER_ALLES, oGOTO,          
 
            oRETURN0   ## NOT REACHED
           ]
 
-# [function.fDRIVE_TO_ORIGIN11]
-#   doc = "nth attempt to drive to origin"
-#   code = [ oENTER0,
-#            5, fWAIT_A_WHILE, oCALL1,   # Wait for axons etc on startup!
+[function.fDRIVE_TO_DEST]
+  doc = """
+  Reduce distance between XYPOS and XYDEST to zero ho ho. Theory of
+  operation, version 0: See if moving on the current heading will
+  reduce total distance. If so, go forward a square, if not, turn
+  left. Repeat until distance is zero, then clear dest exists.
+  """
+  code = [ oENTER0,
+          lLOOP,
+           oGET_DEST_EXISTS, aSTEPW, oGOTON, oRETURN0, # if no dest, done
+          lSTEPW,  # split on heading
+           oCUR_HEAD, 0, oCMP_EQ, aWEST, oGOTON,
+           oCUR_HEAD, 1, oCMP_EQ, aNORTH, oGOTON,
+           oCUR_HEAD, 2, oCMP_EQ, aSOUTH, oGOTON,
+           # FALL THROUGH - oCUR_HEAD == 3
+          lEAST, oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_LT, aGO, oGOTON, aTURN, oGOTO,
+          lWEST, oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_GT, aGO, oGOTON, aTURN, oGOTO,
+          lSOUTH, oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_LT, aGO, oGOTON, aTURN, oGOTO,
+          lNORTH, oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_GT, aGO, oGOTON,
+           # FALL THROUGH
+          lTURN, fTURN_LEFT, oCALL0, aLOOP, oGOTO,
+           # DRIVE HE SAID
+          lGO, fFWD_ONE_SQUARE_ONLY, oCALL0, # advance one square
+           oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_NE, aLOOP, oGOTON, # loop if dx != 0
+           oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_NE, aLOOP, oGOTON, # loop if dy != 0
+           0, oSET_DEST_EXISTS, # You Have Arrived
+           oRETURN0,
+         ]
 
-#          lFACE_EAST_LOOP,
+[function.fFWD_ONE_SQUARE]
+  doc = "Go forward from tick to tock or vv, then get onto that square"
+  code = [ oENTER0,
+           fFWD_ONE_SQUARE_ONLY, oCALL0,
+           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,
+           oRETURN0
+         ]
 
-#            tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,    # try to start sane
-#            fFWD_TO_TICK, oCALL0,                   # and straighten our shoulders
-#            tFIND_EAST_LEFT, fDO_TRAKT, oCALL1,     # spin ccw for east
-#            tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,    # recheck for line
-#            tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,     # get square on line and ONLY THEN
-#            fEAST_AND_ON_LINE, oCALL0, oNOT,        # RECHECK IF FIND SUCCEEDED!
-#            aIT_WORKED, oGOTOZ,                     # it did
-#            tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,    # it didn't. try to get on line
-#            tDRIVE_AWHILE, fDO_TRAKT, oCALL1,       # and go elsewhere
-#            aFACE_EAST_LOOP, oGOTO,                 # and try again
+[function.fFWD_ONE_SQUARE_ONLY]
+  doc = "Go forward from tick to tock or vv"
+  code = [ oENTER0,
+          lAGAIN,
+           oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, aFIND_TOCK, oGOTON, # jump ahead if front tick
+           oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, aFIND_TICK, oGOTON, # jump ahead if front tock
+           ### INVALIDATE POS/HEAD HERE?
+           tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,               # otherwise get a front clock
+           aAGAIN, oGOTO,                                     # and try again
+          lFIND_TOCK, fFWD_TO_TOCK, oCALL0, oRETURN0,
+          lFIND_TICK, fFWD_TO_TICK, oCALL0, oRETURN0,
+         ]
 
-#          lIT_WORKED,                               # continue
-#            # fFWD_TO_TICK, oCALL0,                   # and restraighten our shoulders
+[function.fTURN_LEFT]
+  doc = "Turn left from tick to tock or vv"
+  code = [ oENTER0,
+          lAGAIN,
+           oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, aTURN_TO_TOCK, oGOTON, # jump ahead if front tick
+           oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, aTURN_TO_TICK, oGOTON, # jump ahead if front tock
+           tFIND_LINE_RIGHT, fDO_TRAKT, oCALL1,               # otherwise get a front clock
+           aAGAIN, oGOTO,                                     # and try again
+          lTURN_TO_TOCK,
+           fTURN_LEFT_FROM_TICK, oCALL0, 
+           aDRESS, oGOTO,
+          lTURN_TO_TICK, 
+           fTURN_LEFT_FROM_TOCK, oCALL0, 
+           # FALL THROUGH
+          lDRESS,
+           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,
+           oRETURN0
+         ]
 
-#          #   fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
-#          #   oGREEN_LEVEL, 2, oCMP_GE,          # green >= 2? => [ BIGGREEN ... ]
-#          #   aFACE_EAST_LOOP, oGOTOZ,           # loop back to fTURN_RIGHT_TICK if !BIGGREEN
-
-#            # DRIVE SLOW EAST
-#            tDRIVE_SLOW, fDO_TRAKT, oCALL1,      # else (is BIGGREEN, so) drive slow
-#            tROLLING_STOP, fDO_TRAKT, oCALL1,    # make sure we just don't fly through here
-#            tDRESS_LINE_REV, fDO_TRAKT, oCALL1,  # back up when drive slow ends
-
-#            # TURN WEST TO CLEAR RED WARNING
-#            fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
-#            fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]      
-
-#            # TURN SOUTH AND DRIVE
-#            fTURN_LEFT_TICK, oCALL0,           # fwd, dress, left [...]
-#            tDRIVE_SLOW, oSTART_TRAKT,         # drive slow
-#            tROLLING_STOP, fDO_TRAKT, oCALL1,  # again, don't fly through here
-#            tDRESS_LINE_REV, fDO_TRAKT, oCALL1,  # back up when drive slow ends
-
-#            # SET ORIGIN
-#            0, oSET_XPOS,                      # declare origin when 
-#            0, oSET_YPOS,                      # 2nd drive slow bails
-
-#            # TURN WEST
-#            fTURN_RIGHT_TICK, oCALL0,          # fwd, dress, right [...]
-#            oWAIT_READY,  # ?? shouldn't need?
-
-#           lDIAGO,
-#            fTURN_RIGHT_TICK, oCALL0,          # TURN NORTH
-#            fTURN_LEFT_TICK, oCALL0,           # TURN WEST
-#            oWAIT_READY,  # ?? shouldn't need?
-#            aDIAGO, oGOTO,                     # and loop
-
-#            aFACE_EAST_LOOP, oGOTO,        # then try again? FSD I ask you: what next?
-
-#            oRETURN0   ## NOT REACHED
-#           ]
+[function.fTURN_RIGHT]
+  doc = "Turn right from tick to tock or vv"
+  code = [ oENTER0,
+          lAGAIN,
+           oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, aTURN_TO_TOCK, oGOTON, # jump ahead if front tick
+           oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, aTURN_TO_TICK, oGOTON, # jump ahead if front tock
+           tFIND_LINE_LEFT, fDO_TRAKT, oCALL1,                # otherwise get a front clock
+           aAGAIN, oGOTO,                                     # and try again
+          lTURN_TO_TOCK,
+           fTURN_RIGHT_FROM_TICK, oCALL0, 
+           aDRESS, oGOTO,
+          lTURN_TO_TICK, 
+           fTURN_RIGHT_FROM_TOCK, oCALL0, 
+           # FALL THROUGH
+          lDRESS,
+           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,
+           oRETURN0
+         ]
 
 [function.fFWD_TO_TICK]
   doc = "Go forward, maintaining pos if heading is set"
@@ -586,71 +540,46 @@
            oRETURN0                             # no return value
          ]
 
-[function.fTURN_RIGHT_TICK]
-  doc = "Turn right, maintaining heading if set"
+[function.fFWD_TO_TOCK]
+  doc = "Go forward, maintaining pos if heading is set"
   code = [ oENTER0,
-           fFWD_TO_TICK, oCALL0,
+           tFORWARD_TO_TOCK, fDO_TRAKT, oCALL1, # fwd [...]
+           oINCR_POS,                           # advance pos if heading valid
+           tDRESS_LINE_FWD, fDO_TRAKT, oCALL1,  # prep [...]
+           oRETURN0                             # no return value
+         ]
+
+[function.fTURN_RIGHT_FROM_TICK]
+  doc = "Turn right from tick to tock, maintaining heading if set"
+  code = [ oENTER0,
            tTURN_RIGHT_TO_TOCK, fDO_TRAKT, oCALL1,   # turn [...]
            1, oINCR_HEAD,                     # advance heading CW if valid
            oRETURN0                           # no return value
          ]
 
-[function.fTURN_LEFT_TICK]
-  doc = "Turn left, maintaining heading if set"
+[function.fTURN_RIGHT_FROM_TOCK]
+  doc = "Turn right from tock to tick, maintaining heading if set"
   code = [ oENTER0,
-           fFWD_TO_TICK, oCALL0,
+           tTURN_RIGHT_TO_TICK, fDO_TRAKT, oCALL1,   # turn [...]
+           1, oINCR_HEAD,                     # advance heading CW if valid
+           oRETURN0                           # no return value
+         ]
+
+[function.fTURN_LEFT_FROM_TICK]
+  doc = "Turn left from tick to tock, maintaining heading if set"
+  code = [ oENTER0,
            tTURN_LEFT_TO_TOCK, fDO_TRAKT, oCALL1,    # turn [...]
            -1, oINCR_HEAD,                    # advance heading CCW if valid
            oRETURN0
          ]
 
-# [function.fDRIVE_TO_ORIGIN]
-#   doc = "Find SE 'corner' to declare a grid origin"
-#   code = [ oENTER0,
-#            fFACE_EAST, oCALL0,
-#            tDRIVE_SLOW, oSTART_TRAKT,
-#            0, oSET_XPOS, 
-#            fTURN_RIGHT_TICK, oCALL0,
-#            tDRIVE_SLOW, oSTART_TRAKT,
-#            0, oSET_YPOS,
-#            oRETURN0
-#           ]
-
-# [function.fDRIVE_BOX_SPIKE]
-#   doc = "'infinite' loop making a clockwise box"
-#   code = [ oENTER0,
-#          lLOOP,
-#            tFORWARD_TO_TICK, oSTART_TRAKT,
-#            tDRESS_LINE_FWD, oSTART_TRAKT,
-#            tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
-#            aLOOP, oGOTO,
-#            oRETURN0   ## NOT REACHED
-#            ]
-
-# [function.fDRIVE_BOX_SPIKE2]
-#   doc = "'infinite' loop making a bigger clockwise box"
-#   code = [ oENTER0,
-#           lLOOP,
-#            tFORWARD_TO_TICK, oSTART_TRAKT,
-#            tFORWARD_TO_TOCK, oSTART_TRAKT,
-#            tFORWARD_TO_TICK, oSTART_TRAKT,
-#            tDRESS_LINE_FWD, oSTART_TRAKT,
-#            tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
-#            aLOOP, oGOTO,
-#            oRETURN0 ## NOT REACHED
-#            ]          
-
-# [function.fDRIVE_BORDER_RIGHT]
-#   doc = "'infinite' loop making a clockwise box at the border"
-#   code = [ oENTER0,
-#           lLOOP,
-#            tDRIVE_SLOW, oSTART_TRAKT,
-#            tDRESS_LINE_FWD, oSTART_TRAKT, 
-#            tFORWARD_TO_TICK, oSTART_TRAKT,
-#            tTURN_RIGHT_TO_TOCK, oSTART_TRAKT,
-#            aLOOP, oGOTO,
-#            oRETURN0 ## NOT REACHED
-#            ]
+[function.fTURN_LEFT_FROM_TOCK]
+  doc = "Turn left tock to tick, maintaining heading if set"
+  code = [ oENTER0,
+           tTURN_LEFT_TO_TICK, fDO_TRAKT, oCALL1,    # turn [...]
+           -1, oINCR_HEAD,                    # advance heading CCW if valid
+           oRETURN0
+         ]
 
 [constant.cTRUE] 
   value = 1
@@ -884,6 +813,13 @@
   impl='return s.push(l.mHeadingValid ? 1 : 0)'
 [operator.oCUR_HEAD]           # : { outs[0] = l.mHeading; return true; } // cur heading
   impl='return s.push(l.mHeading)'
+[operator.oRESET_HEAD]
+  impl='''
+     l.mHeadingValid = false;
+     l.mPosValid[0] = false;
+     l.mPosValid[1] = false;
+     return true    
+  '''
 [operator.oSET_HEAD] 
   impl='''
      if (!s.pop(v[0])) return false;

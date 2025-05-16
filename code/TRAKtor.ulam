@@ -9,12 +9,9 @@ quark TRAKtor + DTU + CodeMethods {
   //// TRAKtor AYNCHRONOUS EXTERNAL SERVICES
 
   Void step(GTCC & gtcc) {      // main entry point for single ew processing
-    EventWindow ew;
-    SN locsn, tdsn;
-    if (!findOtherSNs(locsn,tdsn)) return; // not today
-    LOCZ & locz = (LOCZ&) ew[locsn];
-    TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
-    update(gtcc, td, locz);
+    MetroState ms;
+    if (!ms.findComponents()) return; // not today
+    update(ms);
   }
 
   typedef Unsigned(5) TRAKt; //< traktor act codes
@@ -209,22 +206,22 @@ quark TRAKtor + DTU + CodeMethods {
     return mc;
   }
 
-  Bool isTRAKtDone(GTCC & g, LOCZ & l) {
-    return isThisTRAKtDone(g,l,mTRAKt);
+  Bool isTRAKtDone(MetroState & ms) { // GTCC & g, LOCZ & l
+    return isThisTRAKtDone(ms,mTRAKt);
   }
 
-  Bool isThisTRAKtDone(GTCC & g, LOCZ & l, TRAKt trakt) {
+  Bool isThisTRAKtDone(MetroState & ms, TRAKt trakt) {
     TRAKtor & t = self;
     MotorCmd mc = makeMotorCmdForTRAKt(trakt);
     mc.takeDebug(self);
     Int result;
-    if (mc.evalDoneCode(result,g,l,t)) return result != 0;
+    if (mc.evalDoneCode(result,ms)) return result != 0;
     fail(__FILE__,__LINE__);
     return false; // NOT REACHED
   }
 
   Bool pR(Self & s) {
-    return pR(nameOfTRAKtorState(mTRAKtorState));
+    return pR(nameOfTRAKtorState(mTRAKtorState))&&pR(nameOfTRAKt(mTRAKt));
   }
 
   Bool reset() {
@@ -246,12 +243,17 @@ quark TRAKtor + DTU + CodeMethods {
   Bool isRunning() { return mTRAKtorState == cTKST_RUN; }
   Bool isFailed() { return mTRAKtorState == cTKST_FAIL; }
 
-  Bool clockEdge(GTCC & gtcc, Bool frontNotBack, ClokState newstate) { //< incoming clock edge
+  Bool clockEdge(Bool frontNotBack, ClokState newstate) { //< incoming clock edge
+    MetroState ms;
+    if (!ms.findComponents()) return false; // not today
+    TRAKtorDriver & td = ms.getTRAKtorDriver();
+    /*
     EventWindow ew;
     SN locsn, tdsn;
     if (!findOtherSNs(locsn,tdsn)) return false; // not today
     LOCZ & locz = (LOCZ&) ew[locsn];
     TRAKtorDriver & td = (TRAKtorDriver&) ew[tdsn];
+    */
     TRAKtorDriver.TRAKtorEvent te;
     which (newstate) {
     case cCLOK_TICK: { te = frontNotBack ? TRAKtorDriver.cTKTR_FRONT_TICK : TRAKtorDriver.cTKTR_REAR_TICK; }
@@ -259,7 +261,8 @@ quark TRAKtor + DTU + CodeMethods {
     case cCLOK_NONE: { te = frontNotBack ? TRAKtorDriver.cTKTR_FRONT_NONE : TRAKtorDriver.cTKTR_REAR_NONE; }
     otherwise: { fail(__FILE__,__LINE__,"'NOT REACHED'"); }
     }
-    td.notify(gtcc, locz, self, te);
+    ms.mTRAKtorEvent = te;
+    td.notify(ms);
     return true;
   }
 
@@ -320,29 +323,35 @@ quark TRAKtor + DTU + CodeMethods {
     return false;
   }
 
-  Void update(GTCC& gtcc, TRAKtorDriver & td, LOCZ & lz) {
-    takeDebug(gtcc);
+  Void update(MetroState & ms) {
+    GTCC & g = ms.getGTCC();
+    takeDebug(g);
     which (mTRAKtorState) {
-    case cTKST_RESET: { return updateReset(gtcc,td,lz); }
-    case cTKST_READY: { return updateReady(gtcc,td,lz); }
-    case cTKST_RUN:   { return updateRun(gtcc,td,lz); }
-    case cTKST_FAIL:  { return updateFail(gtcc,td,lz); }
+    case cTKST_RESET: { return updateReset(ms); }
+    case cTKST_READY: { return updateReady(ms); }
+    case cTKST_RUN:   { return updateRun(ms); }
+    case cTKST_FAIL:  { return updateFail(ms); }
     }
   }
 
-  Void updateReset(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+  Void updateReset(MetroState & ms) {
+    pR(">>>pRupdateReset")&&ms.dump(__FILE__,__LINE__);
     mStartTick = false; // really: don't know, but just to settle it
     mSecondSignal = false;
+    TRAKtorDriver & td = ms.getTRAKtorDriver();
     td.resetTD();               // let driver reset
-    setTRAKtState(mTRAKt, cTKST_READY, __FILE__,__LINE__);
+    setTRAKtState(ms, mTRAKt, cTKST_READY, __FILE__,__LINE__);
   }
 
-  Void updateReady(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+  Void updateReady(MetroState & ms) { //GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
     // TOO NOISY & MISLEADING: setTRAKtState(tFULL_STOP, cTKST_READY, __FILE__,__LINE__); // if needed / unless overridden
-    td.notify(gtcc, lz, self, TRAKtorDriver.cTKTR_READY);
+    TRAKtorDriver & td = ms.getTRAKtorDriver();
+    ms.mTRAKtorEvent = TRAKtorDriver.cTKTR_READY;
+    td.notify(ms);
   }
 
-  Bool setTRAKtState(TRAKt t, TRAKtorState ts, String f, Unsigned l) {
+  Bool setTRAKtState(MetroState & ms, TRAKt t, TRAKtorState ts, String f, Unsigned l) {
+    GTCC & g = ms.getGTCC();
     if (t >= cTRAKT_MOTORCMDS.lengthof)
       fail(f,l,"Illegal TRAKt Number");
 
@@ -357,6 +366,13 @@ quark TRAKtor + DTU + CodeMethods {
       mTRAKtorState = ts;
       ret = true;
     }
+    if (ret && mTRAKtorState == cTKST_RUN) {
+      MotorCmd mc = makeMotorCmdForTRAKt(mTRAKt);
+      g.resetSMTimer();         // clear smtimer at every trakt run start
+      if (mc.mSetTimerTo <= GTCC.SMTimer.triggerLevel) {
+        g.setSMTimer(mc.mSetTimerTo);
+      }
+    }
     if (ret) {
       ByteStreamLogger log;
       log.printf("%s:%d: %s/%s => %s/%s\n",
@@ -370,33 +386,33 @@ quark TRAKtor + DTU + CodeMethods {
     return ret;
   }
 
-  Bool startTRAKt(TRAKt t) {
+  Bool startTRAKt(MetroState &ms, TRAKt t) {
     if (mTRAKtorState != cTKST_READY) return false;
-    setTRAKtState(t, cTKST_RUN, __FILE__, __LINE__);
+    setTRAKtState(ms, t, cTKST_RUN, __FILE__, __LINE__);
     return true;
   }
 
-  Bool switchTRAKt(TRAKt fromt, TRAKt to) {
+  Bool switchTRAKt(MetroState &ms, TRAKt fromt, TRAKt to) {
     mD&&pR("SWTCTKt10")&&pR(nameOfCurrentTRAKt());
     if (mTRAKt == fromt) {
       mD&&pR("SWTCTKt11")&&pR(nameOfTRAKt(fromt))&&pR(nameOfTRAKt(to))&&pR("&RUN");
-      setTRAKtState(to, cTKST_RUN, __FILE__, __LINE__);
+      setTRAKtState(ms, to, cTKST_RUN, __FILE__, __LINE__);
       return true;
     }
     mD&&pR("SWTCTKt12")&&pR(nameOfTRAKt(fromt))&&pR(nameOfTRAKt(to));
     return false;
   }
 
-  Void updateRun(GTCC &g, TRAKtorDriver & td, LOCZ & l) {
-    if (isTRAKtDone(g,l)) {
+  Void updateRun(MetroState & ms) { // GTCC &g, TRAKtorDriver & td, LOCZ & l
+    if (isTRAKtDone(ms)) {
       mD&&pR("TKUR11")&&pR(nameOfCurrentTRAKt());
-      setTRAKtState(mTRAKt, cTKST_READY, __FILE__, __LINE__);
+      setTRAKtState(ms, mTRAKt, cTKST_READY, __FILE__, __LINE__);
     }
     else if (false /*isTRAKtFailed(gtcc)*/)
-      setTRAKtState(mTRAKt, cTKST_FAIL, __FILE__, __LINE__);
+      setTRAKtState(ms, mTRAKt, cTKST_FAIL, __FILE__, __LINE__);
   }
 
-  Void updateFail(GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz) {
+  Void updateFail(MetroState & ms) { // GTCC &gtcc, TRAKtorDriver & td, LOCZ & lz
     // Just wait?
   }
 

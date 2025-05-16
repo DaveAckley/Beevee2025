@@ -2,13 +2,18 @@ use NAFI;
 
 @Concrete
 transient Function : NAFI {
-  constant Unsigned cSTACK_SIZE = 100u; // gimme a break (max possible 250-something)
+  constant Unsigned cSTACK_SIZE = 10u; // gimme a break (max possible 250-something)
   Int mStack[cSTACK_SIZE];
   Unsigned mStackFF = 0u;       //< first free pos on stack
 
   Unsigned mPC;                 //< program counter
 
   //// NAFI API
+  @Override Void reset() {
+    mStackFF = 0u;
+    mPC = 0u;
+  }
+
   @Override Unsigned stackSize() { return cSTACK_SIZE; }
   @Override Bool isEmpty() { return mStackFF == 0u; }
   @Override Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
@@ -16,31 +21,31 @@ transient Function : NAFI {
   @Override Bool push(FOC op) {
     if (!isFull()) {
       mStack[mStackFF++] = op;
-      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/pushed");
+      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("fNATR/pushed");
       return true;
     }
-    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/pushFailedOn")&&pR(op)&& pR(nameOfOperator(op));
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("fNATR/pushFailedOn")&&pR(op)&& pR(nameOfOperator(op));
     return false;
   }
 
   @Override Bool pop(FOC & op) {
     if (!isEmpty()) {
       op = mStack[--mStackFF];
-      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/popped")&&pR(op)&&pR(nameOfOperator(op));
+      (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("fNATR/popped")&&pR(op)&&pR(nameOfOperator(op));
       return true;
     }
-    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/popFailed");
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("fNATR/popFailed");
     return false;
   }
 
   @Override Bool getPC(Unsigned & curpc) {
     curpc = mPC;
     //// WARNING! CANNOT CALL pRStack inside getPC! pRStack callsg etPC!
-    //(BeeveeParms.pNAFI_TRACING>=2u)&&pR("NATR/getPC")&&pR(curpc);
+    //(BeeveeParms.pNAFI_TRACING>=2u)&&pR("fNATR/getPC")&&pR(curpc);
     return true;
   }
   @Override Bool setPC(Unsigned newpc) {
-    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("NATR/setPC")&&pR(mPC)&&pR(newpc);
+    (BeeveeParms.pNAFI_TRACING>=2u)&&pRStack("fNATR/setPC")&&pR(mPC)&&pR(newpc);
     mPC = newpc;
     return true;
   }
@@ -62,7 +67,7 @@ transient Function : NAFI {
       bsw.print("#");
       bsw.print(s);             // include decimal anyway
     }
-    bsw.print("]t");
+    bsw.print("]Ft");
     return true;
   }
 

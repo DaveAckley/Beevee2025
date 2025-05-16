@@ -34,6 +34,7 @@ inline BrainStemSupport::BrainStemSupport()
   , _bufferLen(0u)
   , _updates(0u)
   , _routed(0u)
+  , _lastTimeSnapshotted(0u)
   , _tagCount(0u)
   , _bvcodeVal(0u)
   , _sensesRead(false)
@@ -205,6 +206,19 @@ inline void BrainStemSupport::requestSnapshot() {
   const char * dirp = getSnapshotDirIfAny();
   if (!dirp) return;            // quick out (e.g., on the T2s)
 
+  time_t rawitime = getISecs();
+  if (rawitime <= _lastTimeSnapshotted) // quick out if somebody already wrote this
+    return;
+
+  time_t itime = rawitime;
+  int idx = getTermIndex("CADENCE");
+  unsigned cadence = 5u;
+  if (idx >= 0) {
+    int val = getTermValue(idx);
+    if (val > 0) cadence = (unsigned) val;
+  }
+  itime = (itime/cadence)*cadence; // round down to even cadence
+  
   DIR* dir = opendir(dirp);
   if (dir) closedir(dir);       // directory exists
   else {                        // else some kind of error
@@ -212,14 +226,6 @@ inline void BrainStemSupport::requestSnapshot() {
     return;
   }
 
-  int idx = getTermIndex("CADENCE");
-  unsigned cadence = 5u;
-  if (idx >= 0) {
-    int val = getTermValue(idx);
-    if (val > 0) cadence = (unsigned) val;
-  }
-  time_t itime = getISecs();
-  itime = (itime/cadence)*cadence; // round down to even cadence
   struct tm ltime;
   localtime_r(&itime,&ltime);
   const size_t LEN = 500u;
@@ -244,15 +250,17 @@ inline void BrainStemSupport::requestSnapshot() {
   pos = snprintf(buf,LEN,"%s/",dirp);
   if (pos >= 0 && pos < (int) LEN) {
     strftime(&buf[pos],LEN-pos,"%Y%m%d/%Y%m%d%H%M%S.png",&ltime); 
-    runRequestSnapshotHookEX(buf);
+    runRequestSnapshotHookEX(buf,rawitime);
   }
 }
 
-inline void BrainStemSupport::runRequestSnapshotHookEX(char * buf) {
+inline void BrainStemSupport::runRequestSnapshotHookEX(char * buf,time_t rawitime) {
   MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
-
-  MFM::GlobalHooks & hooks = MFM::GlobalHooks::getSingleton();
-  hooks.runHook("RequestSnapshot",(void*) buf);
+  if (_lastTimeSnapshotted < rawitime) { // check if we raced into here
+    _lastTimeSnapshotted = rawitime;      // nope, we're really doing it
+    MFM::GlobalHooks & hooks = MFM::GlobalHooks::getSingleton();
+    hooks.runHook("RequestSnapshot",(void*) buf);
+  }
 }
 
 inline bool BrainStemSupport::readInputFileEX() { // true if file exists and was read if new
@@ -265,13 +273,14 @@ inline bool BrainStemSupport::readInputFileEX() { // true if file exists and was
   if (fstat(fd,&nowstat) < 0) fdie("stating",CINPUTFILE);
     
   if (diffMTime(nowstat,_istat)) {
-
     MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
-    _istat = nowstat;
-    _bufferLen = read(fd,_buffer, sizeof _buffer);
-    if (_bufferLen < 0) fdie("reading",CINPUTFILE);
-    //printf("read %lu bufferlen\n",_bufferLen);
-    _sensesRead = true;
+    if (diffMTime(nowstat,_istat)) { // recheck for thundering herd?
+      _istat = nowstat;
+      _bufferLen = read(fd,_buffer, sizeof _buffer);
+      if (_bufferLen < 0) fdie("reading",CINPUTFILE);
+      //printf("read %lu bufferlen\n",_bufferLen);
+      _sensesRead = true;
+    }
   }
   ret = true;
   ::close(fd);

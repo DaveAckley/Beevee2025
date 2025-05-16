@@ -5,6 +5,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
   FloodRadius mMyRadius;
 
   typedef Unsigned(5u) RootWait;
+  constant RootWait cWAIT_PER_INC = 24u;
   RootWait mRootWait = 0u;      //< how long to wait between mCurMaxRadius increments
   SN mParentSN = 0u;            //< 0u == root
 
@@ -183,7 +184,7 @@ quark FloodFind + DTU + Fail + QDebugUtils {
 
   Bool updateRootState() {
     if (mCurMaxRadius < mMaxRadius) {
-      if (++mRootWait == mRootWait.maxof) {
+      if (++mRootWait >= cWAIT_PER_INC) {
         mCurMaxRadius += 1u;
         mRootWait = 0u;
       }

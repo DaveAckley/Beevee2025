@@ -1,3 +1,4 @@
+{{3A3}} -n -a 0 -d /data/ackley/PART4/data/Beevee2025/runs --edenseed S --run
 {{3A4}} -n -a 0 -d /data/ackley/PART4/data/Beevee2025/runs --edenseed S --run
 {{3A4}} -n -a 0 -d /data/ackley/PART4/data/Beevee2025/runs
 {{1G1}} -n -a 0 -e 0 -d /data/ackley/PART4/data/Beevee2025/runs

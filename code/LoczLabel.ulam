@@ -84,6 +84,7 @@ element LZRV : TermHiddenIO {
     else if (!a is LoczLabel) { // vs 'is Empty': be arrogant here
       LoczLabel lb;
       lb.mLabelIndex = LoczLabel.cLOCZLABEL_LEN/2u;
+      lb.mLabelIndex += 3u;     // XXX MOVE LABEL THREE GLYPHS LEFT
       lb.mGloc.set(7,0);        // bottom right corner of glyph
       ew[sn] = lb.atomof;
       retsn = sn;

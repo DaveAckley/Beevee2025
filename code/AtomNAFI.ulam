@@ -13,7 +13,7 @@ quark ItemZ(Unsigned cBITS_PER_ITEM,Unsigned cMAX_OPS) + CodeConstants {
     return true;
   }
 
-  Bool write(Int newval) {      // fails if doesn't fit
+  Bool write(Int newval) {      // returns false if doesn't fit
     if (newval > cMIN_OP_VAL && newval <= cMAX_OP_VAL) {
       mItem = (Item) (newval - cMIN_OP_VAL);
       return true;
@@ -26,12 +26,12 @@ quark ItemZ(Unsigned cBITS_PER_ITEM,Unsigned cMAX_OPS) + CodeConstants {
   }
 }
 
-quark IndexableSoftStack : NAFI {
+transient IndexableSoftStack : NAFI + CodeMethods {
   //// IndexableSoftStack API
   // Not ready for prime time: virtual Unsigned getStackFF() ;
 }
 
-quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8u) cSTACK_SIZE) : IndexableSoftStack {
+transient IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8u) cSTACK_SIZE) : IndexableSoftStack {
   constant Unsigned cSTACK_SIZE_BITS =
     ((cSTACK_SIZE <= Unsigned(3u).maxof)  ? 3u :
     ((cSTACK_SIZE <= Unsigned(4u).maxof)  ? 4u :
@@ -51,23 +51,27 @@ quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8
   @Override virtual Bool isEmpty() { return mStackFF == 0u; }
   @Override virtual Bool isFull() { return mStackFF >= cSTACK_SIZE - 1u; }
   @Override virtual Bool push(FOC op) {
-    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/push")&&pR(op)&&pR(nameOfOperator(op));
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/push")&&pR(op)&&pR(nameOfOperator(op));
     Bool ret = false;
     if (!isFull()) {
       ret = mStack[mStackFF++].write(op);
     }
-    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pushed")&&pR(ret);
+    if (!ret) {
+      pRStack("ATNAP10")&&pR(op)&&pR(nameOfOperator(op));
+      fail(__FILE__,__LINE__, "PUSH/WRITE FAILED");
+    }
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pushed")&&pR(ret);
     return ret;
   }
 
   @Override Bool pop(FOC & op) {
-    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pop");
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pop");
     if (!isEmpty()) {
       mStack[--mStackFF].read(op);
-      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/popped")&&pR(op)&&pR(nameOfOperator(op));
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/popped")&&pR(op)&&pR(nameOfOperator(op));
       return true;
     }
-    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/pop failed");
+    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/pop failed");
     return false;
   }
 
@@ -89,48 +93,113 @@ quark IndexableSoftStackT(Unsigned cBITS_PER_ITEM, Unsigned cMAX_OPS, Unsigned(8
       bsw.print("#");
       bsw.print(s);             // include decimal anyway
     }
-    bsw.print("]t");
+    bsw.print("]At");
     return true;
   }
 }
 
+/*
+local constant Unsigned cASTACKSN = 1u;
+local constant Unsigned cATOMNAFISN = 4u;
+
 @Concrete
-element AtomNAFI : IndexableSoftStackT(9u,100u,6u)
-                 + ProgramCounter {
+element AStack + DTU + Fail //< JUST A STACK AND NOTHING MORE
+{
+  typedef IndexableSoftStackT(11u,100u,6u) MyStack;
+  typedef Bits(MyStack.sizeof) BitStg;
+  typedef BitStorageT(MyStack.sizeof) StackStg;
+  BitStg mStackStg;
+
+  Void behave() {
+    // do nothing except stay next to AtomNAFI
+    SN ansn = (SN) cATOMNAFISN;
+    EventWindow ew;
+    if (ew.isAccessible(ansn) && ew[ansn] is AtomNAFI) return;
+    fail(__FILE__,__LINE__, "NO ATOMNAFI");
+  }
+}
+*/
+
+@Concrete
+//element AtomNAFI : IndexableSoftStackT(9u,100u,6u) // XXX ITEMZ TOO SMALL!
+element AtomNAFI : NAFI + ProgramCounter {
   typedef Unsigned(10) MyPC;
   MyPC mPC;
+
+  ENAFI & getENAFI() {
+    MDist md;
+    EventWindow ew;
+    SN mysn = ew.getSiteNumber(self);
+    if (!ew.isAccessible(mysn)) fail(__FILE__,__LINE__,"ENAFI NO SELF");
+
+    C2D myc = md.getSiteCoord(mysn);
+    C2D enc = myc + C2D.instanceof(-1,0);
+
+    SN ensn = md.getSiteNumber(enc);
+    if (!ew.isAccessible(ensn)) fail(__FILE__,__LINE__,"NO ENAFI");
+
+    if (!(ew[ensn] is ENAFI))
+      ew[ensn] = ENAFI.instanceof;
+    
+    ENAFI & a = (ENAFI&) ew[ensn];
+    return a;
+  }
+
+  @Override Void behave() {
+    getENAFI();                 // ensure sidekick is up
+    return super.behave();
+  }
 
   //// PROGRAMCOUNTER API
   @Override Bool getPC(Unsigned & curpc) {
     curpc = mPC;
     //// WARNING! CANNOT CALL pRStack inside getPC! pRStack calls getPC!
-    //    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pR("NATR/getPC")&&pR(curpc);
+    //    (BeeveeParms.pNAFI_TRACING%2u==1u)&&pR("aNATR/getPC")&&pR(curpc);
     return true;
   }
 
   @Override Bool setPC(Unsigned newpc) {
     if (newpc <= mPC.maxof) {
-      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/setPC")&&pR(mPC)&&pR(newpc);
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/setPC")&&pR(mPC)&&pR(newpc);
       mPC = (MyPC) newpc;
       return true;
     }
-      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("NATR/setPC failed")&&pR(mPC)&&pR(newpc);
+      (BeeveeParms.pNAFI_TRACING%2u==1u)&&pRStack("aNATR/setPC failed")&&pR(mPC)&&pR(newpc);
     return false;
   }
 
+  //// NAFI API
+  @Override Void reset() {
+    mPC = 0u;
+    ENAFI & en = getENAFI();
+    en.reset();
+  }
+
+  @Override Bool canBlock() { return true; }
+  @Override Unsigned stackSize() { return getENAFI().stackSize(); }
+  @Override Bool isEmpty() { return getENAFI().isEmpty(); }
+  @Override Bool isFull() { return getENAFI().isFull(); }
+  @Override Bool push(FOC op) { return getENAFI().push(op); }
+  @Override Bool pop(FOC & op) { return getENAFI().pop(op); }
+  @Override Bool printStackTo(ByteStreamWriter & bsw) { return getENAFI().printStackTo(bsw); }
+
+
   //// ATOMNAFI SERVICES
-  Bool evalTilBlocked(GTCC & g, LOCZ & l, TRAKtor & t, SN empsn) {
+  Bool evalTilBlocked(MetroState & ms) {
+    ENAFI & at = getENAFI();
     Unsigned count = 0u;
     while (true) {
       Int lastpc;
       if (!getPC(lastpc)) return false;
-      if (!evaluateOperator(self,g,l,t)) return false;
+      //      fail(__FILE__,__LINE__,"XXXFIZIMME");
+      if (!evaluateOperator(ms)) return false;
       Int nextpc;
       if (!getPC(nextpc)) return false;
       if (lastpc == nextpc) break; // SPIKE: no pc change -> blocked
       ++count;
     }
-    if (count > 0u) pRStack("EVTIBL")&&pR(count);
+    //fail(__FILE__,__LINE__,"XXXFIZIMMEMORE");
+    if (count > 0u) at.pRStack("EVTIBL")&&pR(count);
     return true;
   }
 }
