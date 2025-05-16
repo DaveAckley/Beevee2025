@@ -1,4 +1,4 @@
-{471}  -*-  mode: text; fill-column: 50;  -*-
+{507}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -6488,3 +6488,402 @@ just a single optional handler that gets
 everything. 
 
 :470]
+[471:
+
+Wed Apr  9 11:41:13 2025 OK, committed and pushed
+all this stuff, since I think it's fair to say
+that NAFI is beginning to work and that the
+currently running localise+diagonalize demo is
+likely to reach the NW corner successfully...
+eventually.. Predicting maybe two days to get
+there? Going to leave it running for T2Demos or
+whatever. 
+
+:471]
+[472:
+
+Mon Apr 14 01:55:24 2025 Beevee's practicing
+localizing under various conditions - currently
+the 'walloballs' setup - and running into various
+issues.
+
+But I have to pipeline here because each
+localization test takes an hour or more easily..
+[473:
+
+Mon Apr 14 01:56:34 2025 So I'm looking toward a
+new feature for Beevee: Beevee looks into turns -
+turning its eyestalks in the direction of 
+deliberate TURN trakts.
+
+I want to do that because I think it stands to
+help with clearing red warnings during
+localization, as well as clearing green levels if
+we've missed the correct line. And because I
+expect it to be cute and fun to see.[475:
+
+Mon Apr 14 02:02:03 2025 Actually it
+wouldn't/won't help with missed lines on the green
+level, since there's no deliberate turn there --
+unless with coupled L/R motor speeds to L/R stalk
+angles so it would tend to turn its eyes toward
+the slower wheel and thus look into any kind of
+turn. But that could have beeeeg consequences; not
+ready to go there now.
+
+:475]
+
+At the moment, the ancient TOCK mechanism controls
+the eyestalks, at least as far as I can remember,
+so I want to try just building on top of that.
+[474:
+
+Mon Apr 14 02:00:05 2025 I've just taken a look in
+TOCK, and it's got a massive 43b available, so the
+obvious idea would be to add state for current
+eyestalk pos's there, and get an axon from the GTL
+metro area to TOCK, supplying signals regularly
+when the desired position is not default forward.
+[476:
+
+Mon Apr 14 03:19:55 2025 OK, so TOCK has code
+which boils down to this:
+
+  // 'static' method for GripInfo to call to map getSig values during
+  // switching
+  ASCII switchSigVal(GripInfo& gi, ASCII rawvalue, ClassId forDest) {
+    return gi.intToSignedAscii(25); // for left and right eyestalks
+  }
+
+and I think that is what arrives at MLEY and
+MREY.. right?[477:
+
+Mon Apr 14 03:25:19 2025 No, that's wrong. I think
+it's the result of
+
+      sigfunc.StalkMap = "o = 1;"   # eyestalks basically straight ahead?
+      sigmap.TOCK.MLEY = StalkMap
+      sigmap.TOCK.MREY = StalkMap
+
+that arrives at the motors. During the TRAK grip.
+But didn't I just now see source 9 delivering to
+MLEY? That's
+
+    SLRR.classidof,  //< 9 sensor Left Right-side Red Detector
+
+which is supposed to be happening in NORED.. but
+not TRAK?[478:
+
+Mon Apr 14 03:31:17 2025 Need to post a task to
+trace that back a bit. Would like to have a bit
+more confidence about grips & routing.
+
+[479:
+
+Mon Apr 14 11:59:43 2025 OK, so I think it's time
+to give up on the willy-nilly tFIND_EAST_LEFT and
+go back to controlled turns. Let's just use
+lessons learned and get this MORE FOGGEN
+RELIABLE.[480:
+
+Tue Apr 15 13:38:16 2025 OK so it looks like our
+slower fwd/dress/greencheck/turn loop is working
+reasonably well and it's turn to think about
+moving on. In particular, moving on to determine
+the ('usable') size of the grid, not just an
+origin for it.
+
+First question I have is: Where are we going to
+store the grid size?[481:
+
+Tue Apr 15 13:45:07 2025 LOCZ is at 0b free. GTCC
+at 5b. AtomNAFI at 3b.
+
+:481]
+
+:480]
+
+:479]
+
+:478]
+
+:477]
+
+:476]
+:474]
+:473]
+
+:472]
+[482:
+
+Wed Apr 16 15:03:13 2025 So is the idea that we're
+going to extend MotorCmd to have instructions for
+the eyestalks as well as the wells? Is that where
+desired eyestalk positions is going to come
+from?[483:
+
+Thu Apr 17 09:24:12 2025 Well, so a problem with
+using TOCK to forward eyestalk commands is that
+the TOCK->{MLEY,MREY} signaling goes by xblock,
+and that's meant for broadcast signaling. There's
+no mDestination in a SlotSig, only an mSource. If
+signals are supposed to be modified on a
+per-destination basis, that's supposed to happen
+during switching in the crossbar.
+
+I guess the 'obvious hack' would be to encode a 1b
+destination in the signal mValue, and have the
+fabric check (and clear) that bit and route the
+signal just in the direction indicated by the
+bit.. 
+
+:483]
+
+:482]
+[484:
+
+Sun Apr 20 00:10:12 2025 OK, so last minigoal for
+this phase: Only declare east-due-to-green when
+the eyes are looking (basically) forward! Beevee
+blew that yesterday, and spent hours going S but
+thinking it was E and going W but thinking it was
+S..
+
+So my quickest-hack idea is to somehow connect the
+eyestalk motors to whomever is computing
+greenlevel, and have the greenlevel be zero unless
+the eyes are looking mostly forward.
+
+Who computes greenlevel? LOCZ?[485:
+
+Sun Apr 20 00:17:05 2025 LOCZ stores it but 'Green
+Lantern' (GRLN) computes it, based on inputs from
+SLFG and SRFG. Where is GRLN relative to MLEY and
+MREY? [486:
+
+Sun Apr 20 00:22:10 2025 Well, GRLN is in
+[xblock.GREEN], understandably enough, and it has
+an axon connection sending to LOCZ. The whole
+GREEN xblock is pretty close to MLEY and MREY,
+which are on the east side of [xblock.HOTBOX].
+
+One possibility would be to hack MLEY and MREY so
+they'd forward their current 'actual' values up to
+some receiver in xblock.GREEN (or GRLN directly,
+but that's not as fun).
+
+  :486]
+:485]
+
+:484]
+[487:
+
+Mon Apr 21 16:20:54 2025 OK come on let's store
+the grid size. We declared
+
+  typedef Unsigned(8) GridSize[2];
+  GridSize mGridsize;
+
+in HESR.. and where does HESR live?[488:
+
+Mon Apr 21 16:21:55 2025 HESR is in xblock.GREEN?
+Does that help us? That's not the metro area,
+right? [489:
+
+Mon Apr 21 16:25:03 2025 No, it's not. But, HINFO
+IS in the metro area, and it ALSO declares
+
+  typedef Unsigned(8) GridSize[2];
+  GridSize mGridsize;
+
+so maybe we should use that instead, say
+  what?[490:
+
+Mon Apr 21 16:26:41 2025 And, MetroState is
+already finding mHINFOSN, so city residents can
+use it.
+
+Let's make ops to access it? Did we already do
+that too?[491:
+
+Mon Apr 21 16:29:24 2025 That, not yet. But:
+Should we take a couple minutes here and tear out
+all the hideous
+
+  Bool evalOp(Int op, Int & result, GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent e) {
+
+signatures in favor of 
+
+  Bool evalOp(Int op, Int & result, MetroState & ms) {
+
+signatures?
+
+[493:
+
+Tue Apr 22 10:15:01 2025 I think it's time to do
+this, ahead of threading in the grid size info
+management..
+[494: 
+
+Tue Apr 22 10:22:05 2025 affecting -
+evalOp
+evaluateThisOperatorOnly
+evalFunction
+evalDoneCode
+evalEvent
+
+subsuming all of
+
+NAFI & s, GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent e
+[495:
+
+Tue Apr 22 10:40:10 2025 Working through it. Think
+we have a problem with the NAFI &, because for
+'immediate' (non-blocking) evaluations, there is
+no SN to refer to.
+
+I think we need to find those cases, and stick
+an instance of whatever NAFI subclass they're
+using into MetroState, so we can hand back a
+reference to that in NAFI & getAtomNAFI() if we
+need to? And rename it getNAFI()?
+
+:495]
+:494]
+:493]
+
+
+Well... it's getting a little close to cocktail
+time for that, I think. Isn't there something
+smaller we could do here?
+
+[492:
+
+Mon Apr 21 16:31:25 2025 Yes: Let's add displays
+for grid size and destination, without hooking
+them up to anything.
+
+:492]
+
+:491]
+
+:490]
+
+:489]
+
+:488]
+
+:487]
+[496:
+
+Sun May 11 11:25:50 2025 Trying to let beevee
+detect 255x3 front grey as "on red" - I think it
+wants to be computed by CLOK, so we'll need some
+expansion of the CLOK->GTCC signal path, I think.
+
+Let's review our budgets and such..[497:
+
+Sun May 11 11:28:04 2025 CLOK has 52b free so
+that's no problem..[498:
+
+Sun May 11 11:53:06 2025 Actually looks like it's
+better to do it from TRAK rather than CLOK? TRAK
+already accesses all three front greys.[499:
+
+Sun May 11 11:53:53 2025 TRAK has 4b avail. Enough
+for a bool if we want it..
+
+:499]
+
+:498]
+
+:497]
+
+:496]
+[500:
+
+Wed May 14 11:12:52 2025 OK, so my question now
+is: Which callers (if any) of tryRecvSig (and sim)
+actively check if the source of a received signal
+is what they are expecting?
+
+Because it seems as though many/most users of
+trySendSig (&c) only check if the destination is
+what they want - and do not also check if the
+source is themselves.
+
+Could this perhaps lead to signals being
+misinterpreted and/or misapplied?
+
+Let's scan recv users here..[501:
+
+Wed May 14 11:17:54 2025 Defined in TAP.ulam.[502:
+
+Wed May 14 11:18:47 2025 Called from TermMotor.behave().  At
+
+TAP.ulam:512:
+
+and it specifically says
+
+              Int signedval = iss.getValueSigned(); // pick up value (ignoring source tapidx)
+
+at 527.. Although it called handleSigHook
+earlier, which might be expected to have checked
+the source tapidx?[503:
+
+Wed May 14 11:22:28 2025 Also called from
+GTCC.behave() at
+
+GTCC.ulam:125:
+
+BUT! There, it looks like there is some checking
+before the recv attempt:
+
+      SN tpdsn = findMatchingAxonEndWith(BeeveeBIMXBlock.cTAPIDX_TRAKPD);
+      if (tpdsn != SN.maxof) {
+        EventWindow ew;
+        AxonEnd & ae = (AxonEnd&) ew[tpdsn];
+        SlotSig sig;
+        if (tryRecvSig(ae, sig)) {
+
+[504:
+
+Wed May 14 11:37:15 2025 So that suggests that,
+even there, the receiver will receive any sig that
+comes in on an axon labeled farend==TRAKPD,
+without checking the sig.mSource?[505:
+
+Wed May 14 11:56:20 2025
+
+HESR.ulam:27: also uses tryRecvSignal BUT it
+explicitly DOES check the iss.mSource:
+
+          if (tryRecvSig(ae, iss)) {
+            /*mD&&*/pR("HESCR11 DO SOMETHING")&&pR(iss);
+            if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MLEY) {
+              mLastKnownEyePos[0] = iss.mValue;
+            } else if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MREY) {
+              mLastKnownEyePos[1] = iss.mValue;
+            } else {
+              pR("HESCR12WHATWHAT")&&pR(iss);
+            }
+
+[506:
+
+Wed May 14 11:58:30 2025 (And, there appear to be
+no matches for 'HESCR' in the current compilation,
+so it appears like those signals are not (yet)
+being sent?)
+
+:506]
+
+:505]
+
+:504]
+:503]
+
+:502]
+
+:501]
+
+:500]
