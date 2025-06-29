@@ -1,4 +1,4 @@
-{507}  -*-  mode: text; fill-column: 50;  -*-
+{524}  -*-  mode: text; fill-column: 50;  -*-
 [0:
 
 Sat Dec 28 15:31:46 2024 OK, we tried to make a
@@ -3766,7 +3766,7 @@ BrainStemSupport must be doing something similar
 on the mfms side yes?[322:
 
 Sat Mar  8 01:54:50 2025 No there's (at least) one
-more layer - 
+more layer -
 
  - BrainStemSupport.tcc does IO to /mnt/T2TMP,
  - but only after t2serloop.py bridges between
@@ -3799,8 +3799,8 @@ closer to a smoking gun that's saying it's an
 MFM/BrainStem problem, because we now have mfms
 logs showing the 25s happening, like -
 
-    20250308132953-47545: 49979AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:1.000 IE:4.000 LE:1.000 AJ:0.140 CS:3.000 CG:120  
-    20250308132954-47546: 49988AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-1.000 IE:3.968 LE:1.000 AJ:-1.580 CS:3.000 CG:133  
+    20250308132953-47545: 49979AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:1.000 IE:4.000 LE:1.000 AJ:0.140 CS:3.000 CG:120
+    20250308132954-47546: 49988AEPS [5BBA38F6]MSG: s[42,26] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-1.000 IE:3.968 LE:1.000 AJ:-1.580 CS:3.000 CG:133
     20250308133000-47547: 50033AEPS [5BBB78F6]MSG: print: "GSV25vvvv"
     20250308133000-47548: 50033AEPS [5BBB78F6]MSG: print: "SLFR"
     20250308133000-47549: 50033AEPS [5BBB78F6]MSG: print: "GSV25^^^^"
@@ -3822,30 +3822,30 @@ which we can line up, based on times, with the
 packet log dump, like -
 
     <B  3887 2025-03-08T13:29:58.551831
-    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1 
-    MRRF    5 SDB-    0 SFCG  121 SFLG    0 SFRG  255 SLFG   60 SLFR    0 SLFY    8 SLLR    0 SLLY    8 
-    SLRR    0 SLRY    0 SRFG   67 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
-    SRRY    0 SUPR    0 SUPY   16 CAD-    1 
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1
+    MRRF    5 SDB-    0 SFCG  121 SFLG    0 SFRG  255 SLFG   60 SLFR    0 SLFY    8 SLLR    0 SLLY    8
+    SLRR    0 SLRY    0 SRFG   67 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0
+    SRRY    0 SUPR    0 SUPY   16 CAD-    1
     W>  3889 2025-03-08T13:30:00.752156
-    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1 
-    MRRF    5 SDB-    0 SFCG  117 SFLG    0 SFRG  255 SLFG   59 SLFR    0 SLFY    1 SLLR    0 SLLY    1 
-    SLRR    0 SLRY    0 SRFG   72 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
-    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    4 MREY    1
+    MRRF    5 SDB-    0 SFCG  117 SFLG    0 SFRG  255 SLFG   59 SLFR    0 SLFY    1 SLLR    0 SLLY    1
+    SLRR    0 SLRY    0 SRFG   72 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1
     <B  3891 2025-03-08T13:30:00.752247
-    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
-    MRRF    5 SDB-    0 SFCG  126 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    0 SLLR    0 SLLY    0 
-    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
-    SRRY    0 SUPR    0 SUPY   10 CAD-    1 
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1
+    MRRF    5 SDB-    0 SFCG  126 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    0 SLLR    0 SLLY    0
+    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0
+    SRRY    0 SUPR    0 SUPY   10 CAD-    1
     <B  3893 2025-03-08T13:30:00.752293
-    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
-    MRRF    5 SDB-    0 SFCG  128 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    3 SLLR    0 SLLY    3 
-    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
-    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1
+    MRRF    5 SDB-    0 SFCG  128 SFLG    0 SFRG  255 SLFG   57 SLFR    0 SLFY    3 SLLR    0 SLLY    3
+    SLRR    0 SLRY    0 SRFG   74 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1
     W>  3895 2025-03-08T13:30:02.920401
-    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1 
-    MRRF    5 SDB-    0 SFCG  115 SFLG    0 SFRG  255 SLFG   68 SLFR    0 SLFY    5 SLLR    0 SLLY    5 
-    SLRR    0 SLRY    0 SRFG   69 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0 
-    SRRY    0 SUPR    0 SUPY   12 CAD-    1 
+    BVA-    0 BVP-  179 BVR-    1 BVR-  179 FLW-    0 GRIP    0 MDB-    0 MLEY    1 MLRF    1 MREY    1
+    MRRF    5 SDB-    0 SFCG  115 SFLG    0 SFRG  255 SLFG   68 SLFR    0 SLFY    5 SLLR    0 SLLY    5
+    SLRR    0 SLRY    0 SRFG   69 SRFR    0 SRFY    0 SRLG    0 SRLR    0 SRLY    0 SRRG  255 SRRR    0
+    SRRY    0 SUPR    0 SUPY   12 CAD-    1
 
 where we can see no sign of 25s.
 
@@ -3901,7 +3901,7 @@ doing..
 
 [328:
 
-Sun Mar  9 16:59:44 2025 So fixed that, yes, with 
+Sun Mar  9 16:59:44 2025 So fixed that, yes, with
 xbar priority, fwiw.
 
 [329:
@@ -3959,7 +3959,7 @@ turn, and he'll be able to fucking burn down the
 long straightaways and only start slow down as the
 next turn approaches - in particular, before
 there's any obvious sign that an edge (say) is
-approaching. 
+approaching.
 [332:
 
 Mon Mar 10 13:08:31 2025 Running at 25 max and
@@ -4234,7 +4234,7 @@ constant ActionNumber cACN_DRESS_LINE = 3u;
     GOAL: Find line to (left|right) of current line
     PRE: DRESS_LINE succeeded,
     STATE: Bool startedOnTick
-    POST: abs(SFLG-SFRG) > 128 && onTick != startedOnTick 
+    POST: abs(SFLG-SFRG) > 128 && onTick != startedOnTick
     FAIL:
     METHOD: PID ASYM ROTATE (LEFT|RIGHT) SLOW
 */
@@ -4264,7 +4264,7 @@ driver for TRAKtions? How does that work? I guess
 we try making a spike element that has one, and
 plop it down near GTCC or something?
 
-Or do we have to 
+Or do we have to
 [358:
 
 Sun Mar 16 01:18:35 2025 Soo, got kind of
@@ -4459,7 +4459,7 @@ What might it look like?
 Tue Mar 18 00:29:52 2025 For one thing, how would
 we find it?
 
-:380]  
+:380]
 
 :379]
 
@@ -4696,7 +4696,7 @@ with it.
 [394:
 
 Wed Mar 19 11:15:45 2025 What if we had a
-configurable TRAKtor.mPauseOnEdge or something, 
+configurable TRAKtor.mPauseOnEdge or something,
 that TRAKts like DRIVE_SLOW and _FAST would check
 and, if it was set and if a TICK/TOCK comes, would
 go from RUN to READY.
@@ -4764,11 +4764,11 @@ currently have this mess there:
         pR("D8NTFY10")&&pR(nameOfTRAKtorEvent(te));
         if (te == cTKTR_READY) { // "RESTART" WHEN T BECOMES READY
 
-          if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT)) 
+          if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT))
             return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
           if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_TUNE_LINE))
             return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
-          t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);      
+          t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
 
         } else if (te == cTKTR_RED_PREWARN_SET) {
           if (t.switchTRAKt(TRAKtor.cTRA_DRIVE_FAST,TRAKtor.cTRA_DRIVE_SLOW))
@@ -4791,11 +4791,11 @@ parts of that. For example:
 
         if (te == cTKTR_READY) { // "RESTART" WHEN T BECOMES READY
 
->>        if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT)) 
+>>        if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_FIND_LINE_RIGHT))
             return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
 >>        if (!t.isThisTRAKtDone(gtcc, TRAKtor.cTRA_TUNE_LINE))
             return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
->>         t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);      
+>>         t.startTRAKt(TRAKtor.cTRA_DRIVE_SLOW);
 
 these sections make a nice kind of
 self-stabilizing start up. "If we haven't
@@ -4935,7 +4935,7 @@ CLOKPredicate can't express the notion 'wheel
 speed equals zero'?
 
 Could we have some other class of predicates that
-could? 
+could?
 
 :403]
 
@@ -4992,13 +4992,13 @@ offline predicate. Right now we have:
 and we're using that to exit the DRIVE TRAKts:
 
         {                           //< 10: cTRA_DRIVE_SLOW
-          .mSpeedNotWheel = true, 
+          .mSpeedNotWheel = true,
           .mSpeed1 = 8,     // min
           .mSpeed2 = 20,    // max
           .mDoneFunc = fOFFLINE_FRONT, // go til interrupted or fall off line
         },
         {                           //< 11: cTRA_DRIVE_FAST
-          .mSpeedNotWheel = true, 
+          .mSpeedNotWheel = true,
           .mSpeed1 = 8,     // min
           .mSpeed2 = 50,    // max
           .mDoneFunc = fOFFLINE_FRONT, // ditto
@@ -5028,7 +5028,7 @@ so we could just add another XTimer that resets on
 cCLOK_TICK or cCLOK_TOCK, and counts on
 cCLOK_NONE, and then just do
 
-    [operator.oREALLY_OFFLINE_FRONT] 
+    [operator.oREALLY_OFFLINE_FRONT]
       impl='return s.push(g.mOfflineFrontTimer.alarm())'
 
 or whatever, plus
@@ -5041,10 +5041,10 @@ or whatever, plus
 couldn't we just do
 
         {                           //< 11: cTRA_DRIVE_FAST
-          .mSpeedNotWheel = true, 
+          .mSpeedNotWheel = true,
           .mSpeed1 = 8,     // min
           .mSpeed2 = 50,    // max
-          .mDoneFunc = oREALLY_OFFLINE_FRONT, 
+          .mDoneFunc = oREALLY_OFFLINE_FRONT,
         },
 
 and be done with it? I guess the problem is
@@ -5066,21 +5066,21 @@ in it, we're going to try to understand at least
 some parts of this:
 
     20250326180703-573853: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1< 
+    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1<
     20250326180703-573855: 24068AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1< 
+    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1<
     20250326180703-573857: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< 
+    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1<
     20250326180703-573859: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
-    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573861: 24068AEPS [9A60B8F6]MSG: print: "oENTER"
-    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573865: 24068AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1<
     20250326180703-573867: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573869: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
 
     20250326180703-573870: 24068AEPS [9A60B8F6]MSG: print: "TKUR11"
@@ -5090,41 +5090,41 @@ some parts of this:
     20250326180703-573874: 24069AEPS [9A60B8F6]MSG: print: "READY"
     20250326180703-573875: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY10"
     20250326180703-573876: 24069AEPS [9A60B8F6]MSG: print: "READY"
-    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573878: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
-    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573880: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573882: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1<
     20250326180703-573884: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573886: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
 
     20250326180703-573887: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY11"
-    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573889: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
-    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573891: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1< 
+    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1<
     20250326180703-573893: 24069AEPS [9A60B8F6]MSG: print: "oCALL"
-    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1< 
+    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1<
     20250326180703-573895: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1<
     20250326180703-573897: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1< 
+    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1<
     20250326180703-573899: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1<
     20250326180703-573901: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
-    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573903: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1<
     20250326180703-573905: 24069AEPS [9A60B8F6]MSG: print: "oAND"
-    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573907: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
     20250326180703-573908: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY1110"
     20250326180703-573909: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
-    20250326180703-573910: 24070AEPS [9A5F78F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-27.000 IE:-5.000 LE:-27.000 AJ:-2.187 CS:18.000 CG:237  
+    20250326180703-573910: 24070AEPS [9A5F78F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-27.000 IE:-5.000 LE:-27.000 AJ:-2.187 CS:18.000 CG:237
     20250326180704-573911: 24074AEPS [9A60B8F6]MSG: print: "D8NTFY10"
     20250326180704-573912: 24074AEPS [9A60B8F6]MSG: print: "RUN"
     20250326180704-573913: 24074AEPS [9A60B8F6]MSG: print: "FRONT_TOCK"
@@ -5135,30 +5135,30 @@ some parts of this:
 using, I think, this piece of cRAM:
 
         oENTER,              //  25 fCLOK_EDGE_FRONT: true on front tick or front tock
-        oCLOK_FRONT,         //  26 
-        cCLOK_NONE,          //  27 
-        oCMP_NE,             //  28 
+        oCLOK_FRONT,         //  26
+        cCLOK_NONE,          //  27
+        oCMP_NE,             //  28
         oRETURN,             //  29 From: fCLOK_EDGE_FRONT
         oENTER,              //  30 fCLOK_EDGE_REAR: true on rear tick or rear tock
-        oCLOK_REAR,          //  31 
-        cCLOK_NONE,          //  32 
-        oCMP_NE,             //  33 
+        oCLOK_REAR,          //  31
+        cCLOK_NONE,          //  32
+        oCMP_NE,             //  33
         oRETURN,             //  34 From: fCLOK_EDGE_REAR
         oENTER,              //  35 fSMALL_GREY_DEV: true on small deviation
-        oGREY_FCTR,          //  36 
-        oDUP,                //  37 
-        25,                  //  38 
-        oCMP_LE,             //  39 
-        oSWAP,               //  40 
-        -25,                 //  41 
-        oCMP_GE,             //  42 
-        oAND,                //  43 
+        oGREY_FCTR,          //  36
+        oDUP,                //  37
+        25,                  //  38
+        oCMP_LE,             //  39
+        oSWAP,               //  40
+        -25,                 //  41
+        oCMP_GE,             //  42
+        oAND,                //  43
         oRETURN,             //  44 From: fSMALL_GREY_DEV
         oENTER,              //  45 fCLOK_EDGE_TUNED: true on front edge and small deviation
-        fCLOK_EDGE_FRONT,    //  46 
-        oCALL,               //  47 
-        fSMALL_GREY_DEV,     //  48 
-        oAND,                //  49 
+        fCLOK_EDGE_FRONT,    //  46
+        oCALL,               //  47
+        fSMALL_GREY_DEV,     //  48
+        oAND,                //  49
         oRETURN,             //  50 From: fCLOK_EDGE_TUNED
 
 and perhaps mostly these scattered bits of
@@ -5210,7 +5210,7 @@ evaluating oCLOK_FRONT -
 
 - which pushes a literal 2 (#2) on the stack:
 
-    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1< 
+    20250326180703-573854: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#2 #1<
 
 because that's what oCLOK_FRONT does:
 
@@ -5226,13 +5226,13 @@ are neither TICK nor TOCK, but instead are:
 [411:
 
 Thu Mar 27 01:20:50 2025 Then another literal is
-pused on the stack - 
+pused on the stack -
 
     20250326180703-573855: 24068AEPS [9A60B8F6]MSG: print: "#"
 
-which happens also to be #2 - 
+which happens also to be #2 -
 
-    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1< 
+    20250326180703-573856: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #2 #1<
 
 because, I believe, we were evaluating
 fCLOK_EDGE_FRONT:
@@ -5244,7 +5244,7 @@ fCLOK_EDGE_FRONT:
 And indeed, the next thing is oCMP_NE
 
     20250326180703-573857: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< 
+    20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1<
 
 which pops the two #2s, discovers they are NOT !=
 so the result is #0, which it pushes on the stack:
@@ -5257,7 +5257,7 @@ implicit at end of function)
 
   [ 20250326180703-573858: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#0 #1< ]
     20250326180703-573859: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
-    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
 
 which pops the #0 and returns it, completing the
 evaluation of fCLOK_EDGE_FRONT.
@@ -5268,7 +5268,7 @@ Thu Mar 27 01:29:17 2025 Then we see:
 
   [ 20250326180703-573860: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< ]
     20250326180703-573861: 24068AEPS [9A60B8F6]MSG: print: "oENTER"
-    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573862: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
 
 which is, I believe, fCLOK_EDGE_FRONT being called
@@ -5278,7 +5278,7 @@ oCLOK_FRONT, same as before. But this time, the
 result is different -
 
   [ 20250326180703-573863: 24068AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT" ]
-    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
 
 This time, the value is 1, not 2, because the
 front grey sensor calculations have now decided
@@ -5291,14 +5291,14 @@ before, a #2 is pushed on top of it:
 
   [ 20250326180703-573864: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< ]
     20250326180703-573865: 24068AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573866: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1<
 
 an oCMP_NE is evaluated -
 
     20250326180703-573867: 24068AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573868: 24068AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
 
-this time pushing #1, as #2 and #1 are indeed NE, 
+this time pushing #1, as #2 and #1 are indeed NE,
 
     20250326180703-573869: 24068AEPS [9A60B8F6]MSG: print: "oRETURN"
 
@@ -5383,24 +5383,24 @@ That fires off another complete burst of
 evaluation:
 
   [ 20250326180703-573876: 24069AEPS [9A60B8F6]MSG: print: "READY" ]
-    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573877: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573878: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
-    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573879: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573880: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573881: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573882: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1< 
+    20250326180703-573883: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#2 #1 #1<
     20250326180703-573884: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573885: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250326180703-573886: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
 
 which does, again, indeed return 1. So we skip
-trying to start FIND_LINE_RIGHT, and continue on - 
+trying to start FIND_LINE_RIGHT, and continue on -
 
   [ if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) { ]
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
-      l.mSpeed8Valid = false; 
+      l.mSpeed8Valid = false;
       return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
     }
 
@@ -5416,13 +5416,13 @@ producing
 Thu Mar 27 02:00:37 2025 Now, here's where things
 get, perhaps, more interesting. After
 "D8NTFYRDY11", the HTD8.notifyReady(..) code does
-this: 
+this:
 
   [ pR("D8NTFYRDY11"); ]
     if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
-      l.mSpeed8Valid = false; 
+      l.mSpeed8Valid = false;
       return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
     }
 
@@ -5436,7 +5436,7 @@ Here's cTRA_TUNE_LINE
       mSpeedMax = 2
       mDoneFunc = fCLOK_EDGE_TUNED
 
-so its 'done code' is fCLOK_EDGE_TUNED, which is: 
+so its 'done code' is fCLOK_EDGE_TUNED, which is:
 
     [function.fCLOK_EDGE_TUNED]
       doc="true on front edge and small deviation"
@@ -5477,24 +5477,24 @@ Thu Mar 27 02:17:23 2025 So. Let's go through it.
 Here's the cRAM for fCLOK_EDGE_TUNED
 
         oENTER,              //  45 fCLOK_EDGE_TUNED: true on front edge and small deviation
-        fCLOK_EDGE_FRONT,    //  46 
-        oCALL,               //  47 
-        fSMALL_GREY_DEV,     //  48 
-        oAND,                //  49 
+        fCLOK_EDGE_FRONT,    //  46
+        oCALL,               //  47
+        fSMALL_GREY_DEV,     //  48
+        oAND,                //  49
         oRETURN,             //  50 From: fCLOK_EDGE_TUNED
 
-We were here: 
+We were here:
 
   [ 20250326180703-573887: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY11" ]
-    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573888: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
     20250326180703-573889: 24069AEPS [9A60B8F6]MSG: print: "oENTER"
 
  - so we've entered fCLOK_EDGE_TUNED and done the
 (no-op) oENTER,
 
-    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1< 
+    20250326180703-573890: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 1<#1<
 
- - leaving the stack unchanged. 
+ - leaving the stack unchanged.
 
     20250326180703-573891: 24069AEPS [9A60B8F6]MSG: print: "#"
 
@@ -5503,41 +5503,41 @@ fCLOK_EDGE_FRONT, which is 25 -
 
          oENTER,              //  25 fCLOK_EDGE_FRONT: true on front tick or front tock
 
-    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1< 
+    20250326180703-573892: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#25 #1<
 
 - onto the stack as well.
 
     20250326180703-573893: 24069AEPS [9A60B8F6]MSG: print: "oCALL"
-    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1< 
+    20250326180703-573894: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#48 #1<
 
  - then we make the call, which pops the starting
    address (25) to call, and pushes the return
    address, which is 48 from
 
   [     oCALL,               //  47 ]
-        fSMALL_GREY_DEV,     //  48 
+        fSMALL_GREY_DEV,     //  48
 
 and execution continues at entry point + 1, cRAM[26].
 
     20250326180703-573895: 24069AEPS [9A60B8F6]MSG: print: "oCLOK_FRONT"
-    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573896: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1<
 
  - Operator oCLOK_FRONT pushes #1 because we're
 (still) on front tock
 
     20250326180703-573897: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1< 
+    20250326180703-573898: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 4<#2 #1 #48 #1<
 
  - then literal cCLOK_NONE (value 2) is pushed.
 
     20250326180703-573899: 24069AEPS [9A60B8F6]MSG: print: "oCMP_NE"
-    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250326180703-573900: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#1 #48 #1<
 
  - then CMP_NE pops #2 and #1, discovers they ARE
 !=, so pushes #1.
 
     20250326180703-573901: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
-    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573902: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
 
  - then oRETURN pops the return value (#1) and the
 return address (#48), repushes the return value
@@ -5559,7 +5559,7 @@ the return address - 1 is an oCALL, before
 repushing the return value.
 
     20250326180703-573903: 24069AEPS [9A60B8F6]MSG: print: "#"
-    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+    20250326180703-573904: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 3<#35 #1 #1<
 
  - then it pushes the starting address of
 fSMALL_GREY_DEV (35), preparatory to making the
@@ -5567,20 +5567,20 @@ second (BUT MISSING) oCALL. So wait, I guess there
 isn't a second bug here? I was thinking oRETURN
 had a problem, but this looks okay. I was worried
 how #35 got on the stack but now I see that's
-'OK'. 
+'OK'.
 
     20250326180703-573905: 24069AEPS [9A60B8F6]MSG: print: "oAND"
 
  - then we boldly oAND #1 and #25
 
-    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250326180703-573906: 24069AEPS [9A60B8F6]MSG: s[13,12] t[1,1]: EVLOP1010 2<#1 #1<
 
  - obtaining #1
- 
+
     20250326180703-573907: 24069AEPS [9A60B8F6]MSG: print: "oRETURN"
 
  - which we return
- 
+
    20250326180703-573908: 24069AEPS [9A60B8F6]MSG: print: "D8NTFYRDY1110"
 
 [417:
@@ -5590,7 +5590,7 @@ started the analysis at 01:02:03, so we spent over
 1.5 hours on this. "Just for one measly bug" Yeah,
 yeah, I know..
 
-This 
+This
 
     [function.fCLOK_EDGE_TUNED]
       doc="true on front edge and small deviation"
@@ -5608,7 +5608,7 @@ Thu Mar 27 02:47:03 2025 And now it is.
 Rebuilding.[419:
 
 Thu Mar 27 02:56:35 2025 Done. Reupping Beevee's
-brain.. 
+brain..
 
 :419]
 
@@ -5648,43 +5648,43 @@ Thu Mar 27 04:25:31 2025 And look at that stack
 grow now! --
 
     20250327042226-527393: 10782AEPS [A18D58F6]MSG: print: "oENTER"
-    20250327042226-527394: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 1<#1< 
+    20250327042226-527394: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 1<#1<
     20250327042226-527395: 10782AEPS [A18D58F6]MSG: print: "#"
-    20250327042226-527396: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#25 #1< 
+    20250327042226-527396: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#25 #1<
     20250327042226-527397: 10782AEPS [A18D58F6]MSG: print: "oCALL"
-    20250327042226-527398: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#48 #1< 
+    20250327042226-527398: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#48 #1<
     20250327042226-527399: 10782AEPS [A18D58F6]MSG: print: "oCLOK_FRONT"
-    20250327042226-527400: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#0 #48 #1< 
+    20250327042226-527400: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#0 #48 #1<
     20250327042226-527401: 10782AEPS [A18D58F6]MSG: print: "#"
-    20250327042226-527402: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#2 #0 #48 #1< 
+    20250327042226-527402: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#2 #0 #48 #1<
     20250327042226-527403: 10782AEPS [A18D58F6]MSG: print: "oCMP_NE"
-    20250327042226-527404: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #48 #1< 
+    20250327042226-527404: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #48 #1<
     20250327042226-527405: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
-    20250327042226-527406: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250327042226-527406: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250327042226-527407: 10782AEPS [A18D58F6]MSG: print: "#"
-    20250327042226-527408: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#35 #1 #1< 
+    20250327042226-527408: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#35 #1 #1<
     20250327042226-527409: 10782AEPS [A18D58F6]MSG: print: "oCALL"
-    20250327042226-527410: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#50 #1 #1< 
+    20250327042226-527410: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#50 #1 #1<
     20250327042226-527411: 10782AEPS [A18D58F6]MSG: print: "oGREY_FCTR"
-    20250327042226-527412: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#11 #50 #1 #1< 
+    20250327042226-527412: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#11 #50 #1 #1<
     20250327042226-527413: 10782AEPS [A18D58F6]MSG: print: "oDUP"
-    20250327042226-527414: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #11 #50 #1 #1< 
+    20250327042226-527414: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #11 #50 #1 #1<
     20250327042226-527415: 10782AEPS [A18D58F6]MSG: print: "#"
-    20250327042226-527416: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#25 #11 #11 #50 #1 #1< 
+    20250327042226-527416: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#25 #11 #11 #50 #1 #1<
     20250327042226-527417: 10782AEPS [A18D58F6]MSG: print: "oCMP_LE"
-    20250327042226-527418: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #11 #50 #1 #1< 
+    20250327042226-527418: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #11 #50 #1 #1<
     20250327042226-527419: 10782AEPS [A18D58F6]MSG: print: "oSWAP"
-    20250327042226-527420: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #1 #50 #1 #1< 
+    20250327042226-527420: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#11 #1 #50 #1 #1<
     20250327042226-527421: 10782AEPS [A18D58F6]MSG: print: "#"
-    20250327042226-527422: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#-25 #11 #1 #50 #1 #1< 
+    20250327042226-527422: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 6<#-25 #11 #1 #50 #1 #1<
     20250327042226-527423: 10782AEPS [A18D58F6]MSG: print: "oCMP_GE"
-    20250327042226-527424: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #1 #50 #1 #1< 
+    20250327042226-527424: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 5<#1 #1 #50 #1 #1<
     20250327042226-527425: 10782AEPS [A18D58F6]MSG: print: "oAND"
-    20250327042226-527426: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#1 #50 #1 #1< 
+    20250327042226-527426: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 4<#1 #50 #1 #1<
     20250327042226-527427: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
-    20250327042226-527428: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #1 #1< 
+    20250327042226-527428: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 3<#1 #1 #1<
     20250327042226-527429: 10782AEPS [A18D58F6]MSG: print: "oAND"
-    20250327042226-527430: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1< 
+    20250327042226-527430: 10782AEPS [A18D58F6]MSG: s[7,12] t[1,1]: EVLOP1010 2<#1 #1<
     20250327042226-527431: 10782AEPS [A18D58F6]MSG: print: "oRETURN"
     20250327042226-527432: 10782AEPS [A18D58F6]MSG: print: "D8NTFYRDY1110"
     20250327042226-527433: 10782AEPS [A18D58F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
@@ -5730,7 +5730,7 @@ did:
     if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_FIND_LINE_RIGHT)) {
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
-      l.mSpeed8Valid = false; 
+      l.mSpeed8Valid = false;
       return (Void) t.startTRAKt(TRAKtor.cTRA_FIND_LINE_RIGHT);
     }
 
@@ -5743,7 +5743,7 @@ Then it did:
     if (!t.isThisTRAKtDone(g, l, TRAKtor.cTRA_TUNE_LINE)) {
       l.mPosValid[0] = false;      // XXX SPIKE
       l.mPosValid[1] = false;      // XXX SPIKE
-      l.mSpeed8Valid = false; 
+      l.mSpeed8Valid = false;
       return (Void) t.startTRAKt(TRAKtor.cTRA_TUNE_LINE);
     }
 
@@ -5827,7 +5827,7 @@ a MotorCmd any different that the existing
 
 Continue while this or done when that?
 
-'seems same same'.. 
+'seems same same'..
 [431:
 
 Fri Mar 28 02:54:28 2025 OK, made
@@ -5872,7 +5872,7 @@ required[434:
 Fri Mar 28 04:02:24 2025 OK we've been watching
 this version approach the red, here, and saw this:
 
-    20250328040129-41729: 18573AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-22.000 IE:-5.000 LE:-22.000 AJ:-1.796 CS:19.000 CG:217  
+    20250328040129-41729: 18573AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-22.000 IE:-5.000 LE:-22.000 AJ:-1.796 CS:19.000 CG:217
     20250328040132-41730: 18588AEPS [73FF18F6]MSG: print: "D8NTFY10"
 
 notification arrives at HTD8
@@ -5898,37 +5898,37 @@ leading to this code:
 
     20250328040132-41735: 18588AEPS [73FF18F6]MSG: print: "D8NFRUN13"
     20250328040132-41736: 18588AEPS [73FF18F6]MSG: print: "D8NFRUN14"
-    20250328040132-41737: 18588AEPS [73FF18F6]MSG: s[16,13] t[1,1]: TRAKtor.ulam:433: RUN/cTRA_DRIVE_SLOW.10 => RUN/cTRA_DRESS_LINE_FWD.3 
+    20250328040132-41737: 18588AEPS [73FF18F6]MSG: s[16,13] t[1,1]: TRAKtor.ulam:433: RUN/cTRA_DRIVE_SLOW.10 => RUN/cTRA_DRESS_LINE_FWD.3
 
 which switches trakts 'on the fly' -- meaning
 without leaving TRAKtorState RUN
 
-    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3 
+    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3
 
 but then that happens. The TRAKtor goes READY
 anyway. Why did that happen?
 
-    20250328040132-41739: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_FULL_STOP.9 
+    20250328040132-41739: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_FULL_STOP.9
 
 The default updateReady preemptively switches to FULL_STOP..
 
     20250328040132-41740: 18592AEPS [73FF18F6]MSG: print: "D8NTFY10"
     20250328040132-41741: 18592AEPS [73FF18F6]MSG: print: "READY"
 
-and a notification that we've gone READY arrives.. 
+and a notification that we've gone READY arrives..
 
     20250328040132-41742: 18592AEPS [73FF18F6]MSG: print: "READY"
     20250328040132-41743: 18592AEPS [73FF18F6]MSG: print: "D8NTFYRDY10"
     20250328040132-41744: 18592AEPS [73FF18F6]MSG: print: "READY"
     20250328040132-41745: 18592AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
-    20250328040132-41746: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_TUNE_LINE.2 
-    20250328040132-41747: 18593AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-23.000 IE:-5.000 LE:-22.000 AJ:-2.500 CS:19.000 CG:221  
+    20250328040132-41746: 18592AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_TUNE_LINE.2
+    20250328040132-41747: 18593AEPS [73FDD8F6]MSG: s[41,18] t[0,1]: IV1 kP:0.078 kI:0.015 kD:0.781 RE:-23.000 IE:-5.000 LE:-22.000 AJ:-2.500 CS:19.000 CG:221
 [435:
 
 Fri Mar 28 04:11:30 2025 aand a few moments later
 we're looping:
 
-    20250328041156-45967: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45967: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9
     20250328041156-45968: 22081AEPS [73FF18F6]MSG: print: "D8NTFY10"
     20250328041156-45969: 22081AEPS [73FF18F6]MSG: print: "READY"
     20250328041156-45970: 22081AEPS [73FF18F6]MSG: print: "READY"
@@ -5937,9 +5937,9 @@ we're looping:
     20250328041156-45973: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
     20250328041156-45974: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
     20250328041156-45975: 22081AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
-    20250328041156-45976: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
-    20250328041156-45977: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
-    20250328041156-45978: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45976: 22081AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10
+    20250328041156-45977: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10
+    20250328041156-45978: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9
     20250328041156-45979: 22082AEPS [73FF18F6]MSG: print: "D8NTFY10"
     20250328041156-45980: 22082AEPS [73FF18F6]MSG: print: "READY"
     20250328041156-45981: 22082AEPS [73FF18F6]MSG: print: "READY"
@@ -5948,9 +5948,9 @@ we're looping:
     20250328041156-45984: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
     20250328041156-45985: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
     20250328041156-45986: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
-    20250328041156-45987: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
-    20250328041156-45988: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
-    20250328041156-45989: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45987: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10
+    20250328041156-45988: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10
+    20250328041156-45989: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9
     20250328041156-45990: 22082AEPS [73FF18F6]MSG: print: "D8NTFY10"
     20250328041156-45991: 22082AEPS [73FF18F6]MSG: print: "READY"
     20250328041156-45992: 22082AEPS [73FF18F6]MSG: print: "READY"
@@ -5959,15 +5959,15 @@ we're looping:
     20250328041156-45995: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY11"
     20250328041156-45996: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY1110"
     20250328041156-45997: 22082AEPS [73FF18F6]MSG: print: "D8NTFYRDY12>>DRIVE_SLOW"
-    20250328041156-45998: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10 
-    20250328041156-45999: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10 
-    20250328041156-46000: 22083AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9 
+    20250328041156-45998: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:425: READY/cTRA_FULL_STOP.9 => RUN/cTRA_DRIVE_SLOW.10
+    20250328041156-45999: 22082AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRIVE_SLOW.10 => READY/cTRA_DRIVE_SLOW.10
+    20250328041156-46000: 22083AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:394: READY/cTRA_DRIVE_SLOW.10 => READY/cTRA_FULL_STOP.9
 
 etc.. because we don't have a mechanism to
 recognize stigmergically that we entered a turn,
 way back after
 
-    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3 
+    20250328040132-41738: 18589AEPS [73FF18F6]MSG: s[13,12] t[1,1]: TRAKtor.ulam:443: RUN/cTRA_DRESS_LINE_FWD.3 => READY/cTRA_DRESS_LINE_FWD.3
 
 Did we go READY there because the line was already
 dressed? What's the donefunc?[436:
@@ -6048,7 +6048,7 @@ Let's make a function, like
 [function.fDRIVE_BOX_SPIKE]
   doc = "'infinite' loop making a clockwise box"
   code = [ tDRESS_LINE_FWD, tFORWARD_TO_TICK, tTURN_RIGHT_TO_TOCK, fDRIVE_BOX_SPIKE, oPOP_PC ]
-  
+
 [441:
 
 Sat Mar 29 12:25:16 2025 OK well I did some stuff
@@ -6103,7 +6103,7 @@ stick decls and shit inside an impl!? I'd thought
 I made it like just a canned return expression,
 but the 'return' is in the impl too.
 
-Urrrrgh.. So, something like? -- 
+Urrrrgh.. So, something like? --
 
 [operator.oRUN_TRAKT]
   special=true
@@ -6111,7 +6111,7 @@ Urrrrgh.. So, something like? --
       if (!s.pop(v[0])) $fail;      // v0 <- TN# [ ... ]
       if (v[0] < 0) $fail;          // TRAKt are >= 0u
       MotorCmd mc = makeMotorCmdForTRAKt((TRAKt) v[0]); // or fail
-      
+
    && ..
 
 [447:
@@ -6152,7 +6152,7 @@ decrement it, as well as leaving the stack alone..
 
 How do we externalize failure?
 
-(A) return false - but that's inband 
+(A) return false - but that's inband
 (B) actually Fail.fail(..) - that's a big hammer
 (C) call fFAIL, let it deal with it?
 
@@ -6187,7 +6187,7 @@ Sun Mar 30 00:57:37 2025 OK, so we made
     [operator.oRUN_TRAKT]
       special=true
       impl=''' // RUN TRAKT: stack is [TRAKT_NUM stuff... ]
-          return s.getPC(v[0])          // v0 <- pc + 1 
+          return s.getPC(v[0])          // v0 <- pc + 1
               && s.pop(v[1])            // v1 <- TN, stack [ stuff... ]
               && t.isCurrentTRAKt(v[1]) // assert
               && ( s.isTRAKtDone(v[1])  // move on, stack [ stuff... ]
@@ -6226,7 +6226,7 @@ HTD8, like:
         if (!t.isThisTRAKtDone(g, l, tFIND_LINE_RIGHT)) {
           l.mPosValid[0] = false;      // XXX SPIKE
           l.mPosValid[1] = false;      // XXX SPIKE
-          l.mSpeed8Valid = false; 
+          l.mSpeed8Valid = false;
           return (Void) t.startTRAKt(tFIND_LINE_RIGHT);
         }
 
@@ -6291,7 +6291,7 @@ onto us, not the reverse.. we shall see.
 
 :455]
 But I think we're looking at second sleep, here,
-first. 
+first.
 
 :454]
 
@@ -6306,7 +6306,7 @@ first.
 
 :448]
 :447]
-      
+
 
 :446]
 
@@ -6331,7 +6331,7 @@ and use that as a blocked signal. Which isn't
 really right but could handle the current case.
 
 At least, the AtomNAFI interpreter could think
-that. For the Function interpreter, I don't know.. 
+that. For the Function interpreter, I don't know..
 
 :457]
 [458:
@@ -6348,7 +6348,7 @@ after the commit.
 [460:
 
 Thu Apr  3 23:05:55 2025 OK debugging NAFI some
-more, and slowly finally coming to rememberealize 
+more, and slowly finally coming to rememberealize
 that ALL NAFI FUNCTIONS MUST LEAVE A RETURN VALUE
 ON THE STACK, WHETHER THEY "NEED" TO OR NOT,
 BECAUSE oRETURN ASSUMES IT IS THERE.
@@ -6459,7 +6459,7 @@ day after t2sday?[469:
 
 Fri Apr  4 01:26:06 2025 Of course it becomes two
 pass if we're going to allow forward jumps to
-labels.. 
+labels..
 
 :469]
 
@@ -6485,7 +6485,7 @@ interrupting its running.
 
 We could have a bitmap of events, I suppose, or
 just a single optional handler that gets
-everything. 
+everything.
 
 :470]
 [471:
@@ -6497,7 +6497,7 @@ currently running localise+diagonalize demo is
 likely to reach the NW corner successfully...
 eventually.. Predicting maybe two days to get
 there? Going to leave it running for T2Demos or
-whatever. 
+whatever.
 
 :471]
 [472:
@@ -6513,7 +6513,7 @@ localization test takes an hour or more easily..
 
 Mon Apr 14 01:56:34 2025 So I'm looking toward a
 new feature for Beevee: Beevee looks into turns -
-turning its eyestalks in the direction of 
+turning its eyestalks in the direction of
 deliberate TURN trakts.
 
 I want to do that because I think it stands to
@@ -6635,7 +6635,7 @@ I guess the 'obvious hack' would be to encode a 1b
 destination in the signal mValue, and have the
 fabric check (and clear) that bit and route the
 signal just in the direction indicated by the
-bit.. 
+bit..
 
 :483]
 
@@ -6712,7 +6712,7 @@ all the hideous
 
   Bool evalOp(Int op, Int & result, GTCC & g, LOCZ & l, TRAKtor & t, TRAKtorEvent e) {
 
-signatures in favor of 
+signatures in favor of
 
   Bool evalOp(Int op, Int & result, MetroState & ms) {
 
@@ -6723,7 +6723,7 @@ signatures?
 Tue Apr 22 10:15:01 2025 I think it's time to do
 this, ahead of threading in the grid size info
 management..
-[494: 
+[494:
 
 Tue Apr 22 10:22:05 2025 affecting -
 evalOp
@@ -6887,3 +6887,313 @@ being sent?)
 :501]
 
 :500]
+[507:
+
+Fri May 16 22:52:21 2025 Well it's too soon to
+say, for sure, but I might have improved the
+BrainStemSupport file writing code so that it
+doesn't attempt to write the output file a zillion
+times in tight succession. I'm hoping that might
+have been the cause of the dramatic slowdown in
+file operations that I was seeing -- like 15
+seconds to save this file with ^X^S.. which is now
+finally once again essentially instantaneous.
+
+We shall see.[508:
+
+Fri May 16 23:47:13 2025 Well, it's not fixed.
+  Grand.[509:
+
+Fri May 16 23:47:40 2025 So like 20secs or
+  so?[510:
+
+Fri May 16 23:47:59 2025 Yeah. Barf. I wonder if
+it's the python montage script reading thousands
+of directory entries every couple seconds. Let's
+kill that for a while as see if anything
+changes.[511:
+
+Fri May 16 23:49:07 2025 OK it's off.[512:
+
+Fri May 16 23:49:14 2025 Still a delay saving, but
+noticeably smaller
+
+Fri May 16 23:49:29 2025
+Fri May 16 23:49:35 2025
+Fri May 16 23:49:44 2025
+Fri May 16 23:49:53 2025
+
+Yeah, definitely smaller, but not 'essentially
+instantaneous' at all.
+
+Fri May 16 23:50:31 2025
+Fri May 16 23:50:37 2025
+Fri May 16 23:50:41 2025
+Fri May 16 23:50:45 2025
+Fri May 16 23:50:55 2025
+Fri May 16 23:51:15 2025
+Fri May 16 23:51:21 2025
+Fri May 16 23:51:21 2025
+Fri May 16 23:51:22 2025
+Fri May 16 23:51:22 2025
+Fri May 16 23:51:23 2025
+Fri May 16 23:51:23 2025
+Fri May 16 23:51:23 2025
+Fri May 16 23:51:23 2025
+Fri May 16 23:51:23 2025
+Fri May 16 23:51:24 2025
+Fri May 16 23:51:24 2025
+Fri May 16 23:51:24 2025
+Fri May 16 23:51:24 2025
+Fri May 16 23:51:24 2025
+Fri May 16 23:51:25 2025
+Fri May 16 23:51:27 2025
+Fri May 16 23:51:29 2025
+Fri May 16 23:51:29 2025
+Fri May 16 23:51:29 2025
+Fri May 16 23:51:29 2025
+Fri May 16 23:51:30 2025
+Fri May 16 23:51:30 2025
+Fri May 16 23:51:30 2025
+Fri May 16 23:51:30 2025
+Fri May 16 23:51:30 2025
+Fri May 16 23:51:31 2025
+Fri May 16 23:51:31 2025
+Fri May 16 23:51:31 2025
+Fri May 16 23:51:31 2025
+Fri May 16 23:51:31 2025
+Fri May 16 23:51:32 2025
+Fri May 16 23:51:32 2025
+Fri May 16 23:51:32 2025
+Fri May 16 23:51:32 2025
+Fri May 16 23:51:33 2025
+Fri May 16 23:51:33 2025
+Fri May 16 23:51:33 2025
+Fri May 16 23:51:33 2025
+
+Hmm.. driving the changing-and-saving with a
+keyboard macro it looks like we're back to snappy
+Fri May 16 23:52:05 2025
+Fri May 16 23:52:05 2025
+Fri May 16 23:52:05 2025
+Fri May 16 23:52:06 2025
+Fri May 16 23:52:06 2025
+Fri May 16 23:52:06 2025
+Fri May 16 23:52:06 2025
+Fri May 16 23:52:06 2025
+Fri May 16 23:52:07 2025
+Fri May 16 23:52:07 2025
+Fri May 16 23:52:07 2025
+Fri May 16 23:52:07 2025
+Fri May 16 23:52:07 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:08 2025
+Fri May 16 23:52:09 2025
+Fri May 16 23:52:09 2025
+
+yeah.. What OS are we on again?  [513:
+
+Fri May 16 23:52:44 2025 VERSION="24.04.2 LTS (Noble Numbat)"
+
+So come on guys, it's not like this is old old..
+[514:
+
+Sat May 17 01:31:16 2025 Ugh..[515:
+
+Sat May 17 01:32:02 2025 Still happening even with
+occasional sleeps in the os.scandir loops in
+stdMontage..
+Sat May 17 01:42:49 2025
+Sat May 17 01:42:59 2025
+Sat May 17 01:43:04 2025
+Sat May 17 01:43:09 2025
+Sat May 17 01:43:15 2025
+Sat May 17 01:43:19 2025
+Sat May 17 01:43:35 2025
+Sat May 17 01:43:48 2025
+Sat May 17 01:44:01 2025
+Sat May 17 01:44:04 2025
+Sat May 17 01:44:18 2025
+Sat May 17 01:44:23 2025
+Sat May 17 01:44:26 2025
+Sat May 17 01:44:29 2025
+Sat May 17 01:44:33 2025
+Sat May 17 01:44:36 2025
+Sat May 17 01:44:39 2025
+Sat May 17 01:44:42 2025
+Sat May 17 01:44:43 2025
+Sat May 17 01:44:46 2025
+Sat May 17 01:51:13 2025
+Sat May 17 01:51:13 2025
+Sat May 17 01:51:13 2025
+Sat May 17 01:51:13 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+Sat May 17 01:51:22 2025
+ and it speeds up after stdMontage hasn't been
+ running for a while..
+Sat May 17 10:06:56 2025
+Sat May 17 10:06:56 2025
+Sat May 17 10:06:56 2025
+Sat May 17 10:06:56 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+Sat May 17 10:06:59 2025
+
+[516:
+
+Sat May 17 10:07:07 2025 Also seems better when
+the mfms display is NOT minimized?
+
+Sat May 17 10:07:24 2025
+Sat May 17 10:07:24 2025
+Sat May 17 10:07:24 2025
+Sat May 17 10:07:24 2025
+
+Hard to know..
+
+:516]
+:515]
+
+
+:514]
+:513]
+
+:512]
+
+:511]
+
+:510]
+
+:509]
+
+:508]
+
+:507]
+[517:
+
+Tue May 20 17:45:16 2025 Starting a review to see
+issues associated with moving to 0.5 unit grid
+size and positioning. That seems to be the obvious
+way to track beevee's various stances properly,
+but space is tight..
+
+Issue 1: LOCZSigData is Unsigned(6), so it can do
+50 but it cannot do 100.[518:
+
+Tue May 20 17:47:18 2025
+
+Issue 2: LOCZ.TileCount is also Unsigned(6), so
+LOCZ.mPos[2] can do (50,50) but cannot do
+(100,100).[519:
+
+Tue May 20 17:48:19 2025 And LOCZ currently has 0b
+free.
+
+So, that.
+
+Makes us think we're going to want to pop a ELOCZ
+storage unit to live next to LOCZ.
+
+:519]
+
+:518]
+
+:517]
+[520:
+
+Wed May 28 16:44:32 2025 So, we've been running
+with ELOCZ for about a week now.. and just look at
+all these notes..
+
+Mainly the problem has been Beevee losing control
+after going too fast, and we've been tuning that.
+
+Which has precisely nothing to do with ELOCZ.
+
+That's all about Beevee wanting to go hell for
+leather down the long straightaways, while
+uberdriving. And then skidding through turns
+without actually making them, and such.
+
+:520][521:
+
+Thu May 29 08:52:58 2025 Could it be that the
+'only' (i.e., 'main') addtional change we need
+here is to do half-unit pos updates inside
+oINCR_HEAD??? It's kind of looking that way..
+
+those rules, pounded out, would be?
+
+           X   Y             X   Y
+ N -> E   -1  -1    E -> N   1   1
+ E -> S    1  -1    S -> E  -1   1
+ S -> W    1   1    W -> S  -1  -1
+ W -> N   -1   1    N -> W   1  -1
+
+[522:
+
+Thu May 29 09:00:22 2025 like.. subtract the
+source heading coord and add the dest heading
+coord? given
+           
+  N ( 0, 1)
+  E (-1, 0)
+  S ( 0,-1)
+  W ( 1, 0)
+
+        s    d      d-s
+N -> E  0,1  -1,0   -1,-1
+E -> N -1,0   0,1    1, 1
+ ..
+S -> W  0,-1  1,0    1,1
+W -> S  1,0   0,-1   -1,-1
+
+[523:
+
+Thu May 29 09:26:04 2025 And such 'Beevee coords'
+are ew coords with Y negated.. so something like 
+
+  C2D beeveeCoord(AxialDir ad) {
+    return axialDir2C2D(ad)*C2D.instanceof(1,-1);
+  }
+
+:523]
+
+:522]
+
+:521]
