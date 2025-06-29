@@ -114,6 +114,9 @@
   routes.SLFR = [ GRIP ]
   routes.SRFR = [ GRIP ]
 
+  # Send eyestalk positioning to GRLN
+  routes.HESR = [ GRLN ]
+
   # Treat TOCK just as a constant signal generator?
   routes.TOCK = [ MLEY, MREY ]
 

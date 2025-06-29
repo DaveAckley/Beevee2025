@@ -3,15 +3,19 @@
     \copyright 2025 LCF
     \license GPL-3
     \symbol S
-    \version 263
+    \version 267
  */
 element S + DTU + QDebugUtils {
   EventWindow ew;
+  Unsigned(6) mDistance;
   Void behave() {
-    pR("S");
-    HelloWorld hw; // Pull in fonts/HellowWorld
-    TileFinder t;
-    ew[0] = t.atomof;
+    pR("S")&&pR(mDistance);
+    if (++mDistance < 12u) ew.swap(0u,3u);
+    else {
+      HelloWorld hw; // Pull in fonts/HellowWorld
+      TileFinder t;
+      ew[0] = t.atomof;
+    }
   }
 }
 

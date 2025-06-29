@@ -5,6 +5,7 @@
 element GRLN : TermHiddenIO + Fail {
   typedef FixedPoint(20u,10u) Frac;
   Frac mGreenLevel;
+  Frac mEyeStalkDeviation;
 
   //// TERMHIDDENIO API
   @Override RouteDir getHiddenRouteDir(XBlock & xb) {
@@ -21,14 +22,24 @@ element GRLN : TermHiddenIO + Fail {
   @Override Bool transshipSigHook(SlotSig & iss, XBlock & xb) {
     BeeveeBIMXBlock bim;
     TapIdx idx = iss.mSource;
-    if (idx != bim.getTapIdxFromClassId(SLFG.classidof) &&
-        idx != bim.getTapIdxFromClassId(SRFG.classidof))
-      return false;             
+    if (idx == bim.cTAPIDX_SLFG || idx == bim.cTAPIDX_SRFG) { // receive green info
+      Frac fval((Int) iss.mValue);
+      mGreenLevel = mGreenLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+      mD&&pR("GRLN10")&&pR(iss)&&pR(fval)&&pR(mGreenLevel);
+      if (mEyeStalkDeviation.randomRound() < 16) 
+        iss.mValue = (ASCII) mGreenLevel.getInt();
+      else
+        iss.mValue = (ASCII) 0; // turned eyes see no green! so mote it be!
+      return true;
+    }
 
-    Frac fval((Int) iss.mValue);
-    mGreenLevel = mGreenLevel*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
-    mD&&pR("GRLN10")&&pR(iss)&&pR(fval)&&pR(mGreenLevel);
-    iss.mValue = (ASCII) mGreenLevel.getInt();
-    return true;
+    if (idx == bim.cTAPIDX_HESR) {
+      Int val = signedAsciiToInt(iss.mValue);
+      Frac fval(val);
+      mEyeStalkDeviation = mEyeStalkDeviation*Frac.instanceof(7,8) + fval*Frac.instanceof(1,8);
+      mD&&pR("GRLN11")&&pR(iss)&&pR(val)&&pR(mEyeStalkDeviation);
+      // we consumed this, just fall out, don't fwd
+    }
+    return false;
   }
 }

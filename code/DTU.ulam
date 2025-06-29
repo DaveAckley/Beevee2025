@@ -783,6 +783,10 @@ quark DTU {
     return md.getSiteCoord(ad+1u);
   }
 
+  C2D beeveeAxisCoord(AxialDir ad) { //< origin lower right
+    return axialDir2C2D(ad)*(C2D.Coord) -1;
+  }
+
   Void pocketDirsBorderingAxialDir(AxialDir from, PocketDir & cwpd, PocketDir & acpd) {
     which (from) {
     case cW:  { cwpd = cQUAD_NW; acpd = cQUAD_SW; }

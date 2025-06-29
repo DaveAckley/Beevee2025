@@ -6,9 +6,42 @@
 element HESR : TermHiddenIO + CodeConstants {
   Bool mResetRequested = false;
   
-  ASCII mLastKnownEyePos[2];  //< 0 : MLEY, 1 : MREY
+  typedef FixedPoint(20,10) Frac;
+  Frac mAvgEyePos[2];  //< 0 : MLEY, 1 : MREY
 
-  Bool doSignals() {
+  Void updateFrac(Frac & avg, Int val) {
+    avg = avg*Frac.instanceof(7,8) + Frac.instanceof(val,8);
+  }
+
+  Int getMaxDev() { // Farthest from zero
+    Int p0 = mAvgEyePos[0].abs().randomRound();
+    Int p1 = mAvgEyePos[1].abs().randomRound();
+    if (p0 > p1) return p0;
+    return p1;
+  }
+
+  Bool sendSignals() {
+    EventWindow ew;
+    SN xbsn = findXBlockSN();
+    if (!ew.isAccessible(xbsn)) return false;
+
+    Bool ret = true;
+    Atom & axb = ew[xbsn];
+    XBlock & xb = (XBlock&) axb;
+    FourWaySlots & fws = (FourWaySlots&) axb;
+
+    AxialDir ad = sn2AxialDir(xbsn);
+    SlotSig & oss = fws.getSlotSig(ad);
+    if (oss.isOccupied()) return true;
+
+    Int dev = getMaxDev();
+    ASCII val = intToSignedAscii(dev);
+    oss.setOccupied(val,BeeveeBIMXBlock.cTAPIDX_HESR);
+
+    return true;
+  }
+
+  Bool recvSignals() {
     mD&&pR("HNFRC10");
     EventWindow ew;
 
@@ -26,10 +59,11 @@ element HESR : TermHiddenIO + CodeConstants {
           SlotSig iss;
           if (tryRecvSig(ae, iss)) {
             mD&&pR("HESCR11 DO SOMETHING")&&pR(iss);
+            Int val = signedAsciiToInt(iss.mValue);
             if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MLEY) {
-              mLastKnownEyePos[0] = iss.mValue;
+              updateFrac(mAvgEyePos[0],val);
             } else if (iss.mSource == BeeveeBIMXBlock.cTAPIDX_MREY) {
-              mLastKnownEyePos[1] = iss.mValue;
+              updateFrac(mAvgEyePos[1],val);
             } else {
               pR("HESCR12WHATWHAT")&&pR(iss);
             }
@@ -38,24 +72,19 @@ element HESR : TermHiddenIO + CodeConstants {
       }
     }
 
-    /// SEND A SIGNAL IF WE CAN
-    if (false) {
-      ASCII val;
-      mD&&pR("HNFRC14")&&pR(self);
-      if (maybeMakeRandomSignal(val)) {
-        mD&&pR("HNFRC15")&&pR(val);
-        trySendSigViaTAPClassId(val, TOCK.classidof);
-        ret = true;
-      }
-    }
     mD&&pR("HNFRC16")&&pR(ret);
     return ret;
   }
   @Override Void behave() {
     mD&&pR("HESRBEHAVE10");
 
-    if (!doSignals()) {
-      mD&&pR("SIGNALING FAILED");
+    if (!recvSignals()) {
+      mD&&pR("IN SIGNALING FAILED");
+      return;
+    }
+
+    if (!sendSignals()) {
+      mD&&pR("OUT SIGNALING FAILED");
       return;
     }
 
@@ -65,6 +94,7 @@ element HESR : TermHiddenIO + CodeConstants {
     return super.behave();
   }
 
+  /*
   Bool maybeMakeRandomSignal(ASCII & val) {
     Random random;
     if (random.oddsOf(4,5)) return false;
@@ -76,6 +106,7 @@ element HESR : TermHiddenIO + CodeConstants {
     mD&&pR("MMRSG11")&&pR(doleft)&&pR(p)&&pR(val);
     return true; 
   }
+  */
 
   @Override RouteDir getHiddenRouteDir(XBlock & gs) {
     return cNONE_TO_NONE;

@@ -10,7 +10,7 @@ xbar:	../code/BeeveeBIM.ulam
 BRAIN_FILE:=../code/BeeveeBIM.dtoml
 XBLOCK_BRAIN_FILE:=../code/BeeveeBIMXBlock.dtoml
 XBLOCK_GRIPINFO_FILE:=../code/Grips10.dtoml
-XBLOCK_CODEINFO_FILE:=../code/Code12.dtoml
+XBLOCK_CODEINFO_FILE:=../code/Code14.dtoml
 
 ../code/BeeveeBIM.ulam:	makeBeeveeSources.py $(BRAIN_FILE) $(SPINE_FILE) $(MAKEVARS_FILE) Makefile*
 	. $(VENVDIR)/bin/activate && \

@@ -54,19 +54,31 @@ element LOCZ : HOpUnary + Fail {
     return super.getColor(selector);
   }
 
-  typedef Unsigned(6u) TileCount;
-  TileCount mPos[2];
-  Bool mPosValid[2];
-  AxialDir mHeading;
-  Bool mHeadingValid;
+  Unsigned getPos(Unsigned idx) { return getPos(idx,getELOCZ()); }
+  Unsigned getPos(Unsigned idx, ELOCZ & e) { return e.mPosH[idx]/2u; }
+
+  Bool getPosValid(Unsigned idx) { return getPosValid(idx,getELOCZ()); }
+  Bool getPosValid(Unsigned idx, ELOCZ & e) { return e.mPosValid[idx]; }
+
+  AxialDir getHeading() { return getHeading(getELOCZ()); }
+  AxialDir getHeading(ELOCZ & e) { return e.mHeading; }
+
+  Void setHeading(AxialDir dir) { return setHeading(dir,getELOCZ()); }
+  Void setHeading(AxialDir dir, ELOCZ & e) { e.mHeading = dir; }
+
+  Void setHeadingValid(Bool val) { return setHeadingValid(val,getELOCZ()); }
+  Void setHeadingValid(Bool val, ELOCZ & e) { e.mHeadingValid = val; }
+  
+  Bool getHeadingValid() { return getHeadingValid(getELOCZ()); }
+  Bool getHeadingValid(ELOCZ & e) { return e.mHeadingValid; }
+  
+  Unsigned getGoalPos(Unsigned idx) { return getGoalPos(idx,getELOCZ()); }
+  Unsigned getGoalPos(Unsigned idx, ELOCZ & e) { return e.mGoalPosH[idx]/2u; }
 
   typedef Unsigned(6) Speed8; // nominal wheel speed - 8; 0-63-> -8..55
   Bool mSpeed8Valid;
   Speed8 mSpeed8;
 
-  TileCount mGoalPos[2];
-  AxialDir mGoalHeading;
-  
   typedef Unsigned(3u) State;
   constant State cLOCZ_RESET = 0u;    //< forget state, start localization from scratch
   constant State cLOCZ_TRIAGE = 1u;   //< assess current state, decide what's next
@@ -156,9 +168,11 @@ element LOCZ : HOpUnary + Fail {
   }
 
   Bool maybeMakePosCode(Unsigned idx, ASCII & val) {
+    ELOCZ & ez = getELOCZ();
+
     LOCZPacket p;
     p.mSignal.mSigFmt = (idx == 0u) ? LOCZSignal.cSIGFMT_XPOS : LOCZSignal.cSIGFMT_YPOS;
-    if (mPosValid[idx]) p.mSignal.mSigData.mData = mPos[idx];
+    if (getPosValid(idx,ez)) p.mSignal.mSigData.mData = (LOCZSigData.Data) getPos(idx,ez);
     else p.mSignal.mSigData.mData = p.mSignal.mSigData.mData.maxof; // invalid pos
     val = p.mData;
     return true;
@@ -167,7 +181,7 @@ element LOCZ : HOpUnary + Fail {
   Bool maybeMakeHeadingCode(ASCII & val) {
     LOCZSigData s;
     s.mExtn.mExtFmt = LOCZExtn.cSIGEXT_HEAD;
-    if (mHeadingValid) s.mExtn.mExtData = mHeading;
+    if (getHeadingValid()) s.mExtn.mExtData = getHeading();
     else s.mExtn.mExtData = s.mExtn.mExtData.maxof; // invalid heading
 
     LOCZPacket p;
@@ -218,9 +232,7 @@ element LOCZ : HOpUnary + Fail {
   }
 
   Void invalidateAll() {
-    mPosValid[0] = false;
-    mPosValid[1] = false;
-    mHeadingValid = false;
+    getELOCZ().invalidateAll();
     mSpeed8Valid = false;
   }
 
@@ -243,7 +255,20 @@ element LOCZ : HOpUnary + Fail {
     return false;
   }
 
+  ELOCZ & getELOCZ() {
+    constant SN cELZN = 10u; // (0,-2) from us
+    EventWindow ew;
+    if (!ew.isAccessible(cELZN)) fail(__FILE__,__LINE__);
+    Atom & a = ew[cELZN];
+    if (a as ELOCZ) return a;
+    ew[cELZN] = ELOCZ.instanceof;
+    return (ELOCZ&) ew[cELZN];
+  }
+
   Void behave() {
+
+    /// CHECK BUILD OUTRIGGER
+    ELOCZ & elocz = getELOCZ();
 
     /// ARE WE TRAK-ING?
     Unsigned gripnum = getGripNumber();
@@ -257,8 +282,8 @@ element LOCZ : HOpUnary + Fail {
 
     /// DO BAREBONES "ARE WE HEADED EAST?" ORIENTING
     if (mGreenLevel >= 2u) {
-      mHeadingValid = true;
-      mHeading = cE;
+      setHeadingValid(true);
+      setHeading(cE);
     } /*else {  // XXX DONT INVALIDATE SINCE NAFI WANTS TO CONTROL IT
       mHeadingValid = false;
       }*/

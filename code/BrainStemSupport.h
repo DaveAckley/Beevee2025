@@ -61,6 +61,8 @@ public:
 
   void fdie(const char * op, const char * file) ;
 
+  bool statFilePath(const char * path, struct stat &deststat) ;
+
   bool readInputFileEX() ;      // HOLDS LOCK
 
   bool writeOutputFileEX() ;    // HOLDS LOCK
@@ -135,6 +137,7 @@ private:
   size_t _routed;
   struct stat _istat; // last stat read by input
   struct stat _rstat; // last stat read by routing
+  struct stat _wstat; // last stat written by writeOutputFile
   time_t _lastTimeSnapshotted; // avoid duplicating same snapshot
   
   typedef struct tag {

@@ -44,9 +44,9 @@
   pos=[-1,-1]
   originSN=8
   color='#4f0'
-  taps.S=[SLFG, SRFG]
+  taps.N=[SLFG, SRFG]
   taps.W=[GRLN, GREG]
-  taps.E=[_, HESR]
+  taps.S=[_, HESR]
   axons=[[GREG,MRRF],
          [GREG,MLRF],
          [GRLN,LOCZ]]

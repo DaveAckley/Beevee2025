@@ -344,13 +344,24 @@ XXX NO PD..i get it
     if (!sl.isOccupied() || !sc.isOccupied() || !sr.isOccupied())
       return false;
 
+    //// WE NEED SOME HYSTERESIS IN THE ALLRED SIGNAL TOOOOO!
+
+    // If we are allred, at least one sensor has to drop below say 100
+    // to stop being allred. But if we were not allred, all three
+    // sensors have to hit 255 flat to become allred.
+
     Unsigned vl = sl.getValueRaw();
     Unsigned vc = sc.getValueRaw();
     Unsigned vr = sr.getValueRaw();
-    Bool allRedGrey =
-      vl == ASCII.maxof &&
-      vc == ASCII.maxof &&
-      vr == ASCII.maxof;
+    Bool allRedGrey = mLastAllRedSigTrue; // assume same as last time
+
+    if (mLastAllRedSigTrue) {
+      /// IN ALLRED
+      if (vl < 100u || vc < 100u || vr < 100u)
+        allRedGrey = false;
+    } else /// NOT IN ALLRED
+      if (vl == ASCII.maxof && vc == ASCII.maxof && vr == ASCII.maxof)
+        allRedGrey = true;
 
     Random random;
     Bool sendIt = (mLastAllRedSigTrue != allRedGrey) || random.oneIn(8);

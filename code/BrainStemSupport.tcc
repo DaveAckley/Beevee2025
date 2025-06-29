@@ -45,6 +45,7 @@ inline BrainStemSupport::BrainStemSupport()
   _rstat = _istat;
   _tstat = _istat;
   _cstat = _istat;
+  _wstat = _istat;
 }
 
 inline bool BrainStemSupport::open()
@@ -287,8 +288,36 @@ inline bool BrainStemSupport::readInputFileEX() { // true if file exists and was
   return ret;
 }
 
+inline bool BrainStemSupport::statFilePath(const char * path, struct stat &deststat) {
+  bool hasstat = false;
+  int fd;
+  fd = ::open(path, O_RDONLY);
+  if (fd >= 0) {
+    if (fstat(fd, &deststat) < 0) fdie("stating",path);
+    hasstat = true;
+  }
+  ::close(fd);
+  return hasstat;
+}
+
 inline bool BrainStemSupport::writeOutputFileEX() {
+  time_t now = time(NULL); // get current time
+
+  // see if output file already exists
+  struct stat lastwstat;
+  bool haswstat = statFilePath(COUTPUTFILE, lastwstat);
+  if (haswstat &&               // file exists
+      (lastwstat.st_mtime >= now) && // and is pretty new
+      !diffMTime(lastwstat,_wstat))  // and is the same as our _wstat
+    return false;               // declare we've already written this file
+
+  // OTHERWISE
   MFM::Mutex::ScopeLock lock(_access); // TAKE ACCESS LOCK
+  // recheck after gaining lock
+  if (haswstat &&               // file exists
+      (lastwstat.st_mtime >= now) && // and is pretty new (relative to before we may have blocked)
+      !diffMTime(lastwstat,_wstat))  // and is the same as our _wstat
+    return false;               // declare we've already written this file
 
   int fd;
   fd = ::open(COUTPUTFILE, O_WRONLY|O_CREAT|O_TRUNC, 0644);
@@ -306,8 +335,10 @@ inline bool BrainStemSupport::writeOutputFileEX() {
             (long int) wrote); // casts to please g++ 32bit..
     return false;
   }
-  //  printf("wrote %lu bufferlen\n",_bufferLen);
   ::close(fd);
+  if (statFilePath(COUTPUTFILE,lastwstat))      // now record post-write stat
+    _wstat = lastwstat;
+
   return true;
 }
 

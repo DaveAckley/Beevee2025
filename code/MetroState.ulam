@@ -1,6 +1,7 @@
 transient MetroState + DTU + QDebugUtils + Fail {
   SN mGTCCSN = SN.maxof;
   SN mLOCZSN = SN.maxof;
+  SN mELOCZSN = SN.maxof;
   SN mNAFISN = SN.maxof;
   SN mHINFOSN = SN.maxof;
   SN mTDSN = SN.maxof;
@@ -26,8 +27,9 @@ transient MetroState + DTU + QDebugUtils + Fail {
       pR("MSDUMP12GTCC")&&pR(getGTCC());
       pR("MSDUMP13TD")&&pR(getTRAKtorDriver());
       pR("MSDUMP14LOCZ")&&pR(getLOCZ());
-      pR("MSDUMP15HINFO")&&pR(getHINFO());
-      pR("MSDUMP16NAFI")&&pR(mInternalNAFI)&&pR(getNAFI());
+      pR("MSDUMP15ELOCZ")&&pR(getELOCZ());
+      pR("MSDUMP16HINFO")&&pR(getHINFO());
+      pR("MSDUMP17NAFI")&&pR(mInternalNAFI)&&pR(getNAFI());
     }
     pR("MSDUMP17");
     return true;
@@ -36,6 +38,7 @@ transient MetroState + DTU + QDebugUtils + Fail {
   TRAKtorDriver & getTRAKtorDriver() { accessible(mTDSN,__FUNC__); return (TRAKtorDriver&) ew[mTDSN]; }
   GTCC & getGTCC() { accessible(mGTCCSN,__FUNC__); return (GTCC&) ew[mGTCCSN]; }
   LOCZ & getLOCZ() { accessible(mLOCZSN,__FUNC__); return (LOCZ&) ew[mLOCZSN]; }
+  ELOCZ & getELOCZ() { accessible(mELOCZSN,__FUNC__); return (ELOCZ&) ew[mELOCZSN]; }
   HINFO & getHINFO() { accessible(mHINFOSN,__FUNC__); return (HINFO&) ew[mHINFOSN]; }
   NAFI & getNAFI() {
     if (mInternalNAFI) {
@@ -48,7 +51,7 @@ transient MetroState + DTU + QDebugUtils + Fail {
 
   Bool findComponents() {
     EventWindow ew;
-    MinXPick tdsnpick, gsnpick, lsnpick, nsnpick, hsnpick, emppick;
+    MinXPick tdsnpick, gsnpick, lsnpick, nsnpick, hsnpick, emppick, esnpick;
     for (SN sn = 0u; sn <= 40u; ++sn) {
       if (!ew.isAccessible(sn)) continue;
       Atom & a = ew[sn];
@@ -56,12 +59,14 @@ transient MetroState + DTU + QDebugUtils + Fail {
       else if (a is TRAKtorDriver) tdsnpick.update(sn);
       else if (a is GTCC) gsnpick.update(sn);
       else if (a is LOCZ) lsnpick.update(sn);
+      else if (a is ELOCZ) esnpick.update(sn);
       else if (a is AtomNAFI) nsnpick.update(sn);
       else if (a is HINFO) hsnpick.update(sn);
     }
     if (tdsnpick.hasPick()) mTDSN = tdsnpick.getIdxSN();
     if (gsnpick.hasPick()) mGTCCSN = gsnpick.getIdxSN();
     if (lsnpick.hasPick()) mLOCZSN = lsnpick.getIdxSN();
+    if (esnpick.hasPick()) mELOCZSN = esnpick.getIdxSN();
     if (nsnpick.hasPick()) mNAFISN = nsnpick.getIdxSN();
     if (hsnpick.hasPick()) mHINFOSN = hsnpick.getIdxSN();
     if (emppick.hasPick()) mEMPSN = emppick.getIdxSN();
@@ -74,6 +79,7 @@ transient MetroState + DTU + QDebugUtils + Fail {
       mTDSN != SN.maxof &&
       mGTCCSN != SN.maxof &&
       mLOCZSN != SN.maxof &&
+      mELOCZSN != SN.maxof &&
       mNAFISN != SN.maxof &&
       mHINFOSN != SN.maxof &&
       mEMPSN != SN.maxof;

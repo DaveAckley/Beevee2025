@@ -1,4 +1,6 @@
 # -*- mode: conf-toml; -*-
+# Fri May 23 00:47:13 2025 Fixes for ELOCZ
+# Tue May 20 16:09:52 2025 Touch Red mostly plausible. Time for consolidation
 # Sat May 10 21:46:16 2025 Commence post t2sup hacks adsss-try to "touch red"
 # Sat May  3 07:11:55 2025 Flatten some function hierarchies?
 # Tue Apr 29 13:42:04 2025 Try clean up for clarity (and robustness?)
@@ -12,11 +14,12 @@
 
 [trakt.tTOUCH_RED]  # "ALLRED" meaning 255x3 on front grey sensors
   mSpeedMin = 4
-  mSpeedMax = 8
-  mSetTimerTo = 0          # max timing for this op?
+  mSpeedMax = 4
+  mSetTimerTo = 1
   mLeftEyePos = -60
   mRightEyePos = -60
   mDoneFunc = fTIME_OR_ALLRED
+  mEventFunction = fEF_COUNT_TILE
 
 [trakt.tDONT_TOUCH_RED]  # "ALLRED" meaning 255x3 on front grey sensors
   mSpeedLeft = -2        # use direct speed control since ALLRED aint tock or tick
@@ -42,10 +45,13 @@
 
 [function.fTIME_OR_NOTALLRED]
   code=[ oENTER0,                               
+         #1, oSET_DEBUG,   # can we figure out what's going on here?
          oINCR_SMTIMER, aDONE, oGOTON,   # done if time expired
          oALLRED, aDONE, oGOTOZ,         # done if allred is 0
+         #0, oSET_DEBUG,   # please
          0, oRETURN1,                    # else not done
         lDONE,
+         #0, oSET_DEBUG,   # pretty please
          1, oRETURN1
        ]
 
@@ -89,10 +95,28 @@
                 e == cTKTR_REAR_TOCK) ? 1 : 0)  // stack [ stuff.. EVENTISEDGE ]
 '''
 
+# Sun Jun  1 10:48:22 2025 Use PID control to block, to ratchet down CS?
+#[trakt.tBLOCK_FOR_SMTIMER]
+#  mSpeedLeft = 0
+#  mSpeedRight = 0
+#  mSetTimerTo = 6
+#  mDoneFunc = fINCR_TIMER_CHECK
 [trakt.tBLOCK_FOR_SMTIMER]
-  mSpeedLeft = 0
-  mSpeedRight = 0
+  mSpeedMin = 0
+  mSpeedMax = 0
   mSetTimerTo = 6
+  mDoneFunc = fINCR_TIMER_CHECK
+
+#[trakt.tWAIT_A_BIT]
+#  mSpeedLeft = 0
+#  mSpeedRight = 0
+#  mSetTimerTo = 8
+#  mDoneFunc = fINCR_TIMER_CHECK
+
+[trakt.tWAIT_A_BIT]
+  mSpeedMin = 0
+  mSpeedMax = 0
+  mSetTimerTo = 8
   mDoneFunc = fINCR_TIMER_CHECK
 
 [function.fEAST_AND_ON_LINE]
@@ -220,15 +244,15 @@
   mDoneFunc = fSAME_EDGE
 
 [trakt.tDRESS_LINE_REV]
-  mSpeedMin = -4
-  mSpeedMax = -1
+  mSpeedMin = -2
+  mSpeedMax = -2
   mLeftEyePos = 2
   mRightEyePos = 2
   mDoneFunc = fDIFF_EDGE
 
 [trakt.tDRESS_LINE_REV_XI]
-  mSpeedMin = -4
-  mSpeedMax = -1
+  mSpeedMin = -2
+  mSpeedMax = -2
   mLeftEyePos = -60
   mRightEyePos = -60
   mDoneFunc = fDIFF_EDGE
@@ -246,6 +270,13 @@
   mLeftEyePos = -60
   mRightEyePos = -60
   mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.tFULL_STOP_XI]
+  mSpeedMin = 0
+  mSpeedMax = 0
+  mLeftEyePos = -60
+  mRightEyePos = -60
+  mDoneFunc = fSTOPPED
 
 [trakt.tTURN_L_TO_TICK]
   mSpeedLeft = -2
@@ -288,6 +319,7 @@
   mLeftEyePos = 2
   mRightEyePos = 2
   mDoneFunc = fROLLING_STOPPED
+  mEventFunction = fEF_COUNT_TILE
 
 [trakt.tDRIVE_SLOW]
   mSpeedMin = 8
@@ -298,10 +330,10 @@
 [function.fEF_COUNT_TILE]
    doc="EVENT FUNCTION: increment pos on front tick/tock events"
    code=[ oENTER0,
-          1, oSET_DEBUG,   # leave debugging off for now
+          0, oSET_DEBUG,   # leave debugging off for now
           oIS_EVENT_FRONT_EDGE,
           aDONE, oGOTOZ,
-          oINCR_POS,
+          2, oINCR_POS,
         lDONE,
           0, oSET_DEBUG,
           oRETURN0 ]
@@ -321,14 +353,34 @@
   mSpeedMax = 50
   mDoneFunc = fSTOP_DRIVE_FAST
 
-[trakt.tFORWARD_TO_TICK]
+[trakt.tFWD_TO_TICK]
   mSpeedMin = 4
-  mSpeedMax = 50
+  mSpeedMax = 40
   mDoneFunc = fCLOK_TICK_FRONT
 
-[trakt.tFORWARD_TO_TOCK]
+[trakt.tFWD_TO_TOCK]
+  mSpeedMin = 4
+  mSpeedMax = 40
+  mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.tFWD_TO_TICK_MED]
   mSpeedMin = 4
   mSpeedMax = 30
+  mDoneFunc = fCLOK_TICK_FRONT
+
+[trakt.tFWD_TO_TOCK_MED]
+  mSpeedMin = 4
+  mSpeedMax = 30
+  mDoneFunc = fCLOK_TOCK_FRONT
+
+[trakt.tFWD_TO_TICK_SLO]
+  mSpeedMin = 4
+  mSpeedMax = 16
+  mDoneFunc = fCLOK_TICK_FRONT
+
+[trakt.tFWD_TO_TOCK_SLO]
+  mSpeedMin = 4
+  mSpeedMax = 16
   mDoneFunc = fCLOK_TOCK_FRONT
 
 [trakt.tEMERGENCY_STOP]
@@ -443,16 +495,48 @@
            oRETURN0
           ]
            
+[function.fRED_APPROACH]
+  code = [ oENTER0,
+           tROLLING_STOP, oSTART_TRAKT, oWAIT_READY,   # don't fly through here
+          lNOW_TOUCH_RED,
+           tTOUCH_RED, oSTART_TRAKT, oWAIT_READY,      # NOW TRY TO TOUCH RED! 
+           tFULL_STOP_XI, oSTART_TRAKT, oWAIT_READY,   # THEN STOP
+           oALLRED, aNOW_TOUCH_RED, oGOTOZ,            # NO I MEANT ACTUALLY TOUCH RED
+           # FALL THROUGH
+
+           2, oINCR_POS,       # TOUCH_RED DIDN'T SCORE THE LAST TILE TO RED
+           tDONT_TOUCH_RED, oSTART_TRAKT, oWAIT_READY, # THEN BACK OFF!
+           tFULL_STOP_XI, oSTART_TRAKT, oWAIT_READY,   # THEN STOP AGAIN
+           oRETURN0
+         ]
+
+[function.fRED_RETREAT]
+  code = [ oENTER0,
+           tDRESS_LINE_REV_XI, oSTART_TRAKT, oWAIT_READY, # back away from edge
+           -1, oINCR_POS,       # that's -a half step relative to heading
+           fTURN_RIGHT_XI, oCALL0,   # turn 90
+           fTURN_RIGHT, oCALL0,      # turn 180 (clear warnings?)
+           fFWD_1SQ_ONLY, oCALL0,  # get further off edge
+           fFWD_1SQ_ONLY, oCALL0,  # get further off edge
+           fFWD_1SQ_ONLY, oCALL0,  # get further off edge
+           tFULL_STOP, oSTART_TRAKT, oWAIT_READY,   # prepare for turn or whatevs
+           oRETURN0
+         ]
+
 [function.fDRIVE_TO_ORIGIN14]
   doc = "nth**nth attempt to drive to origin"
   code = [ oENTER0,
            4, fWAIT_A_WHILE, oCALL1,   # Wait for axons etc on startup!
 
          lFIRST_FIND_LINE,
-           oRESET_HEAD,                            # forget any old heading/pos info
+           fFWD_1SQ, oCALL0,                       # get on a line
+           fFWD_1SQ, oCALL0,                       # straighten up, move ahead
+           # Now hoping we are solidly on SOME line
+           oRESET_HEAD,                            # so forget any old heading/pos info
            4, oSET_GSCOUNTER,                      # init give-up counter
          lTURN_LOOP,
-           fFWD_ONE_SQUARE, oCALL0,                # straighten up, move ahead
+           fFWD_1SQ, oCALL0,                # straighten up, move ahead
+           tWAIT_A_BIT, oSTART_TRAKT, oWAIT_READY, # let sensors settle before done check
            fEAST_AND_ON_LINE, oCALL0,              # check if done
            aIT_WORKED, oGOTON,                     # we is
            fTURN_LEFT, oCALL0,                     # we ain't. turn left
@@ -465,87 +549,40 @@
          lIT_WORKED,                               # we are facing east and on line
            # DRIVE SLOW EAST
            tDRIVE_SLOW, oSTART_TRAKT, oWAIT_READY,      # else (is BIGGREEN, so) drive slow
-           tROLLING_STOP, oSTART_TRAKT, oWAIT_READY,    # make sure we just don't fly through here
 
-           tTOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW TOUCH RED!
-           tDONT_TOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW BACK OFF!
-           tFULL_STOP, oSTART_TRAKT, oWAIT_READY,  # NOW STOP
+           fRED_APPROACH, oCALL0,                       # approach and TOUCH RED
            # SET X ORIGIN!
            0, oSET_XPOS,  
-
-           # GET CLEAR OF E GRID EDGE
-           tDRESS_LINE_REV_XI, oSTART_TRAKT, oWAIT_READY,  # back up away from allred
-           fTURN_RIGHT_XI, oCALL0,   # face S
-           fTURN_RIGHT, oCALL0,      # face W (clear warnings?)
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off E edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off E edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off E edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off E edge
+           fRED_RETREAT, oCALL0,         # back W some
 
            # TURN SOUTH AND DRIVE
-           fTURN_LEFT, oCALL0,      # face S again
+           fTURN_LEFT, oCALL0,      # turn W->S
            tDRIVE_SLOW, oSTART_TRAKT, oWAIT_READY,     # drive slow
-           tROLLING_STOP, oSTART_TRAKT, oWAIT_READY,   # again, don't fly through here
 
-           tTOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW TRY TO TOUCH RED! SPIKE2
-           tDONT_TOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW BACK OFF!
-           tFULL_STOP, oSTART_TRAKT, oWAIT_READY,  # NOW STOP
+           fRED_APPROACH, oCALL0,
            # SET Y ORIGIN!
            0, oSET_YPOS,
-
-           # GET CLEAR OF S GRID EDGE
-           tDRESS_LINE_REV_XI, oSTART_TRAKT, oWAIT_READY,  # back up away from allred
-           fTURN_RIGHT_XI, oCALL0,   # face W
-           fTURN_RIGHT, oCALL0,      # face N (clear warnings?)
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off S edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off S edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off S edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off S edge
+           fRED_RETREAT, oCALL0,
 
            # TURN WEST AND DRIVE
            fTURN_LEFT, oCALL0,      # face W again
            tDRIVE_SLOW, oSTART_TRAKT, oWAIT_READY,    # drive slow
-           tROLLING_STOP, oSTART_TRAKT, oWAIT_READY,   # again, don't fly through here
 
-           tTOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW TRY TO TOUCH RED! WEST
-           tDONT_TOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW BACK OFF!
-           tFULL_STOP, oSTART_TRAKT, oWAIT_READY,  # NOW STOP
-
+           fRED_APPROACH, oCALL0,                     # TOUCH RED
            # SET GRID WIDTH!
            oGET_XPOS, oSET_GRID_WIDTH,        
-
-           # GET OFF W GRID EDGE!
-           tDRESS_LINE_REV_XI, oSTART_TRAKT, oWAIT_READY, # back up when drive slow ends
-           fTURN_RIGHT_XI, oCALL0,   # face N
-           fTURN_RIGHT, oCALL0,      # face E (clear warnings?)
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off W edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off W edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off W edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off W edge
+           fRED_RETREAT, oCALL0,                      # go E a bit
 
            # TURN NORTH AND DRIVE
-           fTURN_LEFT, oCALL0,      # face N again
+           fTURN_LEFT, oCALL0,      # turn E->N
            tDRIVE_SLOW, oSTART_TRAKT, oWAIT_READY,    # drive slow
-           tROLLING_STOP, oSTART_TRAKT, oWAIT_READY,   # again, don't fly through here
 
-           tTOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW TRY TO TOUCH RED! NORTH
-           tDONT_TOUCH_RED, oSTART_TRAKT, oWAIT_READY,  # NOW BACK OFF!
-           tFULL_STOP, oSTART_TRAKT, oWAIT_READY,  # NOW STOP
-
+           fRED_APPROACH, oCALL0,                    # TOUCH RED
            # SET GRID HEIGHT!
            oGET_YPOS, oSET_GRID_HEIGHT,        
+           fRED_RETREAT, oCALL0,                      # go S a bit
 
-           # GET CLEAR OF N EDGE!
-           tDRESS_LINE_REV_XI, oSTART_TRAKT, oWAIT_READY, # back up when drive slow ends
-           fTURN_RIGHT_XI, oCALL0,   # face E
-           fTURN_RIGHT, oCALL0,      # face S (clear warnings?)
-
-           # DRIVE S A BIT
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off N edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off N edge
-           fFWD_ONE_SQUARE_ONLY, oCALL0,  # get further off N edge
-
-           # PICK MIDDLE OF GRID AS DEST
+           # PICK MIDDLEISH OF GRID AS DEST
            oGET_GRID_WIDTH, 2, oDIV, oSET_DEST_X,      
            oGET_GRID_HEIGHT, 2, oDIV, oSET_DEST_Y,     
            1, oSET_DEST_EXISTS,        
@@ -583,16 +620,20 @@
            oCUR_HEAD, 2, oCMP_EQ, aSOUTH, oGOTON,
            # FALL THROUGH - oCUR_HEAD == 3
           lEAST,
-           oGET_DEST_X, oGET_XPOS, oSUB, -2, oCMP_LT, aGO, oGOTON,
+           oGET_DEST_X, oGET_XPOS, oSUB, -5, oCMP_LT, aGO, oGOTON,
+           oGET_DEST_X, oGET_XPOS, oSUB, -2, oCMP_LT, aMED, oGOTON,
            oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_LT, aSLOW, oGOTON, aTURN, oGOTO,
           lWEST,
-           oGET_DEST_X, oGET_XPOS, oSUB, 2, oCMP_GT, aGO, oGOTON,
+           oGET_DEST_X, oGET_XPOS, oSUB, 5, oCMP_GT, aGO, oGOTON,
+           oGET_DEST_X, oGET_XPOS, oSUB, 2, oCMP_GT, aMED, oGOTON,
            oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_GT, aSLOW, oGOTON, aTURN, oGOTO,
           lSOUTH,
-           oGET_DEST_Y, oGET_YPOS, oSUB, -2, oCMP_LT, aGO, oGOTON,
+           oGET_DEST_Y, oGET_YPOS, oSUB, -5, oCMP_LT, aGO, oGOTON,
+           oGET_DEST_Y, oGET_YPOS, oSUB, -2, oCMP_LT, aMED, oGOTON,
            oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_LT, aSLOW, oGOTON, aTURN, oGOTO,
           lNORTH,
-           oGET_DEST_Y, oGET_YPOS, oSUB, 2, oCMP_GT, aGO, oGOTON,
+           oGET_DEST_Y, oGET_YPOS, oSUB, 5, oCMP_GT, aGO, oGOTON,
+           oGET_DEST_Y, oGET_YPOS, oSUB, 2, oCMP_GT, aMED, oGOTON,
            oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_GT, aSLOW, oGOTON,
            # FALL THROUGH
 
@@ -600,27 +641,30 @@
 
            # DRIVE HE SAID
           lSLOW,
-#           tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # here to slow down?
-#           tDRESS_LINE_REV, oSTART_TRAKT, oWAIT_READY,  
-           fFWD_ONE_SQUARE_ONLY, oCALL0,
-           tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,
-           # FALL THROUGH
+           fFWD_1SQ_ONLY_SLO, oCALL0, aDONE_CHECK, oGOTO,
 
-          lGO, fFWD_ONE_SQUARE_ONLY, oCALL0, # advance one square
+          lMED,
+           fFWD_1SQ_ONLY_MED, oCALL0, aDONE_CHECK, oGOTO,
+
+          lGO,
+           fFWD_1SQ_ONLY, oCALL0, # advance one square (hi speed okay)
+           # FALL THROUGH
+           
+          lDONE_CHECK,
            oGET_DEST_X, oGET_XPOS, oSUB, 0, oCMP_NE, aLOOP, oGOTON, # loop if dx != 0
            oGET_DEST_Y, oGET_YPOS, oSUB, 0, oCMP_NE, aLOOP, oGOTON, # loop if dy != 0
            oRETURN0,
          ]
 
-[function.fFWD_ONE_SQUARE]
+[function.fFWD_1SQ]
   doc = "Go forward from tick to tock or vv, then get onto that square"
   code = [ oENTER0,
-           fFWD_ONE_SQUARE_ONLY, oCALL0,
+           fFWD_1SQ_ONLY, oCALL0,
            tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,
            oRETURN0
          ]
 
-[function.fFWD_ONE_SQUARE_ONLY]
+[function.fFWD_1SQ_ONLY]
   doc = "Go forward from tick to tock or vv"
   code = [ oENTER0,
           lAGAIN,
@@ -629,8 +673,55 @@
            ### INVALIDATE POS/HEAD HERE?
            tFIND_LINE_RIGHT, oSTART_TRAKT, oWAIT_READY,               # otherwise get a front clock
            aAGAIN, oGOTO,                                     # and try again
-          lFIND_TOCK, fFAST_FWD_TO_TOCK, oCALL0, oRETURN0,
-          lFIND_TICK, fFAST_FWD_TO_TICK, oCALL0, oRETURN0,
+          lFIND_TOCK,
+           tFWD_TO_TOCK, oSTART_TRAKT, oWAIT_READY,
+           aUPDATE, oGOTO,
+          lFIND_TICK,
+           tFWD_TO_TICK, oSTART_TRAKT, oWAIT_READY,
+           # FALL THROUGH
+          lUPDATE,
+           2, oINCR_POS,
+           oRETURN0
+         ]
+
+[function.fFWD_1SQ_ONLY_MED]
+  doc = "Go forward from tick to tock or vv at up to medium speed"
+  code = [ oENTER0,
+          lAGAIN,
+           oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, aFIND_TOCK, oGOTON, # jump ahead if front tick
+           oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, aFIND_TICK, oGOTON, # jump ahead if front tock
+           ### INVALIDATE POS/HEAD HERE?
+           tFIND_LINE_RIGHT, oSTART_TRAKT, oWAIT_READY,               # otherwise get a front clock
+           aAGAIN, oGOTO,                                     # and try again
+          lFIND_TOCK,
+           tFWD_TO_TOCK_MED, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+           aUPDATE, oGOTO,
+          lFIND_TICK,
+           tFWD_TO_TICK_MED, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+           # FALL THROUGH
+          lUPDATE,
+           2, oINCR_POS,
+           oRETURN0
+         ]
+
+[function.fFWD_1SQ_ONLY_SLO]
+  doc = "Go forward from tick to tock or vv at up to slow speed"
+  code = [ oENTER0,
+          lAGAIN,
+           oCLOK_FRONT, cCLOK_TICK, oCMP_EQ, aFIND_TOCK, oGOTON, # jump ahead if front tick
+           oCLOK_FRONT, cCLOK_TOCK, oCMP_EQ, aFIND_TICK, oGOTON, # jump ahead if front tock
+           ### INVALIDATE POS/HEAD HERE?
+           tFIND_LINE_RIGHT, oSTART_TRAKT, oWAIT_READY,               # otherwise get a front clock
+           aAGAIN, oGOTO,                                     # and try again
+          lFIND_TOCK,
+           tFWD_TO_TOCK_SLO, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+           aUPDATE, oGOTO,
+          lFIND_TICK,
+           tFWD_TO_TICK_SLO, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+           # FALL THROUGH
+          lUPDATE,
+           2, oINCR_POS,
+           oRETURN0
          ]
 
 [function.fTURN_LEFT]
@@ -700,41 +791,41 @@
            oRETURN0
          ]
 
-[function.fFWD_TO_TICK]
-  doc = "Go forward, maintaining pos if heading is set"
-  code = [ oENTER0,
-           tFORWARD_TO_TICK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
-           oINCR_POS,                           # advance pos if heading valid
-           tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
-           oRETURN0                             # no return value
-         ]
+# [function.fFWD_TO_TICK]
+#   doc = "Go forward, maintaining pos if heading is set"
+#   code = [ oENTER0,
+#            tFWD_TO_TICK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+#            2, oINCR_POS,                           # advance pos if heading valid
+#            tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
+#            oRETURN0                             # no return value
+#          ]
+# 
+# [function.fFWD_TO_TOCK]
+#   doc = "Go forward, maintaining pos if heading is set"
+#   code = [ oENTER0,
+#            tFWD_TO_TOCK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+#            2, oINCR_POS,                           # advance pos if heading valid
+#            tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
+#            oRETURN0                             # no return value
+#          ]
 
-[function.fFWD_TO_TOCK]
-  doc = "Go forward, maintaining pos if heading is set"
-  code = [ oENTER0,
-           tFORWARD_TO_TOCK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
-           oINCR_POS,                           # advance pos if heading valid
-           tDRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
-           oRETURN0                             # no return value
-         ]
-
-[function.fFAST_FWD_TO_TICK]
-  doc = "Go forward, maintaining pos if heading is set"
-  code = [ oENTER0,
-           tFORWARD_TO_TICK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
-           oINCR_POS,                           # advance pos if heading valid
-#FASTER           tFAST_DRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
-           oRETURN0                             # no return value
-         ]
-
-[function.fFAST_FWD_TO_TOCK]
-  doc = "Go forward, maintaining pos if heading is set"
-  code = [ oENTER0,
-           tFORWARD_TO_TOCK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
-           oINCR_POS,                           # advance pos if heading valid
-#PUSSYCAT           tFAST_DRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
-           oRETURN0                             # no return value
-         ]
+# [function.fFAST_FWD_TO_TICK]
+#   doc = "Go forward, maintaining pos if heading is set"
+#   code = [ oENTER0,
+#            tFWD_TO_TICK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+#            2, oINCR_POS,                           # advance pos if heading valid
+# #FASTER           tFAST_DRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
+#            oRETURN0                             # no return value
+#          ]
+# 
+# [function.fFAST_FWD_TO_TOCK]
+#   doc = "Go forward, maintaining pos if heading is set"
+#   code = [ oENTER0,
+#            tFWD_TO_TOCK, oSTART_TRAKT, oWAIT_READY, # fwd [...]
+#            2, oINCR_POS,                           # advance pos if heading valid
+# #PUSSYCAT           tFAST_DRESS_LINE_FWD, oSTART_TRAKT, oWAIT_READY,  # prep [...]
+#            oRETURN0                             # no return value
+#          ]
 
 [function.fTURN_RIGHT_FROM_TICK]
   doc = "Turn right from tick to tock, maintaining heading if set"
@@ -1003,53 +1094,69 @@
   impl='return s.push(l.mSpeed8Valid ? 1 : 0)'
 [operator.oCUR_SPEED]           # : { outs[0] = l.mSpeed8 - 8; return true; } // cur speed 
   impl='return s.push(l.mSpeed8 - 8)'
-[operator.oVALID_HEAD]           # : { outs[0] = l.mHeadingValid ? 1 : 0; return true; } // heading valid
-  impl='return s.push(l.mHeadingValid ? 1 : 0)'
-[operator.oCUR_HEAD]           # : { outs[0] = l.mHeading; return true; } // cur heading
-  impl='return s.push(l.mHeading)'
+[operator.oVALID_HEAD]           # : { outs[0] = z.mHeadingValid ? 1 : 0; return true; } // heading valid
+  impl='return s.push(z.mHeadingValid ? 1 : 0)'
+[operator.oCUR_HEAD]           # : { outs[0] = z.mHeading; return true; } // cur heading
+  impl='return s.push(z.mHeading)'
 [operator.oRESET_HEAD]
   impl='''
-     l.mHeadingValid = false;
-     l.mPosValid[0] = false;
-     l.mPosValid[1] = false;
+     z.mHeadingValid = false;
+     z.mPosValid[0] = false;
+     z.mPosValid[1] = false;
      return true    
   '''
 [operator.oSET_HEAD] 
   impl='''
      if (!s.pop(v[0])) return false;
      if (v[0] > 3) return false;
-     l.mHeadingValid = (v[0] >= 0); // negative heading means invalidate ugh
-     l.mHeading = (AxialDir) v[0];
+     z.mHeadingValid = (v[0] >= 0); // negative heading means invalidate ugh
+     z.mHeading = (AxialDir) v[0];
      return true
   '''
 [operator.oINCR_HEAD]
   doc='[CW ...] if mHeadingValid, increment mHeading clockwise if CW > 0 else CCW'
   impl='''
-     s.pRStack("IN oINCR_HEAD",l.mHeadingValid ? "(valid)" : "(invalid)");
+     s.pRStack("IN oINCR_HEAD",z.mHeadingValid ? "(valid)" : "(invalid)");
      if (!s.pop(v[0])) return false;
-     if (l.mHeadingValid) {
-       l.mHeading = adjacentAxialDir(l.mHeading, v[0] > 0);
+     if (z.mHeadingValid) {
+       C2D fromc = beeveeAxisCoord(z.mHeading);
+       z.mHeading = adjacentAxialDir(z.mHeading, v[0] > 0);
+       C2D toc = beeveeAxisCoord(z.mHeading);
+       C2D netc = toc-fromc;
+       if (z.mPosValid[0]) z.mPosH[0] = (ELOCZ.TileCount) (z.mPosH[0] + netc.getX());
+       if (z.mPosValid[1]) z.mPosH[1] = (ELOCZ.TileCount) (z.mPosH[1] + netc.getY());
      }
-     s.pR(l.mHeading);
+     C2D atc(z.mPosH[0],z.mPosH[1]);
+     s.pR(getAxialDirName(z.mHeading))&&s.pR(atc);
      return true
   '''
 [operator.oINCR_POS]
-  doc='[...] if mHeadingValid, modify XPOS or YPOS based on mHeading'
+  doc='[INC ...] if mHeadingValid, modify XPOS or YPOS by INC based on mHeading'
   impl='''
-     s.pRStack("IN oINCR_POS valid=",
-       l.mHeadingValid ? "+h" : "-h",
-       l.mPosValid[1] ? "+p" : "-p");
-     if (!l.mHeadingValid) {
-       l.mPosValid[0] = false;
-       l.mPosValid[1] = false;
-     } else if (l.mHeading == cW) {
-       if (l.mPosValid[0]) ++l.mPos[0];
-     } else if (l.mHeading == cN) {
-       if (l.mPosValid[1]) ++l.mPos[1];
-     } else if (l.mHeading == cS) {
-       if (l.mPosValid[1]) --l.mPos[1];
-     } else if (l.mHeading == cE) {
-       if (l.mPosValid[0]) --l.mPos[0];
+     if (!s.pop(v[0])) return false;
+     s.mD&&s.pRStack("IN oINCR_POS valid=",
+       z.mHeadingValid ? "+h" : "-h",
+       z.mPosValid[1] ? "+p" : "-p");
+     if (!z.mHeadingValid) {
+       z.mPosValid[0] = false;
+       z.mPosValid[1] = false;
+       return true;   // Nothing to do
+     }
+     AxialDir head = z.mHeading;
+     if (v[0] < 0) {
+       head = oppositeAxialDir(head);
+       v[0] = -v[0];
+     }
+     // v[0] >= 0
+     ELOCZ.TileCount incr = (ELOCZ.TileCount) v[0];
+     if (head == cW) {
+       if (z.mPosValid[0]) z.mPosH[0] += incr;
+     } else if (head == cN) {
+       if (z.mPosValid[1]) z.mPosH[1] += incr;
+     } else if (head == cS) {
+       if (z.mPosValid[1]) z.mPosH[1] -= incr;
+     } else if (head == cE) {
+       if (z.mPosValid[0]) z.mPosH[0] -= incr;
      }
      return true
   '''
@@ -1057,7 +1164,7 @@
 [operator.oGET_XPOS] 
   doc='return [... XPOSOR0] if mPosValid[0], return XPOS, else 0'
   impl='''
-     if (l.mPosValid[0]) v[0] = (Int) l.mPos[0];
+     if (z.mPosValid[0]) v[0] = (Int) z.mPosH[0]/2; ///XXXRECHECK
      else v[0] = 0;
      if (!s.push(v[0])) return false;   // get x
      return true
@@ -1066,7 +1173,7 @@
 [operator.oGET_YPOS] 
   doc='return [... YPOSOR0] if mPosValid[1], return YPOS, else 0'
   impl='''
-     if (l.mPosValid[1]) v[0] = (Int) l.mPos[1];
+     if (z.mPosValid[1]) v[0] = (Int) z.mPosH[1]/2; ///XXXRECHECK
      else v[0] = 0;
      if (!s.push(v[0])) return false;   // get y
      return true
@@ -1075,15 +1182,15 @@
 [operator.oSET_XPOS] 
   impl='''
      if (!s.pop(v[0])) return false;     // get x
-     l.mPosValid[0] = (v[0] >= 0);
-     if (l.mPosValid[0]) l.mPos[0] = (LOCZ.TileCount) v[0];
+     z.mPosValid[0] = (v[0] >= 0);
+     if (z.mPosValid[0]) z.mPosH[0] = (ELOCZ.TileCount) (2*v[0]);
      return true
   '''
 [operator.oSET_YPOS] 
   impl='''
      if (!s.pop(v[0])) return false;     // get y
-     l.mPosValid[1] = (v[0] >= 0);
-     if (l.mPosValid[1]) l.mPos[1] = (LOCZ.TileCount) v[0];
+     z.mPosValid[1] = (v[0] >= 0);
+     if (z.mPosValid[1]) z.mPosH[1] = (ELOCZ.TileCount) (2*v[0]);
      return true
   '''
 

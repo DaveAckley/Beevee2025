@@ -1,0 +1,25 @@
+/** External storage for LOCZ's use, intended to be accessible across
+   the metro region (GTCC, LOCZ, HINFO, & HDT8).
+
+   \symbol EL
+   \color #20d
+*/
+element ELOCZ + DTU + Fail {
+  typedef Unsigned(7u) TileCount;
+  TileCount mPosH[2];           // in units of Halves
+  typedef Bool(3) Bool3;
+  Bool3 mPosValid[2];
+  AxialDir mHeading;
+  Bool3 mHeadingValid;
+
+  TileCount mGoalPosH[2];       // in units of Halves
+  //  AxialDir mGoalHeading;
+
+  Void invalidateAll() {
+    mPosValid[0] = false;
+    mPosValid[1] = false;
+    mHeadingValid = false;
+  }
+  
+}
+
